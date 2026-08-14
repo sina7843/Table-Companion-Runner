@@ -1,0 +1,53 @@
+/* Placeholder styling for the TC-00 boot shell only.
+   The approved token layer (tokens/*.css, components/css/*.css, skins/digital-grimoire.css)
+   replaces this in TC-01 — do not grow this file, and do not copy these literals elsewhere.
+   The three values below are lifted from the approved dark theme so the boot screen is not
+   jarring: --color-bg-app, --color-text-primary, --color-text-accent. */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #1d1a16;
+  color: #f4efe4;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+.boot {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  max-width: 68ch;
+  margin: 0 auto;
+}
+
+.boot__eyebrow {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #cda86b;
+}
+
+.boot__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.boot__note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #c4baa8;
+}

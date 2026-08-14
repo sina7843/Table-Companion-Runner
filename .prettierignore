@@ -1,0 +1,13 @@
+# Governance and protected project source — read, never rewritten by tooling.
+# No markdown in this repository is application source, so none of it is Prettier's business.
+*.md
+.claude/
+tools/
+prompts/
+.table-companion-backups/
+
+# generated / vendored
+node_modules/
+dist/
+coverage/
+*.cmd

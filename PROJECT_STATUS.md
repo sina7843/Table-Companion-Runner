@@ -5,7 +5,7 @@ Mark an item complete only after its implementation is reviewed, relevant checks
 Sliced parents (`08`, `10`, `11`) are never executed as separate implementation prompts. Complete their `a`, `b`, and `c` slices in order.
 
 ## Phase 1 implementation
-- [ ] TC-00
+- [x] TC-00
 - [ ] TC-01
 - [ ] TC-02
 - [ ] TC-03
@@ -31,6 +31,6 @@ Sliced parents (`08`, `10`, `11`) are never executed as separate implementation 
 - [ ] TC-17
 
 ## Current work
-- Active item: `TC-00`
-- Last completed item: none
+- Active item: `TC-01`
+- Last completed item: `TC-00`
 - Blockers: none

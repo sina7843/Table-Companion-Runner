@@ -1,0 +1,40 @@
+# dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+.playwright/
+test-results/
+
+# local environment and secrets
+.env
+.env.*
+!.env.example
+!*.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# local Claude state
+.claude/settings.local.json
+.claude/agent-memory-local/
+
+# editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# generated prompt clipboard backup
+.table-companion-current-prompt.txt
+
+# local recovery artifacts
+.table-companion-backups/

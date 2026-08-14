@@ -1,0 +1,1 @@
+Run 03-CHECK-PACKAGE.cmd after setup.

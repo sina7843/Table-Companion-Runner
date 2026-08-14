@@ -46,11 +46,48 @@ The dev server listens on http://localhost:5173.
 | `npm run build`        | Typecheck, then build to `dist/`                 |
 | `npm run preview`      | Serve the production build locally               |
 | `npm run typecheck`    | `tsc --noEmit`                                   |
+| `npm run test`         | Node's built-in test runner over `src/**/*.test.ts` |
 | `npm run lint`         | oxlint over `src`                                |
 | `npm run format`       | Prettier write                                   |
 | `npm run format:check` | Prettier check, no writes                        |
 
-Run `npm run typecheck`, `npm run lint` and `npm run build` before committing.
+Run `npm run typecheck`, `npm run test`, `npm run lint` and `npm run build` before committing.
+
+## Using the design system
+
+The approved design system lives in [src/design-system/](src/design-system/). Import the
+stylesheet once — `src/main.tsx` already does — then use the typed components:
+
+```tsx
+import { Button, HPBar, Badge } from './design-system';
+
+<Button variant="primary" icon="broadcast">Return to combat</Button>
+<HPBar current={47} max={58} showUnit />
+<Badge tone="warning" icon="drop">Bloodied</Badge>
+```
+
+Two rules keep this from drifting:
+
+1. **The CSS under `tokens/`, `components/css/` and `skins/` is a verbatim copy of the approved
+   Claude Design source.** It is the visual contract. Do not edit it to suit a screen, and do not
+   let Prettier reformat it — `.prettierignore` covers it so it stays diffable against the source.
+2. **React components are adapters, not designers.** They add types, ARIA wiring and state. If you
+   are about to write a colour, font size, spacing value or radius in a `.tsx` file, the answer is
+   a design-system token or a missing design-system component.
+
+Theme and density are data attributes on any ancestor, and compose independently:
+
+```tsx
+<div className="tc-appsurface" data-theme="dark" data-density="compact">
+```
+
+`data-theme` is `dark` (default) or `light`. `data-density` is `comfortable` (default), `compact`
+for the DM's combat surfaces, or `touch` for mobile — which also activates the 44px touch-target
+floor. Put `tc-appsurface` on whatever element paints the full-height background, or the
+Digital Grimoire paper texture is hidden behind it.
+
+Run `npm run dev` and open http://localhost:5173 to see every primitive in the showcase, with
+live theme and density switches. That page is the fidelity-check surface for TC-15.
 
 ## Environment
 
@@ -85,9 +122,17 @@ Breakpoints, mirrored literally in media queries:
 
 ```
 src/
-  main.tsx    React entry point
-  App.tsx     Neutral boot shell (replaced by the real app shell in TC-02)
-  boot.css    Placeholder styling for the boot shell only — removed in TC-01
+  main.tsx              React entry point; imports the design system once
+  App.tsx               Renders the showcase until TC-02 brings the real app shell
+  design-system/
+    styles.css          Verbatim import barrel from the approved design source
+    tokens/*.css        Verbatim — colour, type, spacing, shape, motion, layout
+    components/css/*    Verbatim — controls, nav, data, feedback, overlays, combat
+    skins/*.css         Verbatim — Digital Grimoire
+    components/*.tsx    Typed React adapters over the tc-* classes
+    components/adapters.css  Structural only — <dialog> resets, tooltip anchor
+    index.ts            Public surface
+  showcase/Showcase.tsx Fidelity-check surface for every primitive
 ```
 
 ## Build order

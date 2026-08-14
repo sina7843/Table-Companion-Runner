@@ -1,0 +1,10 @@
+/* Table Companion webfonts.
+   Instrument Sans carries the interface. Literata — a sturdy reading serif — carries display,
+   section and stat-block titles plus long-form lore: that is where the product reads as a
+   rules tool rather than another SaaS dashboard. IBM Plex Mono holds dice and micro-labels.
+
+   SUBSTITUTION NOTE: no font binaries were supplied with the brief, so these are served from
+   the Google CDN. Swap these @import lines for local @font-face rules when licensed files exist. */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,300..800;1,7..72,300..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');

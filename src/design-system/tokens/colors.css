@@ -1,0 +1,272 @@
+/* Semantic colour tokens. Components reference ONLY these, never the raw ramps.
+   :root is DARK — the primary session-running environment.
+   [data-theme="light"] re-points the same names.
+
+   DIRECTION: Digital Grimoire — modern fantasy skeuomorphism. Surfaces are aged ink in
+   dark and parchment in light; the ornament and texture that make it read as a grimoire
+   live in skins/digital-grimoire.css, loaded unconditionally. There is no flat variant.
+
+   FIVE HUES, REUSED HARD:
+     brass    accent, primary action, focus, current turn, warning, HP damaged
+     crimson  danger, damage, HP critical, fumble, debuff, targeted, monsters
+     jade     success, healing, HP healthy, critical roll, buff, live connection, allies
+     azure    info, party-visible, players, temporary HP, concentration, selection
+     violet   privacy only — private, DM-only, secret
+   Nothing else. If a new state needs a colour, it reuses one of these and separates
+   itself with a glyph, a word or a pattern instead.
+
+   TWO CONTRAST AXES, both part of the contract:
+
+   1. TEXT ON A SURFACE. A bare hue token (--color-concentration, --color-debuff, --color-hp-temp,
+      --color-privacy-dm, --color-success …) is a FILL and BORDER value. It is a mid-tone and it
+      does NOT clear 4.5:1 as text on the lighter surfaces. Every hue ever set as a text colour
+      also has a --*-text step, lightened in dark and darkened in light, measured against every
+      surface and tint that text can land on. Set text from the -text step, always.
+
+   2. TEXT ON A SOLID FILL. Never hardcode #fff or a dark literal on a coloured button, badge or
+      pip — use the --color-text-on-* token for that fill. Step 600 of every ramp is a dead zone:
+      neither white nor the hue's own 950 clears 4.5:1 against it, so A FILL THAT CARRIES TEXT
+      NEVER USES STEP 600. Dark theme puts dark ink (the hue's 950) on a light fill (steps
+      400–500); light theme puts white on a dark fill (steps 700–900). Both directions keep the
+      hover/press state moving the same way as its resting state.
+
+   NO OPACITY ON TEXT, NO TRANSLUCENT FILLS BEHIND TEXT. Both composite at render time, so the
+   result cannot be verified from the token values: an on-accent pair measuring 5.36:1 renders at
+   3.73:1 once the text carries opacity .78. There is also NO secondary ink level on an accent
+   fill — brass-900 on brass-500 is only 4.12:1, so there is no room for one. A secondary line on
+   a coloured fill steps down by SIZE and WEIGHT and keeps the full --color-text-on-* colour. */
+:root {
+  color-scheme: dark;
+
+  /* ---- Surfaces — aged ink: warm, brown-shifted, never neutral grey. ---- */
+  --color-bg-app: #1d1a16;
+  --color-surface-sunken: #171410;
+  --color-surface-primary: #262119;
+  --color-surface-secondary: #302921;
+  --color-surface-elevated: #3a3228;
+  --color-surface-interactive: #3d352a; /* tertiary 4.55:1 — this is a hover surface */
+  --color-surface-interactive-active: #453b2f;
+  --color-surface-selected: #3d3120;
+  --color-surface-accent-subtle: #332b1c;
+  --color-surface-inverse: #f4efe4;
+  --color-surface-scrim: rgb(12 10 8 / 0.66);
+  --color-surface-canvas: #151210;
+
+  /* ---- Text ---- */
+  --color-text-primary: #f4efe4;
+  --color-text-secondary: #c4baa8;
+  --color-text-tertiary: #a89e89; /* lifted: must clear 4.5:1 on surface-elevated and the
+                                      active-turn row tint, the lightest things it ever sits on */
+  --color-text-disabled: #6b6357;
+  --color-text-inverse: #1d1a16;
+  --color-text-accent: #cda86b;
+  --color-text-on-accent: #2e2108; /* brass-950 on brass-500 fill = 5.36:1 */
+  --color-text-on-danger: #3c1614; /* crimson-950 on crimson-500 fill = 5.18:1 */
+  --color-text-on-success: #0f2a18; /* jade-950 on jade-500 fill = 5.55:1 */
+  --color-text-link: #cda86b;
+  --color-text-link-hover: #e0c291;
+
+  /* ---- Borders. A divider you cannot see is a divider that is not doing its job —
+     this system uses rules instead of containers, so the rules have to be visible. ---- */
+  --color-border-subtle: #3a3227;
+  --color-border-default: #4d4232;
+  --color-border-strong: #6b5c45;
+  --color-border-interactive: #857356;
+  --color-border-accent: #9f7b39;
+  --color-border-focus: #cda86b;
+
+  /* ---- Accent — brass ---- */
+  --color-accent: #b7914d;
+  --color-accent-hover: #cda86b;
+  --color-accent-active: #b7914d; /* press is the 0.5px shift + inset, not a step into the dead zone */
+  --color-accent-subtle: #332b1c;
+  --color-accent-muted: #654b1c;
+
+  /* ---- Semantic status. Warning reuses brass; there is no fifth status hue. ---- */
+  --color-success: #5fab76;
+  --color-success-text: #9fd6ad;
+  --color-success-subtle: #15291c; /* tertiary 4.70:1 */
+  --color-success-border: #35603f;
+  --color-warning: #b7914d;
+  --color-warning-text: #e0c291;
+  --color-warning-subtle: #2a2110; /* tertiary 4.85:1 */
+  --color-warning-border: #5c4923;
+  --color-danger: #e1726b; /* was crimson-600 — the dead zone; nothing could sit on it */
+  --color-danger-hover: #f58c85;
+  --color-danger-text: #f58c85;
+  --color-danger-subtle: #2e1815; /* tertiary 5.10:1 */
+  --color-danger-border: #6b3733;
+  --color-info: #5086b9;
+  --color-info-text: #a1ccf5;
+  --color-info-subtle: #17222f; /* tertiary 4.91:1 */
+  --color-info-border: #325470;
+
+  /* ---- Hit points: jade → brass → crimson is one continuous read ---- */
+  --color-hp-healthy: #5fab76;
+  --color-hp-damaged: #b7914d;
+  --color-hp-critical: #c65d57;
+  --color-hp-temp: #5086b9;
+  --color-hp-temp-text: #7fb4e6;
+  --color-hp-track: #3a3228;
+
+  /* ---- Combat events ---- */
+  --color-combat-healing: #5fab76;
+  --color-combat-healing-subtle: #15291c;
+  --color-combat-damage: #c65d57;
+  --color-combat-damage-subtle: #2e1815;
+  --color-combat-turn-active: #b7914d;
+  --color-combat-turn-active-subtle: #3a3020;
+  --color-combat-selected: #5086b9;
+  --color-combat-targeted: #c65d57;
+  --color-combat-defeated: #6b6866;
+
+  /* ---- Effects ---- */
+  --color-condition: #c4baa8;
+  --color-condition-subtle: #2a231b; /* tertiary 4.74:1 */
+  --color-buff: #5fab76;
+  --color-debuff: #c65d57;
+  --color-debuff-text: #f58c85;
+  --color-debuff-subtle: #2e1815;
+  --color-concentration: #5086b9;
+  --color-concentration-text: #7fb4e6;
+  --color-concentration-subtle: #17222f;
+  --color-death-success: #5fab76;
+  --color-death-failure: #e1726b; /* off crimson-600: the pip carries a ✕ glyph */
+
+  /* ---- Privacy — the only place violet appears ---- */
+  --color-privacy-public: #96938f;
+  --color-privacy-party: #5086b9;
+  --color-privacy-private: #a389cb;
+  --color-privacy-dm: #a389cb;
+  --color-privacy-dm-text: #b9a1e0;
+  --color-privacy-dm-subtle: #251d30; /* tertiary 4.95:1 */
+  --color-privacy-secret: #8c73b2;
+
+  /* ---- Entity types (always paired with an icon and a word) ---- */
+  --color-entity-player: #5086b9;
+  --color-entity-monster: #c65d57;
+  --color-entity-npc: #96938f;
+  --color-entity-ally: #5fab76;
+
+  /* ---- Dice outcomes ---- */
+  --color-roll-critical: #5fab76;
+  --color-roll-fumble: #c65d57;
+  --color-roll-advantage: #5fab76;
+  --color-roll-disadvantage: #c65d57;
+
+  /* ---- Connection ---- */
+  --color-connection-live: #5fab76;
+  --color-connection-reconnecting: #b7914d;
+  --color-connection-offline: #96938f;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --color-bg-app: #e6dcc4;
+  --color-surface-sunken: #dcd0b4;
+  --color-surface-primary: #f4ecd8;
+  --color-surface-secondary: #ede3cc;
+  --color-surface-elevated: #f8f2e2;
+  --color-surface-interactive: #e9dfc8; /* tertiary 4.64:1 */
+  --color-surface-interactive-active: #ddd1b6;
+  --color-surface-selected: #f0e2bf;
+  --color-surface-accent-subtle: #fdf6ea;
+  --color-surface-inverse: #2a2318;
+  --color-surface-scrim: rgb(40 33 20 / 0.45);
+  --color-surface-canvas: #ddd0ae;
+
+  --color-text-primary: #2a2318;
+  --color-text-secondary: #5c5140;
+  --color-text-tertiary: #6b6050; /* 4.51:1 on app bg, 5.77:1 on subtle tints */
+  --color-text-disabled: #b0a488;
+  --color-text-inverse: #f4ecd8;
+  --color-text-accent: #654b1c; /* 5.98:1 at worst — the active-turn tint */
+  --color-text-on-accent: #ffffff; /* on brass-700 fill = 5.55:1 */
+  --color-text-on-danger: #ffffff; /* on crimson-700 fill = 5.82:1 */
+  --color-text-on-success: #ffffff; /* on jade-700 fill = 5.24:1 */
+  --color-text-link: #654b1c;
+  --color-text-link-hover: #463310;
+
+  --color-border-subtle: #d8cbaf;
+  --color-border-default: #c2b291;
+  --color-border-strong: #9d8b6a;
+  --color-border-interactive: #857356;
+  --color-border-accent: #9f7b39;
+  --color-border-focus: #836329;
+
+  --color-accent: #836329; /* was brass-600 — the dead zone; white measured 3.91:1 */
+  --color-accent-hover: #654b1c;
+  --color-accent-active: #463310;
+  --color-accent-subtle: #fdf6ea;
+  --color-accent-muted: #eed9b7;
+
+  --color-success: #38794d;
+  --color-success-text: #295d39;
+  --color-success-subtle: #eefbf0;
+  --color-success-border: #c1e8ca;
+  --color-warning: #836329;
+  --color-warning-text: #654b1c;
+  --color-warning-subtle: #fdf6ea;
+  --color-warning-border: #eed9b7;
+  --color-danger: #a54844;
+  --color-danger-hover: #803632;
+  --color-danger-text: #803632;
+  --color-danger-subtle: #fff1ee;
+  --color-danger-border: #ffcac4;
+  --color-info: #3d6d9a;
+  --color-info-text: #2d5377;
+  --color-info-subtle: #eef8ff;
+  --color-info-border: #c2e0fe;
+
+  --color-hp-healthy: #38794d;
+  --color-hp-damaged: #836329;
+  --color-hp-critical: #a54844;
+  --color-hp-temp: #3d6d9a;
+  --color-hp-temp-text: #2d5377;
+  --color-hp-track: #d8cbaf;
+
+  --color-combat-healing: #38794d;
+  --color-combat-healing-subtle: #eefbf0;
+  --color-combat-damage: #a54844;
+  --color-combat-damage-subtle: #fff1ee;
+  --color-combat-turn-active: #836329; /* tracks --color-accent off brass-600 */
+  --color-combat-turn-active-subtle: #fbf3e2;
+  --color-combat-selected: #3d6d9a;
+  --color-combat-targeted: #a54844;
+  --color-combat-defeated: #9b9895;
+
+  --color-condition: #5c5140;
+  --color-condition-subtle: #efe7d3;
+  --color-buff: #38794d;
+  --color-debuff: #a54844;
+  --color-debuff-text: #803632;
+  --color-debuff-subtle: #fff1ee;
+  --color-concentration: #3d6d9a;
+  --color-concentration-text: #2d5377;
+  --color-concentration-subtle: #eef8ff;
+  --color-death-success: #38794d;
+  --color-death-failure: #a54844;
+
+  --color-privacy-public: #7d7a78;
+  --color-privacy-party: #3d6d9a;
+  --color-privacy-private: #735d94;
+  --color-privacy-dm: #735d94;
+  --color-privacy-dm-text: #584672;
+  --color-privacy-dm-subtle: #f9f4ff;
+  --color-privacy-secret: #584672;
+
+  --color-entity-player: #3d6d9a;
+  --color-entity-monster: #a54844;
+  --color-entity-npc: #7d7a78;
+  --color-entity-ally: #38794d;
+
+  --color-roll-critical: #38794d;
+  --color-roll-fumble: #a54844;
+  --color-roll-advantage: #38794d;
+  --color-roll-disadvantage: #a54844;
+
+  --color-connection-live: #38794d;
+  --color-connection-reconnecting: #836329;
+  --color-connection-offline: #7d7a78;
+}

@@ -1,0 +1,88 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Touch target enforcement.
+
+   WHY THIS FILE EXISTS: --touch-target-min was declared in tokens/layout.css and
+   referenced by exactly ONE rule in the whole system (.tc-bottomnav__item). Every
+   other control sized itself from --density-control-height* or a hardcoded pixel
+   literal, so the documented 44px minimum enforced nothing — tabs shipped at 34px,
+   dice buttons and "End Turn" at 36px, segmented items at 38px, all on the Player's
+   primary screens.
+
+   Three separate mechanisms were bypassing it:
+     1. hardcoded heights that consult no density token at all (.tc-tab)
+     2. a touch-density token that was itself under the minimum (36px small control)
+     3. a calc that subtracts from the density height (.tc-segmented__item, -6px)
+
+   Rather than fix each of those and hope the next component remembers, this file makes
+   the token enforce itself: at touch density every interactive control gets a floor of
+   var(--touch-target-min). A component can be larger, never smaller. Imported last in
+   styles.css so it wins on specificity ties.
+
+   Only touch density is constrained. Compact stays dense on purpose — that is the DM's
+   desktop combat surface, driven by a mouse.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+[data-density='touch']
+  :is(
+    .tc-btn,
+    .tc-iconbtn,
+    .tc-tab,
+    .tc-segmented__item,
+    .tc-chip,
+    .tc-dice,
+    .tc-navitem,
+    .tc-menu__item,
+    .tc-hpquick,
+    .tc-death__pip,
+    .tc-wizard__step,
+    .tc-bottomnav__item,
+    .tc-row,
+    .tc-init,
+    .tc-action
+  ) {
+  min-height: var(--touch-target-min);
+}
+
+/* A min-height floor only works on controls designed at roughly half the minimum or more.
+   .tc-cond is designed at 20px: flooring it to 44px more than doubled its box while its 6px
+   horizontal padding and 11px text stayed put, so a compact inline status marker rendered as a
+   large bordered button. Anything under ~26px designed height belongs in the expanded-hit-area
+   block below instead, which meets the minimum without touching the visual size. */
+
+/* Width matters as much as height for icon-only and pip controls. */
+[data-density='touch'] :is(.tc-iconbtn, .tc-death__pip, .tc-hpquick) {
+  min-width: var(--touch-target-min);
+}
+
+/* Controls that centre their content need the alignment back once they grow. */
+[data-density='touch'] :is(.tc-tab, .tc-segmented__item, .tc-death__pip, .tc-hpquick) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Controls whose designed size is far below the minimum keep their visual size and gain an
+   invisible expanded target: chip dismiss affordances, and the condition chip itself. */
+[data-density='touch'] :is(.tc-chip__dismiss, .tc-cond__x, .tc-cond) {
+  position: relative;
+}
+[data-density='touch'] :is(.tc-chip__dismiss, .tc-cond__x)::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+  transform: translate(-50%, -50%);
+}
+/* The chip is already wider than 44px, so only its height needs expanding. The dismiss button
+   inside it establishes its own stacking context above this, so it stays independently tappable. */
+[data-density='touch'] .tc-cond::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--touch-target-min);
+  transform: translateY(-50%);
+}

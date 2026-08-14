@@ -1,0 +1,43 @@
+/* Radius, border and elevation. Radii are deliberately small — a printed page has
+   tighter corners than a typical web app, and structure comes from spacing, type and
+   dividers first; a container is the last resort, not the first. */
+:root {
+  --radius-0: 0px;
+  --radius-xs: 2px; /* chips, tags, meters */
+  --radius-sm: 3px;
+  --radius-md: 3px; /* default control radius: inputs, buttons, rows */
+  --radius-lg: 4px; /* cards, panels */
+  --radius-xl: 6px; /* sheets, modals */
+  --radius-2xl: 10px; /* mobile bottom sheet */
+  --radius-full: 999px;
+
+  --border-width-hairline: 1px;
+  --border-width-emphasis: 2px;
+  --border-width-marker: 3px; /* active-turn left marker */
+
+  --border-subtle: var(--border-width-hairline) solid var(--color-border-subtle);
+  --border-default: var(--border-width-hairline) solid var(--color-border-default);
+  --border-strong: var(--border-width-hairline) solid var(--color-border-strong);
+
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring: 0 0 0 var(--focus-ring-width) var(--color-border-focus);
+
+  /* Elevation in dark mode is carried mostly by surface lightness + a hairline;
+     the shadow is a quiet secondary cue. */
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.3);
+  --elevation-2: 0 2px 6px -1px rgb(0 0 0 / 0.36), 0 1px 2px rgb(0 0 0 / 0.24);
+  --elevation-3: 0 8px 20px -6px rgb(0 0 0 / 0.46), 0 2px 6px rgb(0 0 0 / 0.28);
+  --elevation-4: 0 18px 44px -12px rgb(0 0 0 / 0.58), 0 4px 10px rgb(0 0 0 / 0.32);
+  --elevation-5: 0 28px 70px -16px rgb(0 0 0 / 0.66), 0 6px 14px rgb(0 0 0 / 0.36);
+  --elevation-inset: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+[data-theme='light'] {
+  --elevation-1: 0 1px 2px rgb(26 29 37 / 0.08);
+  --elevation-2: 0 2px 6px -1px rgb(26 29 37 / 0.1), 0 1px 2px rgb(26 29 37 / 0.06);
+  --elevation-3: 0 8px 20px -6px rgb(26 29 37 / 0.14), 0 2px 6px rgb(26 29 37 / 0.08);
+  --elevation-4: 0 18px 44px -12px rgb(26 29 37 / 0.18), 0 4px 10px rgb(26 29 37 / 0.08);
+  --elevation-5: 0 28px 70px -16px rgb(26 29 37 / 0.22), 0 6px 14px rgb(26 29 37 / 0.1);
+  --elevation-inset: inset 0 1px 0 rgb(255 255 255 / 0.6);
+}

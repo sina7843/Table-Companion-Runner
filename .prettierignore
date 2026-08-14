@@ -6,6 +6,13 @@ tools/
 prompts/
 .table-companion-backups/
 
+# Vendored design-system CSS — a copy of the approved Claude Design source, kept so it can
+# be diffed against that source on re-import. Formatting it is drift, not tidiness.
+src/design-system/tokens/
+src/design-system/components/css/
+src/design-system/skins/
+src/design-system/styles.css
+
 # generated / vendored
 node_modules/
 dist/

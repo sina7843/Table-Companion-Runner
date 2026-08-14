@@ -1,0 +1,1132 @@
+/* Domain components: stats, hit points, initiative, conditions, dice, sheets, privacy. */
+
+/* ---------- Stat ---------- */
+.tc-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: var(--space-6) var(--space-8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-secondary);
+}
+.tc-stat__label {
+  font-family: var(--font-mono);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--text-caption-size);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.tc-stat__value {
+  font-size: var(--text-stat-md-size);
+  font-weight: var(--text-stat-md-weight);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.tc-stat__mod {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.tc-stat__mod[data-sign='positive'] {
+  color: var(--color-success-text);
+}
+.tc-stat__mod[data-sign='negative'] {
+  color: var(--color-danger-text);
+}
+.tc-stat--inline {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-6);
+  border: 0;
+  background: none;
+  padding: 0;
+  min-width: 0;
+}
+.tc-stat--lg .tc-stat__value {
+  font-size: var(--text-stat-lg-size);
+}
+.tc-stat--plain {
+  border: 0;
+  background: none;
+  padding: 0;
+}
+.tc-stat[data-interactive='true'] {
+  cursor: pointer;
+  transition:
+    background var(--motion-hover),
+    border-color var(--motion-hover);
+}
+.tc-stat[data-interactive='true']:hover {
+  background: var(--color-surface-interactive);
+  border-color: var(--color-border-strong);
+}
+/* The box lightens on hover, so the tertiary label comes up with it — same rule as .tc-navitem. */
+.tc-stat[data-interactive='true']:hover .tc-stat__label {
+  color: var(--color-text-secondary);
+}
+.tc-stat[data-overridden='true'] {
+  border-color: var(--color-border-accent);
+}
+.tc-stat[data-overridden='true'] .tc-stat__label::after {
+  content: ' ·';
+  color: var(--color-text-accent);
+}
+.tc-statgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+.tc-statgrid > .tc-stat {
+  min-width: 0;
+}
+
+/* ---------- HP ---------- */
+.tc-hpbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.tc-hpbar__nums {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: var(--font-features-tabular);
+}
+.tc-hpbar__cur {
+  font-size: var(--text-stat-md-size);
+  font-weight: 700;
+  line-height: 1;
+}
+/* Secondary, not tertiary: these sit on the active-turn and selected row tints, which are
+   lighter than any surface, and tertiary does not clear 4.5:1 against them. */
+.tc-hpbar__max {
+  font-size: var(--font-size-12);
+  color: var(--color-text-secondary);
+}
+.tc-hpbar__unit {
+  font-size: var(--font-size-11);
+  color: var(--color-text-secondary);
+  letter-spacing: 0.04em;
+}
+.tc-hpbar__temp {
+  margin-left: var(--space-6);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--font-size-11);
+  font-weight: 700;
+  color: var(--color-hp-temp-text);
+}
+.tc-hpbar__track {
+  position: relative;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--color-hp-track);
+  overflow: hidden;
+}
+.tc-hpbar__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  transition:
+    width var(--motion-state),
+    background var(--motion-state);
+}
+.tc-hpbar__tempfill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--color-hp-temp);
+  opacity: 0.85;
+  border-left: 1px solid var(--color-surface-primary);
+}
+.tc-hpbar[data-band='healthy'] .tc-hpbar__cur {
+  color: var(--color-text-primary);
+}
+.tc-hpbar[data-band='healthy'] .tc-hpbar__fill {
+  background: var(--color-hp-healthy);
+}
+.tc-hpbar[data-band='damaged'] .tc-hpbar__fill {
+  background: var(--color-hp-damaged);
+}
+.tc-hpbar[data-band='damaged'] .tc-hpbar__cur {
+  color: var(--color-warning-text);
+}
+.tc-hpbar[data-band='critical'] .tc-hpbar__fill {
+  background: var(--color-hp-critical);
+}
+.tc-hpbar[data-band='critical'] .tc-hpbar__cur {
+  color: var(--color-danger-text);
+}
+.tc-hpbar[data-band='down'] .tc-hpbar__fill {
+  background: var(--color-combat-defeated);
+}
+.tc-hpbar[data-band='down'] .tc-hpbar__cur {
+  color: var(--color-text-tertiary);
+}
+/* realtime change flash — one short pass, no looping */
+.tc-hpbar[data-delta='damage'] {
+  animation: tc-flash-damage var(--duration-flash) var(--ease-out);
+}
+.tc-hpbar[data-delta='healing'] {
+  animation: tc-flash-heal var(--duration-flash) var(--ease-out);
+}
+@keyframes tc-flash-damage {
+  0% {
+    background: var(--color-combat-damage-subtle);
+  }
+  100% {
+    background: transparent;
+  }
+}
+@keyframes tc-flash-heal {
+  0% {
+    background: var(--color-combat-healing-subtle);
+  }
+  100% {
+    background: transparent;
+  }
+}
+.tc-hpdelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tc-hpdelta[data-kind='damage'] {
+  color: var(--color-danger-text);
+}
+.tc-hpdelta[data-kind='healing'] {
+  color: var(--color-success-text);
+}
+.tc-hpdelta[data-kind='temp'] {
+  color: var(--color-hp-temp-text);
+}
+
+.tc-hpcontrol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+.tc-hpcontrol__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.tc-hpcontrol__quick {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.tc-hpquick {
+  min-width: 34px;
+  height: 26px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-secondary);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  font-weight: 600;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background var(--motion-hover),
+    border-color var(--motion-hover),
+    color var(--motion-hover);
+}
+.tc-hpquick:hover {
+  background: var(--color-surface-interactive);
+  color: var(--color-text-primary);
+}
+.tc-hpquick[data-kind='damage']:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger-text);
+}
+.tc-hpquick[data-kind='healing']:hover {
+  border-color: var(--color-success);
+  color: var(--color-success-text);
+}
+
+/* ---------- Turn indicator ---------- */
+.tc-turn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex: none;
+  height: 22px;
+  padding: 0 var(--space-8) 0 var(--space-6);
+  border-radius: var(--radius-xs);
+  background: var(--color-combat-turn-active);
+  color: var(--color-text-on-accent);
+  font-size: var(--font-size-11);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.tc-turn--quiet {
+  background: var(--color-combat-turn-active-subtle);
+  color: var(--color-text-accent);
+  box-shadow: inset 0 0 0 1px var(--color-border-accent);
+}
+.tc-turn--next {
+  background: none;
+  color: var(--color-text-tertiary);
+  box-shadow: inset 0 0 0 1px var(--color-border-default);
+}
+.tc-roundcounter {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.tc-roundcounter b {
+  font-size: var(--font-size-14);
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+/* ---------- Initiative row / participant ---------- */
+.tc-init {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--border-width-marker) 34px minmax(96px, 1fr) auto;
+  align-items: center;
+  gap: 0 var(--density-gap);
+  width: 100%;
+  min-height: var(--density-row-height);
+  padding: var(--density-inset-y) var(--density-inset-x) var(--density-inset-y) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--motion-hover);
+}
+.tc-init__marker {
+  align-self: stretch;
+  background: transparent;
+}
+.tc-init:hover {
+  background: var(--color-surface-secondary);
+}
+.tc-init__main {
+  min-width: 0;
+}
+.tc-init__init {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-15);
+  font-weight: 600;
+  text-align: right;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.tc-init__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tc-init__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font-size: var(--density-font-size);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tc-init__type {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  flex: none;
+}
+.tc-init__type[data-entity='player'] {
+  background: var(--color-entity-player);
+}
+.tc-init__type[data-entity='monster'] {
+  background: var(--color-entity-monster);
+}
+.tc-init__type[data-entity='npc'] {
+  background: var(--color-entity-npc);
+}
+.tc-init__type[data-entity='ally'] {
+  background: var(--color-entity-ally);
+}
+.tc-init__sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.tc-init__trail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+  flex-shrink: 1;
+}
+.tc-init__trail > .tc-hpbar {
+  min-width: 52px;
+  max-width: 140px;
+  flex-shrink: 1;
+}
+.tc-init__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+/* The row degrades from the least important element inward. Identity always survives:
+   the name column has a 96px floor, so pressure lands on the action cluster, then on the
+   turn indicator's label, and never on knowing who is in the fight. Wrap a list of rows in
+   .tc-initlist to arm this — it also makes the row usable in a Phase 3 VTT sidebar. */
+.tc-initlist {
+  container-type: inline-size;
+}
+@container (max-width: 560px) {
+  .tc-init__actions {
+    display: none;
+  }
+}
+@container (max-width: 400px) {
+  .tc-turn__text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .tc-turn {
+    padding: 0 var(--space-4);
+  }
+  .tc-init__trail > .tc-hpbar {
+    max-width: 104px;
+  }
+}
+@container (max-width: 300px) {
+  .tc-init__trail > .tc-hpbar .tc-hpbar__track {
+    display: none;
+  }
+  .tc-init__trail > .tc-hpbar {
+    max-width: none;
+  }
+}
+.tc-init[data-state='active'] {
+  background: var(--color-combat-turn-active-subtle);
+}
+.tc-init[data-state='active'] .tc-init__marker {
+  background: var(--color-combat-turn-active);
+}
+.tc-init[data-state='active'] .tc-init__init {
+  color: var(--color-text-accent);
+}
+.tc-init[data-selected='true'] {
+  background: var(--color-surface-interactive);
+  box-shadow: inset 0 0 0 1px var(--color-combat-selected);
+}
+.tc-init[data-targeted='true'] .tc-init__marker {
+  background: repeating-linear-gradient(
+    180deg,
+    var(--color-combat-targeted) 0 4px,
+    transparent 4px 8px
+  );
+}
+/* Unconscious is a live, urgent state — a downed player who is still in the fight and
+   rolling saves. It must read as more alarming than defeated, not less: solid crimson
+   marker, crimson tint, name intact (no strikethrough — that is reserved for defeated). */
+.tc-init[data-state='unconscious'] {
+  background: var(--color-combat-damage-subtle);
+}
+.tc-init[data-state='unconscious'] .tc-init__marker {
+  background: var(--color-combat-damage);
+}
+.tc-init[data-state='unconscious'] .tc-init__init {
+  color: var(--color-danger-text);
+}
+.tc-init__flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 var(--space-4);
+  height: 17px;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-11);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--color-danger-subtle);
+  color: var(--color-danger-text);
+  border: 1px solid var(--color-danger-border);
+}
+.tc-init__deaths {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font-size: var(--font-size-11);
+  color: var(--color-text-tertiary);
+}
+.tc-init__deaths span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.tc-init__deathpips {
+  display: inline-flex;
+  gap: 2px;
+}
+.tc-init__deathpip {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+}
+.tc-init__deathpip[data-filled='true'][data-kind='success'] {
+  background: var(--color-death-success);
+  border-color: var(--color-death-success);
+}
+.tc-init__deathpip[data-filled='true'][data-kind='failure'] {
+  background: var(--color-death-failure);
+  border-color: var(--color-death-failure);
+}
+/* Defeated: explicit token colours, not a blanket opacity. Dimming the whole row at .55 took
+   every tertiary-level child — the conditions line and the death-save readout — down with it. */
+.tc-init[data-state='defeated'] .tc-init__init,
+.tc-init[data-state='defeated'] .tc-init__name {
+  color: var(--color-text-tertiary);
+}
+.tc-init[data-state='defeated'] .tc-init__type {
+  opacity: 0.6;
+}
+.tc-init[data-state='defeated'] .tc-init__name {
+  text-decoration: line-through;
+  text-decoration-color: var(--color-text-tertiary);
+}
+.tc-init[data-state='defeated'] .tc-init__marker {
+  background: var(--color-combat-defeated);
+}
+.tc-init[data-dm-only='true'] {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 6px,
+    color-mix(in srgb, var(--color-privacy-dm) 7%, transparent) 6px 12px
+  );
+}
+
+/* ---------- Condition chip ---------- */
+.tc-cond {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 20px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-xs);
+  background: var(--color-condition-subtle);
+  border: 1px solid color-mix(in srgb, var(--color-condition) 34%, transparent);
+  color: var(--color-condition);
+  font-size: var(--font-size-11);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tc-cond i {
+  font-size: 11px;
+}
+.tc-cond__dur {
+  font-family: var(--font-mono);
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+.tc-cond--buff {
+  background: var(--color-success-subtle);
+  border-color: var(--color-success-border);
+  color: var(--color-success-text);
+}
+/* Solid, not a translucent mix: a chip's contrast has to be guaranteed by its own token,
+   not by whatever row happens to be behind it. */
+.tc-cond--debuff {
+  background: var(--color-debuff-subtle);
+  border-color: color-mix(in srgb, var(--color-debuff) 34%, transparent);
+  color: var(--color-debuff-text);
+}
+.tc-cond--concentration {
+  background: var(--color-concentration-subtle);
+  border-color: color-mix(in srgb, var(--color-concentration) 34%, transparent);
+  color: var(--color-concentration-text);
+}
+.tc-cond--danger {
+  background: var(--color-danger-subtle);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger-text);
+}
+.tc-cond__x {
+  display: inline-flex;
+  width: 13px;
+  height: 13px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.tc-cond__x:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+/* ---------- Dice ---------- */
+.tc-dice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  white-space: nowrap;
+  flex: none;
+  height: var(--density-control-height);
+  padding: 0 var(--space-10);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition:
+    background var(--motion-hover),
+    border-color var(--motion-hover);
+}
+.tc-dice:hover {
+  background: var(--color-surface-interactive);
+  border-color: var(--color-border-strong);
+}
+.tc-dice:active {
+  transform: translateY(0.5px);
+}
+.tc-dice i {
+  color: var(--color-text-tertiary);
+  font-size: var(--icon-size-md);
+}
+.tc-dice__expr {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-size);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tc-dice__label {
+  font-size: var(--font-size-12);
+  color: var(--color-text-secondary);
+}
+.tc-dice[data-adv='advantage'] {
+  border-color: color-mix(in srgb, var(--color-roll-advantage) 55%, transparent);
+}
+.tc-dice[data-adv='advantage'] i {
+  color: var(--color-roll-advantage);
+}
+.tc-dice[data-adv='disadvantage'] {
+  border-color: color-mix(in srgb, var(--color-roll-disadvantage) 55%, transparent);
+}
+.tc-dice[data-adv='disadvantage'] i {
+  color: var(--color-roll-disadvantage);
+}
+.tc-dice--primary {
+  background: var(--color-accent);
+  border-color: transparent;
+  color: var(--color-text-on-accent);
+}
+.tc-dice--primary i,
+.tc-dice--primary .tc-dice__label {
+  color: inherit;
+}
+.tc-dice--primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.tc-roll {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-secondary);
+  animation: tc-roll-in var(--duration-slow) var(--ease-emphasized);
+}
+@keyframes tc-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.tc-roll__total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 52px;
+  padding-right: var(--space-10);
+  border-right: 1px solid var(--color-border-subtle);
+}
+.tc-roll__total b {
+  font-size: var(--text-stat-lg-size);
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.tc-roll__total span {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.tc-roll__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tc-roll__title {
+  font-size: var(--font-size-13);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+/* The auditable dice math — never tertiary. It has to be readable on the critical and
+   fumble outcome tints, and it is content, not metadata. */
+.tc-roll__breakdown {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.tc-roll__breakdown b {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+/* The die discarded by advantage/disadvantage is still part of the auditable math, so it
+   stays readable — the strikethrough is what marks it dropped, not a faded colour. */
+.tc-roll__breakdown s {
+  color: var(--color-text-tertiary);
+  text-decoration-thickness: 1px;
+}
+.tc-roll[data-outcome='critical'] {
+  border-color: var(--color-roll-critical);
+  background: var(--color-success-subtle);
+}
+.tc-roll[data-outcome='critical'] .tc-roll__total b {
+  color: var(--color-roll-critical);
+}
+.tc-roll[data-outcome='fumble'] {
+  border-color: var(--color-roll-fumble);
+  background: var(--color-danger-subtle);
+}
+.tc-roll[data-outcome='fumble'] .tc-roll__total b {
+  color: var(--color-roll-fumble);
+}
+.tc-roll__flags {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* ---------- Action / spell rows ---------- */
+.tc-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  width: 100%;
+  min-height: var(--density-row-height);
+  padding: var(--density-inset-y) var(--density-inset-x);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: none;
+  text-align: left;
+  transition: background var(--motion-hover);
+}
+.tc-action:hover {
+  background: var(--color-surface-secondary);
+}
+.tc-action__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tc-action__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font-size: var(--density-font-size);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.tc-action__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+}
+.tc-action__meta b {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+.tc-action__rolls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: none;
+  opacity: 0.72;
+  transition: opacity var(--motion-hover);
+}
+.tc-action:hover .tc-action__rolls,
+.tc-action:focus-within .tc-action__rolls {
+  opacity: 1;
+}
+.tc-action__level {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-interactive);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-11);
+  font-weight: 700;
+}
+/* Unprepared spells stay findable — a player still needs to read them. Emphasis drops via the
+   hollow level marker and the name colour, NOT via opacity: at .62 the meta line composited to
+   3.21:1. Nothing readable is dimmed by opacity anywhere in this system. */
+.tc-action[data-prepared='false'] .tc-action__name {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+.tc-action[data-prepared='false'] .tc-action__level {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-border-default);
+}
+
+.tc-slots {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.tc-slots__pips {
+  display: flex;
+  gap: 3px;
+}
+.tc-slots__pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+}
+.tc-slots__pip[data-used='false'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* ---------- Death saves ---------- */
+.tc-death {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.tc-death__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--font-size-12);
+  font-weight: 600;
+}
+.tc-death__label {
+  width: 62px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.tc-death__pips {
+  display: flex;
+  gap: var(--space-4);
+}
+.tc-death__pip {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: transparent;
+  cursor: pointer;
+  transition:
+    background var(--motion-hover),
+    border-color var(--motion-hover);
+}
+.tc-death__pip:hover {
+  border-color: var(--color-border-interactive);
+}
+.tc-death__pip[data-filled='true'][data-kind='success'] {
+  background: var(--color-death-success);
+  border-color: var(--color-death-success);
+  color: var(--color-text-on-success);
+}
+.tc-death__pip[data-filled='true'][data-kind='failure'] {
+  background: var(--color-death-failure);
+  border-color: var(--color-death-failure);
+  color: var(--color-text-on-danger);
+}
+.tc-death__outcome {
+  font-size: var(--font-size-12);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- Monster stat block ---------- */
+.tc-statblock {
+  display: flex;
+  flex-direction: column;
+}
+.tc-statblock__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--space-8);
+  border-bottom: 2px solid var(--color-border-accent);
+}
+.tc-statblock__name {
+  font-family: var(--font-display);
+  font-size: var(--text-page-title-size);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.tc-statblock__sub {
+  font-size: var(--font-size-12);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+.tc-statblock__section {
+  padding: var(--space-10) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.tc-statblock__sectitle {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-6);
+}
+.tc-statblock__abilities {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.tc-statblock__trait {
+  font-size: var(--font-size-13);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-8);
+}
+.tc-statblock__trait b {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+.tc-statblock__trait em {
+  color: var(--color-text-primary);
+  font-style: italic;
+}
+
+/* ---------- Privacy ---------- */
+.tc-privacy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 20px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-11);
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.tc-privacy i {
+  font-size: 11px;
+}
+.tc-privacy[data-level='public'] {
+  background: var(--color-surface-interactive);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-subtle);
+}
+.tc-privacy[data-level='party'] {
+  background: var(--color-info-subtle);
+  color: var(--color-info-text);
+  border-color: var(--color-info-border);
+}
+.tc-privacy[data-level='private'],
+.tc-privacy[data-level='dm-only'],
+.tc-privacy[data-level='secret'] {
+  background: var(--color-privacy-dm-subtle);
+  color: var(--color-privacy-dm-text);
+  border-color: color-mix(in srgb, var(--color-privacy-dm) 38%, transparent);
+}
+.tc-dmzone {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--color-privacy-dm) 40%, transparent);
+  border-radius: var(--radius-md);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    color-mix(in srgb, var(--color-privacy-dm) 8%, transparent) 7px 14px
+  );
+}
+.tc-dmzone__label {
+  position: absolute;
+  top: -9px;
+  left: var(--space-10);
+  padding: 0 var(--space-6);
+  background: var(--color-surface-primary);
+  font-size: var(--font-size-11);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-privacy-dm-text);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---------- Wizard ---------- */
+.tc-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.tc-wizard__step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-8);
+  border-radius: var(--radius-md);
+  border: 0;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-13);
+  transition: background var(--motion-hover);
+}
+.tc-wizard__step:hover {
+  background: var(--color-surface-interactive);
+}
+.tc-wizard__num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-strong);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-11);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+}
+.tc-wizard__step[data-state='complete'] .tc-wizard__num {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-text-on-success);
+}
+.tc-wizard__step[data-state='current'] {
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+.tc-wizard__step[data-state='current'] .tc-wizard__num {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+.tc-wizard__step[data-state='error'] .tc-wizard__num {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-text-on-danger);
+}
+.tc-wizard__step[data-state='disabled'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tc-wizard__meta {
+  margin-left: auto;
+  font-size: var(--font-size-11);
+  color: var(--color-text-tertiary);
+}
+.tc-wizard__rail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+.tc-wizard__railseg {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-surface-interactive);
+}
+.tc-wizard__railseg[data-state='complete'] {
+  background: var(--color-success);
+}
+.tc-wizard__railseg[data-state='current'] {
+  background: var(--color-accent);
+}

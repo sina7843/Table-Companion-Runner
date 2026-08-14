@@ -156,3 +156,52 @@ labels.
 - Two open questions the designer flagged for the user: monster instances are auto-named
   `Goblin #1 – #4` rather than prompting the DM, and identical monsters share one grouped
   initiative entry by default, expandable per member.
+
+---
+
+## TC-01 — Design system integrated
+
+The approved CSS is vendored verbatim under `src/design-system/` (mirrored folder layout, so
+`styles.css` and its relative imports are unchanged) and is covered by `.prettierignore` to stay
+diffable against the design source. React components are thin typed adapters over the `tc-*`
+classes and contain no visual decisions. See `DECISIONS.md` for the reasoning.
+
+### Primitives implemented
+
+| Group    | Components                                                        |
+| -------- | ----------------------------------------------------------------- |
+| Actions  | `Button` (6 variants, 3 sizes, loading, block), `IconButton`        |
+| Forms    | `Field` (label/help/error + id wiring), `TextInput`, `Textarea`     |
+| Nav      | `Tabs`, `TabPanel`                                                  |
+| Data     | `Badge`, `Chip`, `Tag`, `SectionHeader`, `ListRow`, `Table`         |
+| Overlays | `Modal`, `Drawer`, `Tooltip`                                        |
+| Feedback | `Alert`, `Skeleton`, `Toast`, `ToastViewport`, `ConnectionStatus`   |
+| Domain   | `Stat`, `StatGrid`, `HPBar`, `HPDelta`, `HPControl`, `ConditionChip`, `DiceButton`, `RollResult`, `TurnIndicator`, `RoundCounter` |
+| Utility  | `Icon`, `cx`, `hpBand`, and the shared token-derived unions         |
+
+### Preserved from the design contract
+
+- **Typography, colour, spacing, shape, motion, icons** — untouched token files; nothing is
+  re-declared in TypeScript.
+- **Dark/light** via `[data-theme]`; both blocks present in the compiled bundle.
+- **Density** via `[data-density]`, independent of viewport, including the `touch-targets.css`
+  44px floor and its expanded-hit-area treatment for sub-26px controls.
+- **Contrast contract** — adapters set text from `-text` steps and text-on-fills from
+  `--color-text-on-*`. No component dims readable text with opacity.
+- **Word + glyph, never colour alone** — `ConnectionStatus` and `Badge` always render a label;
+  `HPBar`'s meter carries a real spoken value via `aria-label` and `aria-valuenow`.
+
+### Accessibility beyond the CSS
+
+`Modal`/`Drawer` use native `<dialog>` + `showModal()` for focus trap, inert background, Escape
+and top-layer stacking. `Tabs` implements roving tabindex with arrow/Home/End and skips disabled
+tabs. `Tooltip` shows on focus as well as hover and wires `aria-describedby`. `Field` owns the
+`aria-describedby` id wiring. `IconButton` requires a `label`. Icons are `aria-hidden` by default.
+
+### Deliberately not built yet
+
+`Sidebar`, `NavItem`, `BottomNav`, `SegmentedControl`, `Breadcrumb`, `SidePanel`, `BottomSheet`,
+`Popover`, `Menu`, `CommandMenu`, `InitiativeRow`, `MonsterStatBlock`, `SpellRow`, `DeathSaves`,
+`WizardSteps`, `Avatar`, `PrivacyBadge`, `EmptyState`, `Progress`. Their CSS is all present and
+vendored; the React adapters land with the screens that need them (TC-02 onward), so their APIs
+are shaped by real usage rather than guessed at.

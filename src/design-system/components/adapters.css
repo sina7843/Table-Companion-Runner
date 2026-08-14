@@ -1,0 +1,78 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Adapter layer — STRUCTURAL ONLY.
+
+   Modal and Drawer are built on the native <dialog> element, so they get the
+   focus trap, Escape handling, inert background and top-layer stacking from the
+   platform instead of a hand-rolled reimplementation. <dialog> ships with user-agent
+   styles (padding, border, background, colour, max-width, centring margins) that
+   fight the approved .tc-modal / .tc-drawer geometry, so they are neutralised here.
+
+   This file introduces NO colour, type, spacing or shape of its own. Every value is
+   either a reset to nothing or a token already defined by the design system. If you
+   are about to add a visual decision here, it belongs in the design system instead.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+dialog.tc-modal,
+dialog.tc-drawer {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  color: var(--color-text-primary);
+}
+
+/* .tc-modal already declares its own max-height; restate it after the reset above. */
+dialog.tc-modal {
+  max-height: calc(100vh - 64px);
+}
+
+/* The approved scrim, moved onto the platform's backdrop pseudo-element so the
+   top layer renders it rather than a separate positioned div. */
+dialog.tc-modal::backdrop,
+dialog.tc-drawer::backdrop {
+  background: var(--color-surface-scrim);
+  backdrop-filter: blur(2px);
+  animation: tc-fade var(--motion-overlay);
+}
+
+/* A closed dialog must not animate or occupy space. */
+dialog.tc-modal:not([open]),
+dialog.tc-drawer:not([open]) {
+  display: none;
+}
+
+/* `.tc-chip--static` bundles `cursor:default` with the right padding a chip needs when
+   no dismiss button occupies that space. A clickable chip with no dismiss affordance
+   needs the padding but is still a button, so the pointer affordance comes back here.
+   Affordance only — no colour, type or spacing is changed. */
+button.tc-chip.tc-chip--static {
+  cursor: pointer;
+}
+
+/* Tooltip anchor. The tooltip itself is fully styled by overlays.css; this only
+   establishes the positioning context and keeps it out of the pointer path. */
+.tc-tooltip-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.tc-tooltip-anchor > .tc-tooltip {
+  position: absolute;
+  bottom: calc(100% + var(--space-6));
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  pointer-events: none;
+}
+
+/* Visually hidden, still announced. Matches the clip-path technique combat.css
+   already uses for .tc-turn__text under a narrow container. */
+.tc-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -1,0 +1,31 @@
+/* Motion is used to explain a change, never to decorate one. */
+:root {
+  --duration-instant: 60ms; /* @kind other */
+  --duration-fast: 120ms; /* @kind other */
+  --duration-base: 180ms; /* @kind other */
+  --duration-slow: 260ms; /* @kind other */
+  --duration-deliberate: 400ms; /* @kind other */
+  --duration-flash: 900ms; /* @kind other */ /* realtime "this just changed" highlight */
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1); /* @kind other */
+  --ease-in: cubic-bezier(0.5, 0, 0.9, 0.4); /* @kind other */
+  --ease-in-out: cubic-bezier(0.5, 0, 0.2, 1); /* @kind other */
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+
+  --motion-hover: var(--duration-fast) var(--ease-out); /* @kind other */
+  --motion-press: var(--duration-instant) var(--ease-out); /* @kind other */
+  --motion-panel: var(--duration-slow) var(--ease-emphasized); /* @kind other */
+  --motion-overlay: var(--duration-base) var(--ease-out); /* @kind other */
+  --motion-toast: var(--duration-slow) var(--ease-emphasized); /* @kind other */
+  --motion-state: var(--duration-base) var(--ease-out); /* @kind other */
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 0ms; /* @kind other */
+    --duration-fast: 0ms; /* @kind other */
+    --duration-base: 0ms; /* @kind other */
+    --duration-slow: 0ms; /* @kind other */
+    --duration-deliberate: 0ms; /* @kind other */
+    --duration-flash: 0ms; /* @kind other */
+  }
+}

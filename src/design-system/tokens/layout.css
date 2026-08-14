@@ -1,0 +1,70 @@
+/* Layout, layering, breakpoints and density. */
+:root {
+  /* breakpoints — documented here, mirrored literally in media queries */
+  --bp-sm: 480px; /* large phone */
+  --bp-md: 768px; /* small tablet */
+  --bp-lg: 1024px; /* tablet landscape / small laptop */
+  --bp-xl: 1280px; /* DM desktop */
+  --bp-2xl: 1600px; /* DM desktop, context panel + workspace */
+
+  /* frame */
+  --layout-sidebar-width: 232px;
+  --layout-sidebar-collapsed: 56px;
+  --layout-context-panel-width: 360px;
+  --layout-context-panel-wide: 440px;
+  --layout-topbar-height: 48px;
+  --layout-toolbar-height: 40px;
+  --layout-bottom-nav-height: 56px;
+  --layout-safe-bottom: env(safe-area-inset-bottom, 0px); /* @kind spacing */
+  --layout-content-max: 1120px;
+  --layout-prose-max: 68ch;
+
+  /* layering */
+  --z-base: 0; /* @kind other */
+  --z-raised: 10; /* @kind other */
+  --z-sticky: 100; /* @kind other */
+  --z-nav: 200; /* @kind other */
+  --z-panel: 300; /* @kind other */
+  --z-drawer: 400; /* @kind other */
+  --z-scrim: 500; /* @kind other */
+  --z-modal: 600; /* @kind other */
+  --z-popover: 700; /* @kind other */
+  --z-toast: 800; /* @kind other */
+  --z-tooltip: 900; /* @kind other */
+  --z-command: 1000; /* @kind other */
+
+  /* density — comfortable is the default */
+  --density-row-height: 40px;
+  --density-control-height: 32px;
+  --density-control-height-sm: 26px;
+  --density-control-height-lg: 40px;
+  --density-inset-x: var(--space-12);
+  --density-inset-y: var(--space-8);
+  --density-gap: var(--space-8);
+  --density-font-size: var(--font-size-14);
+
+  /* touch */
+  --touch-target-min: 44px;
+}
+[data-density='compact'] {
+  --density-row-height: 32px;
+  --density-control-height: 28px;
+  --density-control-height-sm: 22px;
+  --density-control-height-lg: 34px;
+  --density-inset-x: var(--space-8);
+  --density-inset-y: var(--space-4);
+  --density-gap: var(--space-6);
+  --density-font-size: var(--font-size-13);
+}
+[data-density='touch'] {
+  --density-row-height: 52px;
+  --density-control-height: 52px;
+  --density-control-height-sm: 44px; /* was 36px — the "touch" small control was itself below
+                                          the minimum, which is how undersized dice buttons and
+                                          End Turn shipped on the Player's primary screens */
+  --density-control-height-lg: 56px;
+  --density-inset-x: var(--space-16);
+  --density-inset-y: var(--space-12);
+  --density-gap: var(--space-12);
+  --density-font-size: var(--font-size-15);
+}

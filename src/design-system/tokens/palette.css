@@ -1,0 +1,80 @@
+/* Table Companion — raw colour ramps, generated in OKLCH for even perceptual steps.
+   Five hues, deliberately. Every additional hue in a combat interface is one more thing
+   a DM has to decode at a glance, so the system reuses these rather than adding more.
+   Never reference these directly in components; use the semantic tokens in colors.css. */
+:root {
+  /* ink */
+  --ink-50: #fbfaf8;
+  --ink-100: #f3f1ef;
+  --ink-200: #e5e2df;
+  --ink-300: #d0cecb;
+  --ink-400: #b7b4b1;
+  --ink-500: #9b9895;
+  --ink-600: #7d7a78;
+  --ink-700: #605e5c;
+  --ink-800: #474543;
+  --ink-900: #302e2c;
+  --ink-950: #1e1d1a;
+  /* brass */
+  --brass-50: #fdf6ea;
+  --brass-100: #f7ebd7;
+  --brass-200: #eed9b7;
+  --brass-300: #e0c291;
+  --brass-400: #cda86b;
+  --brass-500: #b7914d;
+  --brass-600: #9f7b39;
+  --brass-700: #836329;
+  --brass-800: #654b1c;
+  --brass-900: #463310;
+  --brass-950: #2e2108;
+  /* crimson */
+  --crimson-50: #fff1ee;
+  --crimson-100: #ffe3df;
+  --crimson-200: #ffcac4;
+  --crimson-300: #ffaca5;
+  --crimson-400: #f58c85;
+  --crimson-500: #e1726b;
+  --crimson-600: #c65d57;
+  --crimson-700: #a54844;
+  --crimson-800: #803632;
+  --crimson-900: #592320;
+  --crimson-950: #3c1614;
+  /* jade */
+  --jade-50: #eefbf0;
+  --jade-100: #ddf4e2;
+  --jade-200: #c1e8ca;
+  --jade-300: #9fd6ad;
+  --jade-400: #7cc18f;
+  --jade-500: #5fab76;
+  --jade-600: #4b9461;
+  --jade-700: #38794d;
+  --jade-800: #295d39;
+  --jade-900: #194026;
+  --jade-950: #0f2a18;
+  /* azure */
+  --azure-50: #eef8ff;
+  --azure-100: #deefff;
+  --azure-200: #c2e0fe;
+  --azure-300: #a1ccf5;
+  --azure-400: #7fb4e6;
+  --azure-500: #649dd2;
+  --azure-600: #5086b9;
+  --azure-700: #3d6d9a;
+  --azure-800: #2d5377;
+  --azure-900: #1c3953;
+  --azure-950: #112538;
+  /* violet */
+  --violet-50: #f9f4ff;
+  --violet-100: #f0e9fe;
+  --violet-200: #e2d5fa;
+  --violet-300: #cfbcef;
+  --violet-400: #b9a1e0;
+  --violet-500: #a389cb;
+  --violet-600: #8c73b2;
+  --violet-700: #735d94;
+  --violet-800: #584672;
+  --violet-900: #3c2f50;
+  --violet-950: #271e35;
+  --black: #000000;
+  --white: #ffffff;
+}

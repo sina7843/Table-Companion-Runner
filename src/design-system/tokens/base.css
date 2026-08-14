@@ -1,0 +1,120 @@
+/* Base element styling. Everything else lives in components. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  font-feature-settings: var(--font-features-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+a {
+  color: var(--color-text-link);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-text-link) 35%, transparent);
+  transition:
+    color var(--motion-hover),
+    border-color var(--motion-hover);
+}
+a:hover {
+  color: var(--color-text-link-hover);
+  border-bottom-color: var(--color-text-link-hover);
+}
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-border-focus);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+::selection {
+  background: var(--color-accent-muted);
+  color: var(--color-text-primary);
+}
+hr {
+  border: 0;
+  border-top: var(--border-subtle);
+  margin: var(--space-16) 0;
+}
+/* Long-form campaign lore reads in the serif; interface chrome never does. */
+.tc-prose {
+  font-family: var(--font-prose);
+  font-size: var(--text-prose-size);
+  line-height: var(--text-prose-line);
+  max-width: var(--layout-prose-max);
+  color: var(--color-text-secondary);
+}
+.tc-prose p {
+  margin-bottom: var(--space-12);
+}
+code,
+kbd,
+samp {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-size);
+}
+:where(table) {
+  border-collapse: collapse;
+}
+/* tabular figures wherever numbers must line up */
+.tc-tnum,
+[data-tnum] {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: var(--font-features-tabular);
+}
+/* scrollbars stay quiet in long sessions */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-default);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -200,8 +200,65 @@ tabs. `Tooltip` shows on focus as well as hover and wires `aria-describedby`. `F
 
 ### Deliberately not built yet
 
-`Sidebar`, `NavItem`, `BottomNav`, `SegmentedControl`, `Breadcrumb`, `SidePanel`, `BottomSheet`,
-`Popover`, `Menu`, `CommandMenu`, `InitiativeRow`, `MonsterStatBlock`, `SpellRow`, `DeathSaves`,
-`WizardSteps`, `Avatar`, `PrivacyBadge`, `EmptyState`, `Progress`. Their CSS is all present and
-vendored; the React adapters land with the screens that need them (TC-02 onward), so their APIs
-are shaped by real usage rather than guessed at.
+`SegmentedControl`, `Breadcrumb`, `BottomSheet`, `Popover`, `Menu`, `CommandMenu`,
+`InitiativeRow`, `MonsterStatBlock`, `SpellRow`, `DeathSaves`, `WizardSteps`, `Avatar`,
+`PrivacyBadge`, `Progress`. Their CSS is all present and vendored; the React adapters land with
+the screens that need them, so their APIs are shaped by real usage rather than guessed at.
+(`Sidebar`, `SidebarGroup`, `NavItem`, `BottomNav`, `SidePanel`, `Panel` and `EmptyState` landed
+in TC-02.)
+
+---
+
+## TC-02 — App shell, navigation and routing
+
+Routing is `react-router-dom` v7. Two shells, because the design specifies two compositions
+rather than one responsive layout. See `DECISIONS.md` for the reasoning, including why the
+context panel is deliberately not the design system's `Drawer`.
+
+### Shells
+
+| Shell | Composition | Density | Breakpoint behaviour |
+| --- | --- | --- | --- |
+| `DMShell` (`/dm/*`) | Sidebar + top bar + workspace + context column | `compact` ≥1280, `comfortable` below | Sidebar collapses to the 56px icon rail below 1280px; context panel leaves the flow |
+| `PlayerShell` (`/play/*`) | Header + content + bottom nav | `touch` | Mobile-first; arms the 44px control floor |
+| Entry (`/`, `/join`, `/campaigns/new`) | Centred card, no shell | `comfortable` | — |
+
+### Navigation
+
+- **DM sidebar** is context-dependent: Session / Library outside a campaign with Home first, and
+  Session / Library / Campaign(Party, Sessions) inside one — matching screens 27 and 01.
+- **Campaign sub-navigation** is the `Tabs` primitive wired to routes: Overview, Party,
+  Encounters, Recent combats, Settings. Phase 2 sections insert between Party and Encounters
+  without moving anything.
+- **Player bottom nav**: Home, Sheet, Combat (badge on your turn), Dice, Party.
+- Both use the design system's `NavItem` / `BottomNav` rendered `as={Link}`, so they are real
+  links rather than click handlers.
+
+### Context panel — the reusable pattern
+
+`ContextPanelProvider` + `useContextPanel()` give every DM screen one panel to open:
+
+```tsx
+const { show } = useContextPanel();
+show({ eyebrow: 'Monster', title: name, body: <StatBlock /> });
+```
+
+The screen never knows whether it renders docked or as a drawer. `/dm/monsters` demonstrates it.
+
+### Routes
+
+Entry: `/`, `/join`, `/campaigns/new`. DM: home, combat, encounters, characters, monsters, spells,
+items, each with a detail route where the design has one, plus `campaigns/:campaignId` with its
+five tabs. Player: home, sheet, combat, dice, party, characters, builder. Plus `/dev/showcase`
+and a `*` not-found. Every screen is a route skeleton in `src/screens/index.tsx` — real page
+chrome with design-system skeletons standing in for content that arrives TC-04 onward.
+
+### Loading, empty and focus
+
+- `Suspense` boundary inside every page frame, with a skeleton fallback sized to the rows it
+  replaces so nothing shifts when data lands.
+- `EmptyState` where a route legitimately has nothing (no combat running), saying what will fill
+  it. No disabled future features anywhere.
+- Skip link as the first tab stop; `<main id="main" tabIndex={-1}>` receives it. Tab order is
+  skip link → sidebar → top bar → main → context panel. Escape closes the panel; focus enters it
+  on open and returns on close only if it is still inside.

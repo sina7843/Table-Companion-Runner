@@ -1,0 +1,94 @@
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { DMShell } from './DMShell';
+import { PlayerShell } from './PlayerShell';
+import { Showcase } from '../showcase/Showcase';
+import {
+  CampaignCombats,
+  CampaignEncounters,
+  CampaignLayout,
+  CampaignOverview,
+  CampaignParty,
+  CampaignSettings,
+  DMCharacters,
+  DMCombat,
+  DMEncounters,
+  DMHome,
+  DMItems,
+  DMMonsters,
+  DMSpells,
+  JoinCampaign,
+  NewCampaign,
+  NotFound,
+  PlayerBuilder,
+  PlayerCharacters,
+  PlayerCombat,
+  PlayerDice,
+  PlayerHome,
+  PlayerParty,
+  PlayerSheet,
+  SignIn,
+} from '../screens';
+
+/**
+ * The Phase 1 route graph.
+ *
+ * Two shells, because the design specifies two compositions rather than one responsive
+ * layout: the DM works at desktop and tablet with a sidebar, the player on a phone with
+ * bottom navigation. Entry routes sit outside both — a player arriving from an invite
+ * link should see their character, not a shell they have no use for yet.
+ */
+export const router = createBrowserRouter([
+  { path: '/', element: <SignIn /> },
+  { path: '/join', element: <JoinCampaign /> },
+  { path: '/campaigns/new', element: <NewCampaign /> },
+
+  {
+    path: '/dm',
+    element: <DMShell />,
+    children: [
+      { index: true, element: <DMHome /> },
+      { path: 'combat', element: <DMCombat /> },
+      { path: 'combat/:combatId', element: <DMCombat /> },
+      { path: 'encounters', element: <DMEncounters /> },
+      { path: 'encounters/:encounterId', element: <DMEncounters /> },
+      { path: 'characters', element: <DMCharacters /> },
+      { path: 'characters/:characterId', element: <DMCharacters /> },
+      { path: 'monsters', element: <DMMonsters /> },
+      { path: 'monsters/:monsterId', element: <DMMonsters /> },
+      { path: 'spells', element: <DMSpells /> },
+      { path: 'items', element: <DMItems /> },
+      {
+        path: 'campaigns/:campaignId',
+        element: <CampaignLayout />,
+        children: [
+          { index: true, element: <CampaignOverview /> },
+          { path: 'party', element: <CampaignParty /> },
+          { path: 'encounters', element: <CampaignEncounters /> },
+          { path: 'combats', element: <CampaignCombats /> },
+          { path: 'settings', element: <CampaignSettings /> },
+        ],
+      },
+    ],
+  },
+
+  {
+    path: '/play',
+    element: <PlayerShell />,
+    children: [
+      { index: true, element: <PlayerHome /> },
+      { path: 'sheet', element: <PlayerSheet /> },
+      { path: 'sheet/:characterId', element: <PlayerSheet /> },
+      { path: 'combat', element: <PlayerCombat /> },
+      { path: 'dice', element: <PlayerDice /> },
+      { path: 'party', element: <PlayerParty /> },
+      { path: 'characters', element: <PlayerCharacters /> },
+      { path: 'builder', element: <PlayerBuilder /> },
+    ],
+  },
+
+  // Internal fidelity-checking surface. Not linked from the product.
+  { path: '/dev/showcase', element: <Showcase /> },
+
+  { path: '/signin', element: <Navigate to="/" replace /> },
+  { path: '*', element: <NotFound /> },
+]);

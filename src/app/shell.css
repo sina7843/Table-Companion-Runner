@@ -1,0 +1,170 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Application shell layout.
+
+   The design system supplies the pieces (sidebar, top bar, side panel, bottom nav);
+   this file composes them into the two shells the design specifies. Every value here
+   is a design-system token or a structural rule — no colour, type scale, radius or
+   shadow is invented. If you need a new visual value, it belongs in the design system.
+
+   Breakpoints are the design's own, mirrored literally from tokens/layout.css:
+     --bp-xl 1280px  the DM desktop / tablet pivot
+     --bp-md  768px  small tablet
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.tc-shell {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.tc-shell__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* The context panel becomes an overlay below --bp-xl and is positioned against this. */
+  position: relative;
+}
+
+.tc-shell__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The top bar's colour and its brass double rule come from the design system
+   (.tc-topbar in the skin). Only the box is set here. */
+.tc-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  height: var(--layout-topbar-height);
+  padding: 0 var(--space-12) 0 var(--space-16);
+  background: var(--color-surface-primary);
+  flex: none;
+}
+
+.tc-topbar__titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tc-topbar__eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.tc-topbar__title {
+  font-family: var(--font-display);
+  font-size: var(--text-section-title-size);
+  font-weight: 700;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A secondary bar under the top bar — campaign tabs, or the combat control bar. */
+.tc-subbar {
+  flex: none;
+  padding: 0 var(--space-20);
+  background: var(--color-surface-primary);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+/* ── Context panel ──────────────────────────────────────────────────────────
+   Two modes, exactly as the design specifies.
+
+   At --bp-xl and above the panel is DOCKED: it sits in the flex flow in its own
+   column, so opening a stat block does not cover the fight.
+
+   Below --bp-xl it leaves the flow and returns as a NON-MODAL drawer — no scrim,
+   nothing behind it inert, because the DM is still running a fight. The workspace
+   reserves the panel's width so the content it is reading does not sit underneath.
+   This is why the panel is NOT built on <dialog>/showModal() like the design
+   system's Drawer: that would trap focus and block the fight behind it. */
+
+@media (max-width: 1279px) {
+  .tc-shell__panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(var(--layout-context-panel-wide), 100vw);
+    z-index: var(--z-drawer);
+    background: var(--color-surface-elevated);
+    border-left: 1px solid var(--color-border-strong);
+    box-shadow: var(--elevation-4);
+  }
+
+  /* The workspace reserves the drawer's width rather than being covered by it. */
+  .tc-shell__main[data-panel-open='true'] .tc-shell__content,
+  .tc-shell__main[data-panel-open='true'] .tc-topbar,
+  .tc-shell__main[data-panel-open='true'] .tc-subbar {
+    margin-right: min(var(--layout-context-panel-wide), 100vw);
+  }
+}
+
+/* ── Player mobile shell ──────────────────────────────────────────────────── */
+
+.tc-mobile {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.tc-mobile__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16);
+  background: var(--color-surface-primary);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.tc-mobile__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ── Skip link ─────────────────────────────────────────────────────────────
+   Hidden until focused, then the first stop in the tab order. Uses the design
+   system's own focus ring and accent surface. */
+
+.tc-skiplink {
+  position: absolute;
+  left: var(--space-8);
+  top: var(--space-8);
+  z-index: var(--z-command);
+  transform: translateY(calc(-100% - var(--space-16)));
+  transition: transform var(--motion-state);
+}
+
+.tc-skiplink:focus-visible {
+  transform: translateY(0);
+}
+
+/* ── Route-level page padding ─────────────────────────────────────────────── */
+
+.tc-page {
+  padding: var(--space-page-y) var(--space-page-x);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-stack-section);
+}
+
+@media (max-width: 767px) {
+  .tc-page {
+    padding: var(--space-page-y) var(--space-page-x-mobile);
+  }
+}

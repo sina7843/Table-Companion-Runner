@@ -86,8 +86,33 @@ for the DM's combat surfaces, or `touch` for mobile — which also activates the
 floor. Put `tc-appsurface` on whatever element paints the full-height background, or the
 Digital Grimoire paper texture is hidden behind it.
 
-Run `npm run dev` and open http://localhost:5173 to see every primitive in the showcase, with
-live theme and density switches. That page is the fidelity-check surface for TC-15.
+Run `npm run dev` and open http://localhost:5173/dev/showcase to see every primitive, with live
+theme and density switches. That page is the fidelity-check surface for TC-15.
+
+## Application shell
+
+Two shells, because the design specifies two compositions rather than one responsive layout:
+
+| Route | Shell | Notes |
+| --- | --- | --- |
+| `/`, `/join`, `/campaigns/new` | none | Entry screens, centred card |
+| `/dm/*` | `DMShell` | Sidebar, top bar, workspace, context column |
+| `/play/*` | `PlayerShell` | Header, content, bottom nav, touch density |
+| `/dev/showcase` | none | Design-system fidelity surface |
+
+Resize past 1280px to see the DM shell pivot: the sidebar collapses to its 56px icon rail,
+density steps from `compact` to `comfortable`, and the context panel leaves the layout flow to
+become a non-modal drawer with the workspace reserving its width.
+
+To open the contextual right-side panel from any DM screen:
+
+```tsx
+const { show } = useContextPanel();
+show({ eyebrow: 'Monster', title: 'Bugbear Chief', body: <StatBlock /> });
+```
+
+The screen does not know whether the panel renders docked or as a drawer — that is the shell's
+job. `/dm/monsters` is a working example.
 
 ## Environment
 
@@ -123,7 +148,17 @@ Breakpoints, mirrored literally in media queries:
 ```
 src/
   main.tsx              React entry point; imports the design system once
-  App.tsx               Renders the showcase until TC-02 brings the real app shell
+  App.tsx               Mounts the router
+  app/
+    routes.tsx          The Phase 1 route graph
+    DMShell.tsx         DM sidebar shell + DMPage chrome + RouteLoading
+    PlayerShell.tsx     Player bottom-nav shell + PlayerPage chrome
+    ContextPanel.tsx    Docked panel / non-modal drawer, one component
+    panelContext.tsx    useContextPanel() — every screen shares one panel
+    nav.ts              Navigation model from the design's IA
+    useMediaQuery.ts    Drives the density and sidebar-collapse attributes
+    shell.css           Shell layout; tokens only, no new visual values
+  screens/index.tsx     Route skeletons for the Phase 1 screens
   design-system/
     styles.css          Verbatim import barrel from the approved design source
     tokens/*.css        Verbatim — colour, type, spacing, shape, motion, layout

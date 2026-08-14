@@ -57,10 +57,12 @@ export {
   Toast,
   ToastViewport,
   ConnectionStatus,
+  EmptyState,
   type AlertProps,
   type SkeletonProps,
   type ToastProps,
   type ConnectionStatusProps,
+  type EmptyStateProps,
 } from './components/Feedback';
 export {
   SectionHeader,
@@ -71,6 +73,18 @@ export {
   type TableProps,
   type TableColumn,
 } from './components/DataDisplay';
+export {
+  Sidebar,
+  SidebarGroup,
+  NavItem,
+  BottomNav,
+  type SidebarProps,
+  type SidebarGroupProps,
+  type NavItemProps,
+  type BottomNavProps,
+  type BottomNavItemSpec,
+} from './components/Navigation';
+export { SidePanel, Panel, type SidePanelProps, type PanelProps } from './components/Panel';
 export { Stat, StatGrid, type StatProps, type StatGridProps } from './components/Stat';
 export {
   HPBar,

@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ElementType, ReactNode } from 'react';
 import { Icon } from './Icon';
 import { cx, type ControlSize, type IconName } from './types';
 
@@ -13,6 +13,14 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   block?: boolean;
   loading?: boolean;
   children?: ReactNode;
+  /**
+   * Element to render. Defaults to `button`; pass a router link component when the
+   * control navigates, so it is a real link — middle-click, open-in-new-tab and the
+   * "link" role all keep working. The design system stays router-agnostic.
+   */
+  as?: ElementType;
+  /** Forwarded to the rendered element (`to`, `href`, …) when `as` is set. */
+  [key: string]: unknown;
 }
 
 export function Button({
@@ -25,17 +33,26 @@ export function Button({
   disabled,
   className,
   children,
-  type = 'button',
+  as: Component = 'button',
+  type,
   ...rest
 }: ButtonProps) {
+  const isButton = Component === 'button';
+
   return (
-    <button
+    <Component
       {...rest}
-      type={type}
-      // The label is swapped to transparent while loading, so the button keeps its
-      // width and the layout does not jump. It must also stop accepting clicks.
-      // `||` not `??`: an explicit `disabled={false}` must not re-enable a loading button.
-      disabled={disabled || loading}
+      {...(isButton
+        ? {
+            type: type ?? 'button',
+            // The label is swapped to transparent while loading, so the button keeps its
+            // width and the layout does not jump. It must also stop accepting clicks.
+            // `||` not `??`: `disabled={false}` must not re-enable a loading button.
+            disabled: disabled || loading,
+          }
+        : // A link cannot be `disabled`; the equivalent is removing it from the tab order
+          // and telling assistive tech, which is what aria-disabled does.
+          { 'aria-disabled': disabled || loading || undefined })}
       data-loading={loading ? 'true' : undefined}
       aria-busy={loading || undefined}
       className={cx(
@@ -54,7 +71,7 @@ export function Button({
           <span className="tc-spinner" />
         </span>
       )}
-    </button>
+    </Component>
   );
 }
 

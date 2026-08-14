@@ -139,3 +139,27 @@ export function ConnectionStatus({ state, className }: ConnectionStatusProps) {
     </span>
   );
 }
+
+export interface EmptyStateProps {
+  icon?: IconName;
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+}
+
+/**
+ * An empty route says what is missing and offers the way out of it. The design's empty
+ * states never show a disabled future feature as a teaser — if there is nothing to do
+ * here yet, say so plainly.
+ */
+export function EmptyState({ icon, title, description, actions, className }: EmptyStateProps) {
+  return (
+    <div className={cx('tc-empty', className)}>
+      {icon && <Icon name={icon} />}
+      <span className="tc-empty__title">{title}</span>
+      {description && <span className="tc-empty__desc">{description}</span>}
+      {actions && <div className="tc-empty__actions">{actions}</div>}
+    </div>
+  );
+}

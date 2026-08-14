@@ -98,3 +98,53 @@ boundaries; TC-03's rules engine should own it properly.
 density switches. It earns its place: TC-15 is a design-fidelity audit, and this is the surface
 that audit runs against. TC-02 moves it behind a dev-only route when real screens and routing
 arrive.
+
+---
+
+## TC-02 — App shell, navigation and routing
+
+**Router: `react-router-dom` v7.** The first runtime dependency beyond React. Phase 1 has ~20
+routes with parameters (`:campaignId`, `:monsterId`), nested layouts (campaign tabs inside the DM
+shell) and a genuine 404. A hand-rolled router covers the first two of those and then grows a
+bug for each of the rest.
+
+**Two shells, not one responsive layout.** The design specifies two different compositions, and
+the mobile player shell is explicitly "not a compressed version of the same layout". So `/dm/*`
+renders `DMShell` (sidebar + top bar + workspace + context column) and `/play/*` renders
+`PlayerShell` (header + content + bottom nav). Entry routes (`/`, `/join`, `/campaigns/new`) sit
+outside both, because a player arriving from an invite link should reach their character, not a
+shell they have no use for yet.
+
+**The context panel is not the design system's `Drawer`.** This is the significant call in TC-02.
+`Drawer` is built on `<dialog>.showModal()` — focus trap, inert background, scrim. The design
+says the opposite for the tablet context panel: *"the context panel leaves the flow, returning as
+a non-modal drawer with the workspace reserving its width. Nothing behind the drawer is blocked,
+and no scrim appears — the DM is still running a fight."* So `ContextPanel` is a separate
+component with two CSS-driven modes — docked in its own column at ≥1280px, non-modal overlay with
+a reserved-width workspace below it — and keeps only the helpful parts of dialog behaviour
+(Escape to close, focus moves in on open and returns on close). `Drawer` remains the right choice
+for a genuine interruption.
+
+**Density is a JS attribute, not a media query.** `[data-density]` cannot be set from CSS, and the
+design steps the DM from `compact` at desktop to `comfortable` at tablet ("density steps up, not
+down — the DM is touching this screen, often one-handed"). A small `useMediaQuery` built on
+`useSyncExternalStore` drives it, so the shell never paints a frame at the wrong breakpoint.
+
+**Two design sources disagreed on the player bottom nav.** Part 1's summary card lists
+"Sheet · Combat · Dice · Party · Build"; Part 2's implemented `navItems` is Home, Sheet, Combat
+(badged), Dice, Party — no Build. The implemented component data is followed, since it is what the
+screens actually render; the builder is reached from My characters.
+
+**The DM sidebar is context-dependent**, which the design shows but does not spell out: screen 27
+(DM home) groups Session / Library / Campaigns-list, while screen 01 (inside a campaign) groups
+Session / Library / Campaign(Party, Sessions). `nav.ts` returns whichever the current route calls
+for.
+
+**Deliberately not faked.** The design says an active combat pins itself to the top of the
+sidebar for its duration. That needs real combat state from TC-03/TC-11, so there is a documented
+comment where it goes and nothing rendered — a permanent placeholder is exactly the empty promise
+the design rules out. No disabled Phase 2/3 nav items appear anywhere.
+
+**`Button` and `NavItem` became polymorphic** (`as` prop) so navigation controls render as real
+links — middle-click, open-in-new-tab and the link role keep working. The design system stays
+router-agnostic; the app passes the router's `Link` in.

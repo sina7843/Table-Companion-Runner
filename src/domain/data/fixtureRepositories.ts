@@ -100,6 +100,19 @@ function nextId(): string {
  * the fixture behind it. This is the guarantee that lets a combat instance be built from a
  * template without the fight ever writing back into the fight it was prepared as.
  */
+/** A fight detached from the store, participants and their conditions included. */
+function copyCombat(combat: CombatInstance): CombatInstance {
+  return {
+    ...combat,
+    participants: combat.participants.map((participant) => ({
+      ...participant,
+      health: { ...participant.health },
+      conditions: participant.conditions.map((condition) => ({ ...condition })),
+      ...(participant.deathSaves ? { deathSaves: { ...participant.deathSaves } } : {}),
+    })),
+  };
+}
+
 function copyTemplate(template: EncounterTemplate): EncounterTemplate {
   return {
     ...template,
@@ -426,25 +439,41 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
     },
 
     combats: {
-      liveForCampaign: (campaignId: CampaignId) =>
-        resolve(
-          COMBATS.find((combat) => combat.campaignId === campaignId && combat.status === 'live') ??
-            null,
-        ),
+      // A fight is the record that changes most, so reads hand out copies for the same
+      // reason encounters do: nothing a screen holds may write to the store behind it.
+      liveForCampaign: (campaignId: CampaignId) => {
+        const found = COMBATS.find(
+          (combat) => combat.campaignId === campaignId && combat.status === 'live',
+        );
+        return resolve(found ? copyCombat(found) : null);
+      },
       liveForUser: (userId: UserId) => {
         const mine = new Set(
           CAMPAIGNS.filter((campaign) =>
             campaign.members.some((member) => member.userId === userId),
           ).map((campaign) => campaign.id),
         );
-        return resolve(
-          COMBATS.find((combat) => combat.status === 'live' && mine.has(combat.campaignId)) ?? null,
+        const found = COMBATS.find(
+          (combat) => combat.status === 'live' && mine.has(combat.campaignId),
         );
+        return resolve(found ? copyCombat(found) : null);
       },
       listForCampaign: (campaignId: CampaignId) =>
-        resolve(COMBATS.filter((combat) => combat.campaignId === campaignId)),
-      byId: (combatId: CombatInstanceId) =>
-        resolve(COMBATS.find((combat) => combat.id === combatId) ?? null),
+        resolve(COMBATS.filter((combat) => combat.campaignId === campaignId).map(copyCombat)),
+      byId: (combatId: CombatInstanceId) => {
+        const found = COMBATS.find((combat) => combat.id === combatId);
+        return resolve(found ? copyCombat(found) : null);
+      },
+
+      save: (combat: CombatInstance) => {
+        const index = ALL_COMBATS.findIndex((entry) => entry.id === combat.id);
+        if (index < 0) return Promise.reject(new Error('That combat no longer exists.'));
+        // Note what is absent: no write to ALL_ENCOUNTERS. Runtime state has no path back
+        // to the template, which is the guarantee the whole feature rests on.
+        const saved = copyCombat(combat);
+        ALL_COMBATS[index] = saved;
+        return resolve(copyCombat(saved));
+      },
 
       startFromTemplate: (encounterId: EncounterTemplateId) => {
         const template = ALL_ENCOUNTERS.find((entry) => entry.id === encounterId);

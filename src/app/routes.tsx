@@ -10,6 +10,7 @@ import { MonsterLibrary } from '../screens/monsters/MonsterLibrary';
 import { MonsterPage } from '../screens/monsters/MonsterPage';
 import { MonsterEditor } from '../screens/monsters/MonsterEditor';
 import { EncounterBuilder, EncounterDetail, EncounterLibrary } from '../screens/encounters';
+import { CombatScreen } from '../screens/combat';
 import {
   CampaignCombats,
   CampaignEncounters,
@@ -19,7 +20,6 @@ import {
   CampaignParty,
   CampaignSettings,
   DMCharacters,
-  DMCombat,
   DMHome,
   DMItems,
   DMSpells,
@@ -66,8 +66,8 @@ export const router = createBrowserRouter([
     element: <DMShell />,
     children: [
       { index: true, element: <DMHome /> },
-      { path: 'combat', element: <DMCombat /> },
-      { path: 'combat/:combatId', element: <DMCombat /> },
+      { path: 'combat', element: <CombatScreen /> },
+      { path: 'combat/:combatId', element: <CombatScreen /> },
       { path: 'encounters', element: <EncounterLibrary /> },
       { path: 'encounters/new', element: <EncounterBuilder mode="create" /> },
       { path: 'encounters/:encounterId', element: <EncounterDetail /> },

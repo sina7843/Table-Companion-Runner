@@ -729,3 +729,50 @@ already two inches to the right.
 
 **The difficulty badge moved into the top bar.** The design's large-encounter frame carries
 it beside the title, which is the one place it stays visible whatever is scrolled.
+
+## TC-10c — Starting combat
+
+**A fight is a different kind of thing, and the screen says so.** The eyebrow reads
+`Combat instance · from <template>`, a banner states that hit points, conditions and
+initiative change here while the template stays as prepared, and that banner carries a
+link to edit the template instead. Three statements, because the whole reason templates
+exist is that a DM who fears damaging a prepared fight will not reuse it.
+
+**The guarantee is structural, not remembered.** Every function in `screens/combat/setup.ts`
+takes and returns a `CombatInstance` and none of them can even name an `EncounterTemplate`.
+`CombatRepository.save` writes to `ALL_COMBATS` and there is no path from it to
+`ALL_ENCOUNTERS`. The final test drives a whole session — roll, rename, hide, remove, begin,
+save — and asserts the template comes back byte-identical apart from `lastRunAt`.
+
+**Only meaningful pre-start adjustments.** Initiative, who is actually here, what the party
+can see, and giving one member of a group its own name. That is the complete list, and it is
+the list of things the template *cannot* decide: everything else was already a decision the
+encounter made, and offering it again here would be two places to change one thing.
+
+**One roll per row, not per creature.** Identical creatures take one group turn, so rolling
+assigns one number to the whole group. Expanding a row is how a DM breaks that — the one
+goblin on the ridge that acts later. `Roll what is missing` never overwrites a number the DM
+typed; `Re-roll all` is the explicit opt-in that does.
+
+**No confirmation dialogs anywhere in the flow.** Start combat creates the instance, Begin
+round 1 starts it. The design is explicit that the risk is explained in place rather than
+by interrupting, and a fight begun by accident is one click from being left.
+
+**Turn order is the ruleset's.** `Ruleset.initiativeOrder` sorts, because what beats what and
+how a tie breaks are rules decisions. The 5e adapter puts characters ahead of creatures on a
+tie — the published rule compares Dexterity, which a `CombatParticipant` does not carry, and
+the table convention it stands in for is that players go first. A participant who has not
+rolled sits last rather than being treated as a zero that beat a −1. `ponytail:` give the
+participant its initiative modifier if ties ever matter more than this.
+
+**Runtime writes go straight through.** No debounce: initiative and who is present are not a
+draft, and a fight that started before its roster saved would be the worst possible bug in
+this feature. One writer, in the route, so the setup screen holds no state that can drift.
+
+**Combat reads hand out copies too.** `CombatRepository` gained the same `copyCombat`
+discipline the encounter repository already had, participants and their conditions included.
+
+**`/dm/combat/:id` now branches on status.** `preparing` is the setup screen; `live` and
+`ended` report the fight and its turn order until TC-11 fills them. The old `DMCombat` route
+skeleton is gone. `InitiativeRow` is deliberately not built here — it belongs to the runner,
+and half of it now would be two implementations to reconcile later.

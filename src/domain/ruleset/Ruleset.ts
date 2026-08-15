@@ -324,6 +324,14 @@ export interface Ruleset {
   /** The initiative roll for a participant, or null if the system does not roll for it. */
   initiativeRequest(participant: CombatParticipant, attributes: Attribute[]): DiceRequest | null;
 
+  /**
+   * Turn order for a round.
+   *
+   * The core never sorts a combat itself: what beats what, and how a tie is settled, is a
+   * rules decision. Participants with no initiative yet are the system's to place too.
+   */
+  initiativeOrder(participants: CombatParticipant[]): CombatParticipant[];
+
   /** Recoverable pools, or null when the system has no spellcasting. */
   spellSlots(character: Character): ResourcePool[] | null;
 

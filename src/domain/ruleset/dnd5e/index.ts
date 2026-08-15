@@ -238,6 +238,25 @@ export const dnd5e2024: Ruleset = {
     };
   },
 
+  initiativeOrder(participants: CombatParticipant[]): CombatParticipant[] {
+    // Highest first. A participant with no initiative yet has not rolled, so it sits at
+    // the bottom rather than being treated as a 0 that beat someone who rolled a −1.
+    return participants.toSorted((a, b) => {
+      if (a.initiative === null || b.initiative === null) {
+        if (a.initiative === b.initiative) return a.name.localeCompare(b.name);
+        return a.initiative === null ? 1 : -1;
+      }
+      if (a.initiative !== b.initiative) return b.initiative - a.initiative;
+
+      // The published tie-break is a Dexterity comparison, which a participant does not
+      // carry. The table convention it stands in for is that characters act first, and
+      // then it is alphabetical so the order is at least stable between rounds.
+      // ponytail: give CombatParticipant its initiative modifier if ties matter more.
+      if (a.entityType !== b.entityType) return a.entityType === 'player' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  },
+
   spellSlots(character: Character): ResourcePool[] | null {
     const progression = casterProgression(characterData(character).classKey);
     if (!progression) return null;

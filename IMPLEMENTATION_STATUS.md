@@ -896,3 +896,57 @@ store, two reads not sharing a roster, and a saved draft the caller keeps editin
 `npm run typecheck`, `npm run lint`, `npm run test` (125 passing), `npm run format:check`,
 `npm run build`. Dev server serves the builder for an empty, a small and a sixteen-creature
 encounter.
+
+## TC-10c — Start combat from an encounter
+
+### Flow
+
+`Start combat` on the library row, the detail page or the builder calls
+`combats.startFromTemplate`, which creates a `preparing` instance and navigates to
+`/dm/combat/:combatId`. That route branches on status: `preparing` renders `CombatSetup`,
+`live`/`ended` render the turn-order summary the TC-11 runner will replace.
+
+### Pre-start adjustments
+
+Per row: initiative (typed or rolled), hide/reveal from the party, remove from this fight.
+Grouped rows expand to give one member its own name or initiative. `Roll what is missing`
+fills only empty rows; `Re-roll all` overwrites. One roll per row, because identical
+creatures take one group turn.
+
+### Round 1
+
+`Begin round 1` sorts through `Ruleset.initiativeOrder`, sets status `live`, round 1, marks
+the first combatant active and stamps `startedAt`. No confirmation dialog anywhere in the
+flow. Blocked only by an empty fight; unrolled initiative and a party-less fight warn.
+
+### Domain additions
+
+`Ruleset.initiativeOrder(participants)`; `CombatRepository.save(combat)`. Combat reads now
+return detached copies via `copyCombat`, matching the encounter repository.
+
+### Files
+
+`src/screens/combat/setup.ts` (pure transforms), `CombatSetup.tsx`, `CombatScreen.tsx`,
+`setup.test.ts`. The `DMCombat` route skeleton in `screens/index.tsx` was deleted.
+
+### Tests — 137, all passing (12 new in `screens/combat/setup.test.ts`)
+
+Grouping identical creatures into one row and one turn; a row reporting a shared initiative
+only when its members agree; a row setting all its members; rename and hide touching only
+their target; removal clearing the active turn when it pointed at the removed combatant;
+one roll per row; `Roll what is missing` not overwriting a typed number and `Re-roll all`
+doing so; the ability modifier reaching the roll; empty blocking while unrolled and
+party-less only warn; round 1 sorting, marking active and stamping; the tie-break and
+unrolled placement; and a full start-to-round-1 session leaving the template byte-identical
+apart from `lastRunAt`.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (137 passing), `npm run format:check`,
+`npm run build`. Dev server serves `/dm/combat`, a live fight, an ended fight and the
+encounter that starts one.
+
+### Not done
+
+The combat runner — turn advance, damage, conditions, the roll log, the initiative row
+component — is TC-11.

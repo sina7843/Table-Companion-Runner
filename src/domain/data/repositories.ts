@@ -129,6 +129,14 @@ export interface CombatRepository {
    * produces two independent instances, which is the whole reason templates exist.
    */
   startFromTemplate(encounterId: EncounterTemplateId): Promise<CombatInstance>;
+
+  /**
+   * Writes runtime state — initiative, who is in, hit points, the round.
+   *
+   * Only ever touches the instance. There is deliberately no path from here back to the
+   * `EncounterTemplate`: a fight cannot edit the fight it was prepared as.
+   */
+  save(combat: CombatInstance): Promise<CombatInstance>;
 }
 
 export interface RollRepository {

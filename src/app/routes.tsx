@@ -6,6 +6,7 @@ import {
   CampaignCombats,
   CampaignEncounters,
   CampaignLayout,
+  CampaignList,
   CampaignOverview,
   CampaignParty,
   CampaignSettings,
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
       { path: 'monsters/:monsterId', element: <DMMonsters /> },
       { path: 'spells', element: <DMSpells /> },
       { path: 'items', element: <DMItems /> },
+      { path: 'campaigns', element: <CampaignList /> },
       {
         path: 'campaigns/:campaignId',
         element: <CampaignLayout />,

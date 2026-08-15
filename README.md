@@ -209,7 +209,8 @@ src/
   screens/
     DMHome.tsx          DM home — live combat band, work columns, recall
     PlayerHome.tsx      Player home — the fight, the character, one offer
-    entry.tsx           Sign in, join by invite, choose a game system
+    entry.tsx           Sign in, join by invite, create a campaign
+    campaign/           Campaign list, overview, party, encounters, combats, settings
     index.tsx           Route skeletons for the screens not yet built
   domain/
     types.ts            Core entities — names no D&D concept

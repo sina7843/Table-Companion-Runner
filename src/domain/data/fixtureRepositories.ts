@@ -5,10 +5,16 @@
  * subscription machinery — those belong with the real transport in TC-13, and building
  * them now would mean guessing at an API that does not exist yet.
  *
- * Every method returns a Promise and hands back deep-frozen data, so a screen that
- * mutates what it reads fails here rather than in production.
+ * Every method returns a Promise, so no caller can depend on synchronous delivery.
+ *
+ * Writes mutate the module-level fixture arrays, which means they survive navigation but
+ * not a page reload. That is the honest ceiling of a fixture layer: enough to make the
+ * create-campaign and attach-character flows real to use, not a substitute for a store.
+ * The `?scenario=` worlds are built by filtering these same arrays, so a write made in
+ * one scenario is visible in another until the page reloads.
  */
 import { listGameSystems } from '../ruleset/registry.ts';
+import { id } from '../types.ts';
 import type {
   Campaign,
   CampaignId,
@@ -36,7 +42,7 @@ import {
   ROLLS,
   USERS,
 } from './fixtures.ts';
-import type { MonsterQuery, Repositories } from './repositories.ts';
+import type { CreateCampaignInput, MonsterQuery, Repositories } from './repositories.ts';
 
 /**
  * Which world the fixtures describe.
@@ -71,6 +77,26 @@ class FixtureReadError extends Error {
     super('The connection dropped while loading. Nothing has been lost.');
     this.name = 'FixtureReadError';
   }
+}
+
+let idCounter = 0;
+function nextId(): string {
+  idCounter += 1;
+  return `new-${idCounter}`;
+}
+
+/**
+ * Invite codes read like the design's `CRAGMAW-7742`: a word from the campaign name and
+ * four digits. Not unguessable — a real one is minted server-side in TC-13, and this
+ * must not become the thing that guards a campaign.
+ */
+function makeInviteCode(name: string): string {
+  const word = (name.split(/\s+/).find((part) => part.length > 3) ?? name)
+    .replaceAll(/[^a-z]/gi, '')
+    .toUpperCase()
+    .slice(0, 8);
+  const digits = String(1000 + ((idCounter * 1327) % 9000));
+  return `${word || 'CAMPAIGN'}-${digits}`;
 }
 
 function matchesMonsterQuery(monster: Monster, query?: MonsterQuery): boolean {
@@ -113,6 +139,10 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
             ({ id: CURRENT_USER_ID, displayName: 'Unknown' } satisfies User),
         ),
       byId: (userId: UserId) => resolve(USERS.find((user) => user.id === userId) ?? null),
+      byIds: (userIds: UserId[]) => {
+        const wanted = new Set<string>(userIds);
+        return resolve(USERS.filter((user) => wanted.has(user.id)));
+      },
     },
 
     gameSystems: {
@@ -128,6 +158,19 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
         ),
       byId: (campaignId: CampaignId) =>
         resolve(CAMPAIGNS.find((campaign) => campaign.id === campaignId) ?? null),
+      create: (input: CreateCampaignInput) => {
+        const campaign: Campaign = {
+          id: id<'Campaign'>(`c-${nextId()}`),
+          name: input.name,
+          systemId: input.systemId,
+          dmUserId: input.dmUserId,
+          inviteCode: makeInviteCode(input.name),
+          members: [{ userId: input.dmUserId, role: 'dm' }],
+          createdAt: new Date().toISOString(),
+        };
+        ALL_CAMPAIGNS.push(campaign);
+        return resolve(campaign);
+      },
     },
 
     characters: {
@@ -135,8 +178,30 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
         resolve(CHARACTERS.filter((character) => character.campaignId === campaignId)),
       listForOwner: (userId: UserId) =>
         resolve(CHARACTERS.filter((character) => character.ownerUserId === userId)),
+      listUnattached: (userId: UserId) =>
+        resolve(
+          CHARACTERS.filter(
+            (character) => character.ownerUserId === userId && character.campaignId === undefined,
+          ),
+        ),
       byId: (characterId: CharacterId) =>
         resolve(CHARACTERS.find((character) => character.id === characterId) ?? null),
+      attachToCampaign: (characterId: CharacterId, campaignId: CampaignId) => {
+        const character = ALL_CHARACTERS.find((entry) => entry.id === characterId);
+        if (!character) return Promise.reject(new Error('That character no longer exists.'));
+
+        // A link, not a move: the character keeps its owner and its own history.
+        character.campaignId = campaignId;
+
+        const campaign = ALL_CAMPAIGNS.find((entry) => entry.id === campaignId);
+        const member = campaign?.members.find((entry) => entry.userId === character.ownerUserId);
+        if (member) member.characterId = characterId;
+        else if (campaign && campaign.dmUserId !== character.ownerUserId) {
+          campaign.members.push({ userId: character.ownerUserId, role: 'player', characterId });
+        }
+
+        return resolve(character);
+      },
     },
 
     monsters: {

@@ -386,3 +386,58 @@ independently of the account-level ones.
 
 Six new: the first-time and empty scenarios, the error message staying transport-free,
 cross-campaign live-combat lookup, recall ordering and capping, and activity scoping.
+
+---
+
+## TC-05 — Campaigns and party
+
+### Screens
+
+| Screen | Route | Design source |
+| --- | --- | --- |
+| Campaign list | `/dm/campaigns` | none — rows, matching every other roster |
+| Create campaign | `/campaigns/new` | Screen 26, plus step 2 (name + invite) |
+| Campaign overview | `/dm/campaigns/:id` | Screen 28 |
+| Party | `/dm/campaigns/:id/party` | Screen 29 |
+| Encounters | `/dm/campaigns/:id/encounters` | Screen 28's column, full width |
+| Recent combats | `/dm/campaigns/:id/combats` | Screen 28's column, full width |
+| Settings | `/dm/campaigns/:id/settings` | shell |
+
+### The overview's five questions
+
+What campaign is this (top bar with system and invite code) · who is in the party (table with live
+hit points) · is combat running (banner with Return to combat) · what is prepared (encounter list)
+· what happened recently (recent combats). Nothing else is on the page.
+
+### Party table
+
+Character, Player, Class, Level, Hit points, AC, Status — and Privacy on the Party tab. Status is
+derived, never stored: unconscious, bloodied, level-up ready, or ready, each with a word and a
+glyph. AC comes from the ruleset. Wide tables scroll inside their own container so the page never
+scrolls sideways.
+
+Clicking a row opens the character in the shared context panel: health, conditions, calculated
+values, abilities, and — for the DM only — which sections the party cannot see.
+
+### Required behaviour
+
+- **Game system selection** — step 1 of creation; unavailable systems listed with their reason.
+- **One primary DM** — `campaigns.create()` sets the creator as sole DM; Settings states it.
+- **Invite code UI** — in the top bar, in a modal with copy-to-clipboard, on the Party tab's
+  invite row, and in Settings.
+- **Attach or create a character** — the Party tab lists the DM's unattached characters and links
+  one, or offers the builder. Attaching is a link; ownership does not change.
+- **Active combat and prepared encounters** — banner on the overview, encounter column beside the
+  party, live badge on the campaign list.
+
+### Domain additions
+
+`Character.archetype`, `users.byIds()`, `characters.listUnattached()`,
+`characters.attachToCampaign()`, `campaigns.create()`, `useAsync().reload()`, two ended combats in
+the fixtures, and `as` on `ListRow`.
+
+### Tests — 32, all passing
+
+Five new: campaign creation gives exactly one DM and a well-formed invite code, attaching links
+without transferring ownership, attaching a missing character rejects, `byIds` resolves a party in
+one call, and past combats sit alongside the live one.

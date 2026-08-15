@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ElementType, ReactNode } from 'react';
 import { cx } from './types';
 
 export interface SectionHeaderProps {
@@ -36,7 +36,11 @@ export interface ListRowProps {
   onClick?: () => void;
   /** Non-interactive row — renders as a div, not a button. */
   static?: boolean;
+  /** Element to render. Pass a router link when the row navigates. */
+  as?: ElementType;
   className?: string;
+  /** Forwarded to the rendered element (`to`, `href`, …) when `as` is set. */
+  [key: string]: unknown;
 }
 
 export function ListRow({
@@ -47,7 +51,9 @@ export function ListRow({
   selected,
   onClick,
   static: isStatic,
+  as: Component,
   className,
+  ...rest
 }: ListRowProps) {
   const content = (
     <>
@@ -59,6 +65,14 @@ export function ListRow({
       {trailing && <span className="tc-row__trail">{trailing}</span>}
     </>
   );
+
+  if (Component) {
+    return (
+      <Component {...rest} className={cx('tc-row', className)} aria-selected={selected}>
+        {content}
+      </Component>
+    );
+  }
 
   if (isStatic || !onClick) {
     return (

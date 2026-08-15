@@ -394,3 +394,83 @@ test('party activity is scoped to the campaigns the user is in', async () => {
   const stranger = await repos.activity.listForUser(id<'User'>('u-nobody'));
   assert.deepEqual(stranger, []);
 });
+
+/* ── Campaign writes ────────────────────────────────────────────────────────── */
+
+test('creating a campaign makes the creator its one DM and mints an invite code', async () => {
+  const write = createFixtureRepositories();
+  const before = (await write.campaigns.listForUser(CURRENT_USER_ID)).length;
+
+  const campaign = await write.campaigns.create({
+    name: 'Tomb of Annihilation',
+    systemId: SYSTEM,
+    dmUserId: CURRENT_USER_ID,
+  });
+
+  assert.equal(campaign.name, 'Tomb of Annihilation');
+  assert.equal(campaign.dmUserId, CURRENT_USER_ID);
+
+  // Phase 1 is exactly one DM per campaign, and the creator is it.
+  assert.deepEqual(campaign.members, [{ userId: CURRENT_USER_ID, role: 'dm' }]);
+  assert.match(campaign.inviteCode, /^[A-Z]+-\d{4}$/);
+
+  assert.equal((await write.campaigns.listForUser(CURRENT_USER_ID)).length, before + 1);
+  assert.equal((await write.campaigns.byId(campaign.id))?.name, 'Tomb of Annihilation');
+});
+
+test('attaching a character links it to a campaign without changing its owner', async () => {
+  const write = createFixtureRepositories();
+  const target = (await write.campaigns.listForUser(CURRENT_USER_ID))[0];
+  assert.ok(target);
+
+  const unattached = await write.characters.listUnattached(CURRENT_USER_ID);
+  assert.ok(unattached.length > 0, 'a character exists independently of any campaign');
+
+  const loose = unattached[0];
+  assert.ok(loose);
+  const owner = loose.ownerUserId;
+
+  const linked = await write.characters.attachToCampaign(loose.id, target.id);
+  assert.equal(linked.campaignId, target.id);
+  assert.equal(linked.ownerUserId, owner, 'attaching is a link, not a transfer of ownership');
+
+  // It now appears in the campaign's party and no longer among the unattached.
+  const party = await write.characters.listForCampaign(target.id);
+  assert.ok(party.some((entry) => entry.id === loose.id));
+  assert.ok(
+    !(await write.characters.listUnattached(CURRENT_USER_ID)).some(
+      (entry) => entry.id === loose.id,
+    ),
+  );
+});
+
+test('attaching a character that does not exist rejects rather than silently passing', async () => {
+  const write = createFixtureRepositories();
+  const target = (await write.campaigns.listForUser(CURRENT_USER_ID))[0];
+  assert.ok(target);
+
+  await assert.rejects(() =>
+    write.characters.attachToCampaign(id<'Character'>('ch-missing'), target.id),
+  );
+});
+
+test('byIds resolves a party of members in one call', async () => {
+  const campaign = await repos.campaigns.byId(id<'Campaign'>('c-lmop'));
+  assert.ok(campaign);
+
+  const members = await repos.users.byIds(campaign.members.map((member) => member.userId));
+  assert.equal(members.length, 4);
+  assert.ok(members.some((user) => user.displayName === 'Marta'));
+
+  assert.deepEqual(await repos.users.byIds([]), []);
+});
+
+test('past combats sit alongside the live one for the recent-combats summary', async () => {
+  const all = await repos.combats.listForCampaign(id<'Campaign'>('c-lmop'));
+  assert.ok(all.length >= 3, 'the summary needs history to be worth showing');
+
+  const ended = all.filter((combat) => combat.status === 'ended');
+  assert.ok(ended.length >= 2);
+  assert.ok(ended.every((combat) => combat.endedAt !== undefined));
+  assert.equal(all.filter((combat) => combat.status === 'live').length, 1);
+});

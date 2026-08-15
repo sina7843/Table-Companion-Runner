@@ -31,6 +31,9 @@ Sliced parents (`08`, `10`, `11`) are never executed as separate implementation 
 - [ ] TC-17
 
 ## Current work
-- Active item: `TC-04`
+- Active item: `TC-06`
 - Last completed item: `TC-03`
 - Blockers: none
+- Awaiting visual confirmation: `TC-04`, `TC-05`. Both are implemented and their checks pass,
+  but their acceptance includes design-intent and responsive-layout criteria that need a person
+  to look at the running app.

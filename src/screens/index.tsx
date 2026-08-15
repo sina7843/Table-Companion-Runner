@@ -11,7 +11,7 @@
  * own into its own module as it grows real content.
  */
 import { Fragment } from 'react';
-import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Alert,
   Badge,
@@ -21,13 +21,11 @@ import {
   ListRow,
   SectionHeader,
   Skeleton,
-  Tabs,
 } from '../design-system';
 import { requireRuleset, useAsync, useRepositories, type Monster } from '../domain';
 import { DMPage } from '../app/DMShell';
 import { PlayerPage } from '../app/PlayerShell';
 import { useContextPanel, type PanelContent } from '../app/panelContext';
-import { campaignTabs } from '../app/nav';
 
 /** Section header plus skeleton rows — the shape the real content will take. */
 function PendingSection({
@@ -219,83 +217,14 @@ export function DMItems() {
 
 /* ── Campaign, with its sub-navigation ──────────────────────────────────────── */
 
-export function CampaignLayout() {
-  const { campaignId = '' } = useParams();
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const tabs = campaignTabs(campaignId);
-
-  // Longest matching path wins, so /party does not also select the index tab, whose
-  // path is a prefix of every other tab's.
-  const current =
-    tabs.reduce<(typeof tabs)[number] | undefined>(
-      (best, tab) =>
-        pathname.startsWith(tab.path) && tab.path.length > (best?.path.length ?? 0) ? tab : best,
-      undefined,
-    )?.id ?? 'overview';
-
-  return (
-    <DMPage
-      eyebrow="Campaign · D&D 5e (2024)"
-      title="Lost Mine of Phandelver"
-      subbar={
-        <Tabs
-          label="Campaign sections"
-          items={tabs.map(({ id, label }) => ({ id, label }))}
-          value={current}
-          onChange={(id) => {
-            const tab = tabs.find((entry) => entry.id === id);
-            if (tab) navigate(tab.path);
-          }}
-        />
-      }
-    >
-      <Outlet />
-    </DMPage>
-  );
-}
-
-export function CampaignOverview() {
-  return (
-    <div className="tc-page">
-      <PendingSection title="Party" />
-      <PendingSection title="Prepared encounters" rows={4} />
-      <PendingSection title="Recent combats" rows={3} />
-    </div>
-  );
-}
-
-export function CampaignParty() {
-  return (
-    <div className="tc-page">
-      <PendingSection title="Party" rows={4} />
-    </div>
-  );
-}
-
-export function CampaignEncounters() {
-  return (
-    <div className="tc-page">
-      <PendingSection title="Encounters" />
-    </div>
-  );
-}
-
-export function CampaignCombats() {
-  return (
-    <div className="tc-page">
-      <PendingSection title="Recent combats" />
-    </div>
-  );
-}
-
-export function CampaignSettings() {
-  return (
-    <div className="tc-page">
-      <PendingSection title="Campaign settings" rows={4} height={56} />
-    </div>
-  );
-}
+export { CampaignLayout, CampaignList } from './campaign/CampaignLayout';
+export {
+  CampaignOverview,
+  CampaignParty,
+  CampaignEncounters,
+  CampaignCombats,
+  CampaignSettings,
+} from './campaign/CampaignScreens';
 
 /* ── Player ─────────────────────────────────────────────────────────────────── */
 

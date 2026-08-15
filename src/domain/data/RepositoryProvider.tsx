@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { createFixtureRepositories, type FixtureScenario } from './fixtureRepositories';
 import type { Repositories } from './repositories';
 
@@ -49,10 +57,20 @@ export function useRepositories(): Repositories {
   return repositories;
 }
 
-export type AsyncState<T> =
+/** What the read itself produced. Internal — screens see `AsyncState`. */
+type ReadState<T> =
   | { status: 'loading'; data: null; error: null }
   | { status: 'ready'; data: T; error: null }
   | { status: 'error'; data: null; error: Error };
+
+/**
+ * The read, plus a way to run it again. `reload` is intersected onto the union rather
+ * than returned beside it, so `state.status === 'ready'` still narrows `state.data`.
+ */
+export type AsyncState<T> = ReadState<T> & {
+  /** Re-runs the read. Call after a write so the screen shows what just changed. */
+  reload: () => void;
+};
 
 /**
  * Minimal async read for fixture-backed screens.
@@ -63,13 +81,15 @@ export type AsyncState<T> =
  * have a loading and an error branch from the start, which is what the design requires.
  */
 export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState<T> {
-  const [state, setState] = useState<AsyncState<T>>({ status: 'loading', data: null, error: null });
+  const [version, setVersion] = useState(0);
+  const [state, setState] = useState<ReadState<T>>({ status: 'loading', data: null, error: null });
 
   // `load` is deliberately not a dependency — callers pass an inline closure, which is a
   // new function every render. `deps` is what identifies the request, exactly as the
   // caller declares it. The cancelled flag stops a slow response from overwriting a newer
   // one, which is the bug this shape exists to prevent.
   const key = JSON.stringify(deps);
+  const reload = useCallback(() => setVersion((current) => current + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +114,9 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, version]);
 
-  return state;
+  // `reload` is attached to the state object rather than returned alongside it, so the
+  // three-state discriminated union still narrows cleanly at the call site.
+  return useMemo(() => ({ ...state, reload }), [state, reload]);
 }

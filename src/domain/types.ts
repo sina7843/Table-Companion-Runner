@@ -169,6 +169,12 @@ export interface Character {
   name: string;
   /** Ruleset-shaped summary line, e.g. "Human Fighter 6". Built by the adapter. */
   subtitle: string;
+  /**
+   * The system's word for what kind of character this is — class in D&D, calling or
+   * archetype elsewhere. Generic on purpose: rosters need one short label per character
+   * and every system in scope has one, but the core never interprets its value.
+   */
+  archetype?: string;
   level: number;
   attributes: Attribute[];
   resources: ResourcePool[];

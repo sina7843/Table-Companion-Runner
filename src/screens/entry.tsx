@@ -23,7 +23,13 @@ import {
   Skeleton,
   TextInput,
 } from '../design-system';
-import { useAsync, useRepositories, type GameSystem } from '../domain';
+import {
+  CURRENT_USER_ID,
+  useAsync,
+  useRepositories,
+  type GameSystem,
+  type GameSystemId,
+} from '../domain';
 
 function EntryFrame({
   tagline,
@@ -230,9 +236,95 @@ export function JoinCampaign() {
  * DM evaluating the product needs to know the architecture supports them.
  */
 export function NewCampaign() {
-  const { gameSystems } = useRepositories();
+  const navigate = useNavigate();
+  const { gameSystems, campaigns } = useRepositories();
   const state = useAsync(() => gameSystems.list(), ['game-systems']);
+
+  const [step, setStep] = useState<1 | 2>(1);
   const [selected, setSelected] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  async function create(event: FormEvent) {
+    event.preventDefault();
+    if (name.trim().length < 2 || !selected) {
+      setFailure('Give the campaign a name.');
+      return;
+    }
+
+    setCreating(true);
+    setFailure(null);
+    try {
+      const campaign = await campaigns.create({
+        name: name.trim(),
+        systemId: selected as GameSystemId,
+        dmUserId: CURRENT_USER_ID,
+      });
+      // Straight into the campaign it just made, where the invite code is in the top bar.
+      navigate(`/dm/campaigns/${campaign.id}`);
+    } catch (error) {
+      setFailure(
+        error instanceof Error ? error.message : 'The campaign could not be created. Try again.',
+      );
+      setCreating(false);
+    }
+  }
+
+  // Step 2: name and invite. Two steps to a working campaign, as the design specifies.
+  if (step === 2) {
+    const system =
+      state.status === 'ready' ? state.data.find((entry) => entry.id === selected) : undefined;
+
+    return (
+      <EntryFrame width={480}>
+        <SectionHeader eyebrow="New campaign · step 2 of 2" title="Name the campaign" />
+
+        <form
+          onSubmit={create}
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-16)' }}
+        >
+          {failure && (
+            <Alert tone="danger" title="Could not create the campaign">
+              {failure}
+            </Alert>
+          )}
+
+          <Field
+            label="Campaign name"
+            help={system ? `Running ${system.name}.` : undefined}
+            required
+          >
+            {({ id, describedBy }) => (
+              <TextInput
+                id={id}
+                aria-describedby={describedBy}
+                autoFocus
+                placeholder="Lost Mine of Phandelver"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            )}
+          </Field>
+
+          <Alert tone="info" icon="link" title="An invite code is generated for you">
+            Players join with it, and you can share or regenerate it from the campaign at any time.
+            Joining does not require a character.
+          </Alert>
+
+          <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center' }}>
+            <Button variant="secondary" icon="arrow-left" onClick={() => setStep(1)}>
+              Back
+            </Button>
+            <div style={{ flex: 1 }} />
+            <Button type="submit" variant="primary" icon="check" loading={creating}>
+              Create campaign
+            </Button>
+          </div>
+        </form>
+      </EntryFrame>
+    );
+  }
 
   return (
     <EntryFrame width={640}>
@@ -303,8 +395,7 @@ export function NewCampaign() {
           variant="primary"
           iconRight="arrow-right"
           disabled={selected === null}
-          as={Link}
-          to="/dm"
+          onClick={() => setStep(2)}
         >
           Name the campaign
         </Button>

@@ -241,3 +241,52 @@ picks the signed-in user's first character because there is no session identity 
 threading a fake one through the app to avoid that line would be worse.
 
 **`Chip` joined `Button` and `NavItem` as polymorphic**, so recall chips are real links.
+
+---
+
+## TC-05 — Campaigns and party
+
+**The party table is built once.** The design says it outright: "the party table is the party
+screen" — the overview shows it in a column, and the Party tab is the same table at full width
+with privacy state and an invite row added. Building it twice would guarantee drift, so columns,
+rows and the status derivation live in `screens/campaign/shared.tsx` and both screens call it.
+
+**"Open Character details in context" is exactly what the TC-02 context panel is for.** Clicking
+a party row opens the character beside the table — health, conditions, calculated values,
+abilities, and what the party cannot see — while the roster stays where it was. The full sheet is
+still one link away. No navigation, no modal, no losing your place.
+
+**First write methods.** `campaigns.create()` and `characters.attachToCampaign()`. Until now the
+data layer was read-only, and a Create-campaign flow that creates nothing is not a usable flow.
+Writes mutate the module-level fixture arrays: they survive navigation but not a reload. That is
+the honest ceiling of a fixture layer, stated in the file rather than implied.
+
+`useAsync` gained a `reload()` so a screen can show what it just changed. It is intersected onto
+the state union rather than returned beside it, so `status === 'ready'` still narrows `data`.
+
+**Attaching is a link, not a move.** A character exists independently of any campaign and outlives
+it, so attaching sets `campaignId` and adds the owner as a member while leaving ownership alone. A
+test pins that.
+
+**`Character.archetype` rather than reading `systemData`.** The design's party table has a Class
+column, and the prompt asks for "class/equivalent". Class is a D&D word, and screens must not read
+`systemData`, so the core gained one generic field: the system's word for what kind of character
+this is. The party table renders it under the label "Class" because the active ruleset is D&D;
+another system would label its own column.
+
+**Campaign List is not a design screen.** The design reaches campaigns from the sidebar group, so
+there is no approved layout for a list. The prompt asks for one, so it is rows in the same
+language as every other roster rather than a new card pattern — nothing invented.
+
+**Settings is a shell, deliberately.** Name, system, invite and the one DM. No co-DM controls, no
+danger zone, no notification preferences — Phase 1 does not own those, and the design's rule is
+that a future feature is absent rather than shown disabled.
+
+**Phase 2 extensibility is structural, not planned-for.** Campaign sub-navigation is `campaignTabs()`
+in `app/nav.ts`; Lore, NPCs, Locations, Quests and Notes insert between Party and Encounters by
+adding entries to that array and routes to the layout's children. No screen hardcodes the tab
+list, and none is shown disabled today.
+
+**Invite codes are generated client-side and are not a secret.** `makeInviteCode` produces the
+design's `WORD-1234` shape for the fixture flow. A real code is minted server-side in TC-13; this
+must not become the thing that guards a campaign, and the code says so.

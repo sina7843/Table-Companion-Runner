@@ -20,6 +20,7 @@ import type {
   EncounterTemplate,
   EncounterTemplateId,
   GameSystem,
+  GameSystemId,
   Monster,
   MonsterId,
   RecentItem,
@@ -28,15 +29,32 @@ import type {
   UserId,
 } from '../types.ts';
 
+export interface CreateCampaignInput {
+  name: string;
+  systemId: GameSystemId;
+  dmUserId: UserId;
+}
+
 export interface CampaignRepository {
   listForUser(userId: UserId): Promise<Campaign[]>;
   byId(campaignId: CampaignId): Promise<Campaign | null>;
+  /** Phase 1 has exactly one DM per campaign; the creator is it. */
+  create(input: CreateCampaignInput): Promise<Campaign>;
 }
 
 export interface CharacterRepository {
   listForCampaign(campaignId: CampaignId): Promise<Character[]>;
   listForOwner(userId: UserId): Promise<Character[]>;
+  /** Characters exist independently of campaigns; these are the unattached ones. */
+  listUnattached(userId: UserId): Promise<Character[]>;
   byId(characterId: CharacterId): Promise<Character | null>;
+  /**
+   * Attaches an existing independent character to a campaign.
+   *
+   * A character outlives any campaign, so this is a link rather than a move — the
+   * requirement is that a player brings a character they already have.
+   */
+  attachToCampaign(characterId: CharacterId, campaignId: CampaignId): Promise<Character>;
 }
 
 export interface MonsterQuery {
@@ -79,6 +97,8 @@ export interface RollRepository {
 export interface UserRepository {
   current(): Promise<User>;
   byId(userId: UserId): Promise<User | null>;
+  /** Resolves several at once — a party table needs every member's name in one go. */
+  byIds(userIds: UserId[]): Promise<User[]>;
 }
 
 export interface GameSystemRepository {

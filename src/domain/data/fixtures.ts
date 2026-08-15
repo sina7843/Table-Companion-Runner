@@ -105,6 +105,7 @@ export const CHARACTERS: Character[] = [
     campaignId: id<'Campaign'>('c-lmop'),
     ownerUserId: id<'User'>('u-marta'),
     name: 'Aria Nightfall',
+    archetype: 'Fighter',
     subtitle: 'Human Fighter 6',
     level: 6,
     attributes: abilities(17, 14, 15, 10, 12, 13),
@@ -128,6 +129,7 @@ export const CHARACTERS: Character[] = [
     campaignId: id<'Campaign'>('c-lmop'),
     ownerUserId: id<'User'>('u-priya'),
     name: 'Thessaly Vane',
+    archetype: 'Warlock',
     subtitle: 'Half-elf Warlock 6',
     level: 6,
     attributes: abilities(8, 14, 14, 12, 11, 17),
@@ -154,6 +156,7 @@ export const CHARACTERS: Character[] = [
     campaignId: id<'Campaign'>('c-lmop'),
     ownerUserId: id<'User'>('u-tomas'),
     name: 'Bram Ironfoot',
+    archetype: 'Cleric',
     subtitle: 'Dwarf Cleric 6',
     level: 6,
     attributes: abilities(14, 10, 16, 10, 17, 12),
@@ -178,6 +181,7 @@ export const CHARACTERS: Character[] = [
     campaignId: id<'Campaign'>('c-lmop'),
     ownerUserId: id<'User'>('u-devin'),
     name: 'Quill Featherwind',
+    archetype: 'Rogue',
     subtitle: 'Halfling Rogue 7',
     level: 7,
     attributes: abilities(10, 18, 14, 13, 12, 14),
@@ -200,6 +204,7 @@ export const CHARACTERS: Character[] = [
     systemId: SYSTEM_ID,
     ownerUserId: id<'User'>('u-marta'),
     name: 'Wren of the Ninth Hollow',
+    archetype: 'Druid',
     subtitle: 'Wood Elf Druid 3',
     level: 3,
     attributes: abilities(10, 14, 13, 12, 16, 11),
@@ -221,6 +226,7 @@ export const CHARACTERS: Character[] = [
     systemId: SYSTEM_ID,
     ownerUserId: id<'User'>('u-marta'),
     name: 'Osric Quillsworth',
+    archetype: 'Wizard',
     subtitle: 'Human Wizard 1',
     level: 1,
     attributes: abilities(8, 13, 12, 17, 11, 10),
@@ -609,6 +615,41 @@ export const COMBATS: CombatInstance[] = [
     ],
   },
 ];
+
+/* ── Combats already fought ─────────────────────────────────────────────────── */
+
+/**
+ * An encounter template can be run more than once, and each run is its own instance —
+ * which is why the Redbrand Hideout appears both as a prepared template and as a combat
+ * that already happened.
+ */
+COMBATS.push(
+  {
+    id: id<'CombatInstance'>('cb-redbrand'),
+    campaignId: LMOP,
+    encounterTemplateId: id<'EncounterTemplate'>('e-redbrand'),
+    name: 'The Redbrand Hideout',
+    location: 'Tresendar Manor',
+    status: 'ended',
+    round: 6,
+    activeParticipantId: null,
+    participants: [],
+    startedAt: '2026-08-11T19:04:00.000Z',
+    endedAt: '2026-08-11T20:31:00.000Z',
+  },
+  {
+    id: id<'CombatInstance'>('cb-triboar'),
+    campaignId: LMOP,
+    name: 'Ambush on the Triboar Trail',
+    location: 'Triboar Trail',
+    status: 'ended',
+    round: 4,
+    activeParticipantId: null,
+    participants: [],
+    startedAt: '2026-08-04T18:40:00.000Z',
+    endedAt: '2026-08-04T19:22:00.000Z',
+  },
+);
 
 /* ── Roll log ───────────────────────────────────────────────────────────────── */
 

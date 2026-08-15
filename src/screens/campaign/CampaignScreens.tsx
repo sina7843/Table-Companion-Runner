@@ -61,7 +61,9 @@ function TableScroll({ children }: { children: React.ReactNode }) {
 
 function encounterMeta(encounter: EncounterTemplate): string {
   const creatures = encounter.entries.reduce((sum, entry) => sum + entry.count, 0);
-  return [`${creatures} creatures`, encounter.difficultyLabel].filter(Boolean).join(' · ');
+  // Difficulty is deliberately absent: it is rated against the party, and this tab has
+  // not loaded one. The encounter screens state it where the party is known.
+  return [`${creatures} creatures`, encounter.location].filter(Boolean).join(' · ');
 }
 
 /* ── Party table, shared by the overview column and the Party tab ───────────── */
@@ -566,7 +568,7 @@ export function CampaignEncounters() {
             title="No encounters yet"
             description="An encounter is a reusable template. Starting it creates a separate combat, so you can run the same fight twice."
             actions={
-              <Button variant="primary" icon="plus" as={Link} to="/dm/encounters">
+              <Button variant="primary" icon="plus" as={Link} to="/dm/encounters/new">
                 Build an encounter
               </Button>
             }
@@ -577,15 +579,16 @@ export function CampaignEncounters() {
           state.data.map((encounter) => (
             <ListRow
               key={encounter.id}
+              as={Link}
+              to={`/dm/encounters/${encounter.id}`}
               leading={<Icon name="flag-banner" />}
               title={encounter.name}
               meta={encounterMeta(encounter)}
               trailing={
-                <Button size="sm" variant="secondary" icon="sword">
-                  Start combat
-                </Button>
+                <Badge tone="neutral" icon={encounter.lastRunAt ? 'check' : undefined}>
+                  {encounter.lastRunAt ? 'Run before' : 'Prepared'}
+                </Badge>
               }
-              onClick={() => undefined}
             />
           ))}
       </section>

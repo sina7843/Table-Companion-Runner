@@ -560,3 +560,64 @@ edit that looks local.
 
 **Scope held to Monster.** No class, subclass, species, background, spell, item or feat
 editors, as the prompt specifies for Phase 1.
+
+## TC-09 — Encounter library and detail
+
+**Difficulty is computed, never stored.** `EncounterTemplate.difficultyLabel` is gone.
+The design states difficulty against the current party, so a level-up has to change what
+the table says; a stored label goes stale the first time someone levels, and two sources
+for one number is how they end up disagreeing. `Ruleset.encounterDifficulty(creatures,
+party)` answers, and returns `null` for a system that has no such metric rather than the
+core inventing one every system is assumed to have.
+
+**The metric is generic, the maths is not.** The seam returns a label, a tone, a 0–100
+`fill`, a one-line `detail`, a `breakdown` of label/value rows, an optional `warning`, and
+an optional `metric` — a named number a table can sort on without knowing what it means.
+For D&D that number is adjusted XP. The core prints all of it verbatim and does no
+arithmetic on any of it.
+
+**Status is the first column.** Running, run before, or prepared decides which action the
+DM wants — Resume, Run again, Start combat — so it leads the row, and running encounters
+sort to the top. Scrolling for the fight that is happening now is the one thing this
+screen must never make a DM do.
+
+**Participants are text, not avatars.** `Bugbear Chief ×1 · Goblin ×4` reads faster than a
+row of portraits when a DM is scanning twelve encounters for names and counts.
+
+**Starting is not confirmed; deleting is.** The design is explicit that `Start combat`
+creates the instance without a dialog and explains the risk in place instead of
+interrupting. So the alert above the button says what starting does, and the confirmation
+budget is spent on delete, which names the encounter and says what survives it.
+
+**The template sentence is said three times.** The eyebrow reads `Encounter template`, the
+alert above the start button explains that starting creates a separate instance, and
+`Duplicate template` sits directly under it. A DM who fears damaging a prepared fight will
+not reuse it, so the repetition earns its space.
+
+**`startFromTemplate` lives on the combat repository, not the encounter one.** It reads a
+template and writes an instance; putting it on `EncounterRepository` would imply the
+template is what changes. Counts expand into numbered combatants sharing a group key, the
+campaign's party is added without being asked for, hidden entries start `private`, and
+nothing has rolled initiative yet. `lastRunAt` is the single field that moves on the
+template, because it is a note about the template rather than a change to the fight it
+describes. A test pins the whole shape.
+
+**The overflow menu is a dialog.** The design system has no menu primitive, and a popover
+built for one screen would be a new component with its own focus and dismissal bugs. A
+small `Modal` gets a focus trap and Escape for free, and keeps delete off the row where a
+mis-click reaches it.
+
+**The builder's routes exist now.** `/dm/encounters/new` and
+`/dm/encounters/:encounterId/edit` are linked from the library, the overflow menu, the
+detail page and the DM home, so they have to resolve. `EncounterBuilderPending` renders
+the page chrome the builder will fill — the same treatment every route skeleton in
+`screens/index.tsx` already gets, not a disabled feature.
+
+**`DMCombat` stopped lying.** It now resolves the fight it was sent to and reports what is
+true of it. Starting an encounter and landing on a screen that says "no combat is running"
+would have been worse than an unfinished screen. The combat runner itself is still TC-11.
+
+**Fixture rosters were rebalanced, not invented.** Twelve prepared encounters across the
+adventure, rated against the actual level 6–7 party: three trivial, three easy, two
+medium, three hard, one deadly, and three carrying the close-to-deadly warning. A list
+where everything reads the same difficulty demonstrates nothing.

@@ -710,3 +710,69 @@ write coming back as homebrew.
 Encounter Builder does not exist yet (TC-09), so "use it in Encounter Builder" is covered
 only insofar as homebrew creatures flow through the same `MonsterRepository` every monster
 surface reads from. **Add to encounter** remains an inert button until that slice.
+
+## TC-09 — Encounter library and detail
+
+### Routes
+
+`/dm/encounters` (library), `/dm/encounters/:encounterId` (detail), plus
+`/dm/encounters/new` and `/dm/encounters/:encounterId/edit` held open for the builder in
+TC-10 by `EncounterBuilderPending`. The campaign Encounters tab and the DM home both link
+into the detail page.
+
+### Library
+
+A table: Status · Encounter · Participants · Creatures · Difficulty · Adj. XP · Last
+edited · actions. Status leads and sorts first, then most recently edited. Row actions are
+Start combat / Run again / Resume, Duplicate, and an overflow dialog carrying Open, Edit,
+Duplicate and Delete. Delete confirms by name and states that combats already run from the
+template are kept.
+
+### Detail
+
+Roster, party and DM-only setup notes down the main column; balance, difficulty bar,
+close-to-deadly warning and the primary actions in a 320px aside that wraps under the
+roster on narrow viewports. A live encounter carries a banner with the round and a link
+into the fight. A template referencing a deleted creature says how many are missing rather
+than silently shrinking.
+
+### Difficulty
+
+`Ruleset.encounterDifficulty(creatures, party)` → `{ label, tone, fill, metric, detail,
+breakdown, warning? }` or `null`. The 5e adapter (`src/domain/ruleset/dnd5e/encounters.ts`)
+implements the published method: XP by challenge rank, a multiplier by creature count, and
+thresholds summed from each character's level. With no party it reports `Unrated` and still
+states the XP.
+
+### Domain additions
+
+`EncounterTemplate.location` / `.notes` / `.updatedAt`; `difficultyLabel` removed.
+`EncounterRepository.create` / `save` / `remove` / `duplicate`.
+`CombatRepository.startFromTemplate`. `EncounterCreature` and `EncounterDifficulty` on the
+ruleset seam.
+
+### States
+
+Loading, error, no campaign, no encounters, and a twelve-row populated list are all
+reachable. `?scenario=empty` gives the empty case, `?scenario=loading` and
+`?scenario=error` the other two.
+
+### Tests — 106, all passing (12 new in `encounters.test.ts`)
+
+Difficulty rising as the party shrinks; crowd multipliers beating raw XP; an unrated
+encounter withholding judgement but not the number; the breakdown's shape; a deadly fight
+not warned about being close to deadly; duplication producing an unrun, independent copy;
+create/save/remove round trips; starting not writing to the template; the same template
+run twice giving two independent fights; counts expanding into grouped, numbered,
+full-health combatants with the party added; and hidden entries staying private.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (106 passing), `npm run format:check`,
+`npm run build`. Dev server serves all four encounter routes and compiles every new module.
+
+### Not done
+
+The combat runner is TC-11. `/dm/combat/:combatId` now resolves the instance and reports
+its combatant count and round instead of claiming no combat is running, but it does not
+run the fight.

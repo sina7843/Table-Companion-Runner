@@ -24,6 +24,7 @@ import type {
   CharacterId,
   CombatInstance,
   CombatInstanceId,
+  CombatParticipant,
   EncounterTemplate,
   EncounterTemplateId,
   Monster,
@@ -354,6 +355,50 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
         resolve(ENCOUNTERS.filter((encounter) => encounter.campaignId === campaignId)),
       byId: (encounterId: EncounterTemplateId) =>
         resolve(ENCOUNTERS.find((encounter) => encounter.id === encounterId) ?? null),
+
+      create: (input: { campaignId: CampaignId; name: string }) => {
+        const created: EncounterTemplate = {
+          id: id<'EncounterTemplate'>(`e-${nextId()}`),
+          campaignId: input.campaignId,
+          name: input.name,
+          entries: [],
+          updatedAt: new Date().toISOString(),
+        };
+        ALL_ENCOUNTERS.push(created);
+        return resolve(created);
+      },
+
+      save: (encounter: EncounterTemplate) => {
+        const index = ALL_ENCOUNTERS.findIndex((entry) => entry.id === encounter.id);
+        if (index < 0) return Promise.reject(new Error('That encounter no longer exists.'));
+        const saved: EncounterTemplate = { ...encounter, updatedAt: new Date().toISOString() };
+        ALL_ENCOUNTERS[index] = saved;
+        return resolve(saved);
+      },
+
+      remove: (encounterId: EncounterTemplateId) => {
+        const index = ALL_ENCOUNTERS.findIndex((entry) => entry.id === encounterId);
+        if (index >= 0) ALL_ENCOUNTERS.splice(index, 1);
+        return resolve(undefined);
+      },
+
+      duplicate: (encounterId: EncounterTemplateId) => {
+        const source = ALL_ENCOUNTERS.find((entry) => entry.id === encounterId);
+        if (!source) return Promise.reject(new Error('That encounter no longer exists.'));
+
+        const copy: EncounterTemplate = {
+          ...source,
+          id: id<'EncounterTemplate'>(`e-${nextId()}`),
+          name: `${source.name} (copy)`,
+          // Entries are copied, not shared: editing the duplicate must not reach back.
+          entries: source.entries.map((entry) => ({ ...entry })),
+          updatedAt: new Date().toISOString(),
+          // A copy has not been run, whatever the original has done.
+          lastRunAt: undefined,
+        };
+        ALL_ENCOUNTERS.push(copy);
+        return resolve(copy);
+      },
     },
 
     combats: {
@@ -376,6 +421,80 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
         resolve(COMBATS.filter((combat) => combat.campaignId === campaignId)),
       byId: (combatId: CombatInstanceId) =>
         resolve(COMBATS.find((combat) => combat.id === combatId) ?? null),
+
+      startFromTemplate: (encounterId: EncounterTemplateId) => {
+        const template = ALL_ENCOUNTERS.find((entry) => entry.id === encounterId);
+        if (!template) return Promise.reject(new Error('That encounter no longer exists.'));
+
+        // Everything below reads the template and writes a new instance. The template
+        // itself is never assigned to, which is what makes running it twice safe.
+        const participants: CombatParticipant[] = [];
+
+        for (const entry of template.entries) {
+          const monster = ALL_MONSTERS.find((creature) => creature.id === entry.monsterId);
+          if (!monster) continue;
+
+          // Identical creatures share a group key so the initiative list can collapse
+          // them into one row, and are numbered so the DM can still name one of them.
+          const grouped = entry.count > 1;
+          for (let index = 1; index <= entry.count; index += 1) {
+            participants.push({
+              id: id<'CombatParticipant'>(`p-${nextId()}`),
+              name: grouped ? `${monster.name} #${index}` : monster.name,
+              subtitle: monster.challengeLabel,
+              entityType: 'monster',
+              initiative: null,
+              health: { current: monster.health.max, max: monster.health.max, temporary: 0 },
+              conditions: [],
+              state: 'waiting',
+              visibility: entry.hidden ? 'private' : 'party',
+              ...(grouped ? { groupKey: entry.monsterId } : {}),
+              source: { kind: 'monster', monsterId: monster.id },
+            });
+          }
+        }
+
+        for (const character of ALL_CHARACTERS.filter(
+          (entry) => entry.campaignId === template.campaignId,
+        )) {
+          participants.push({
+            id: id<'CombatParticipant'>(`p-${nextId()}`),
+            name: character.name,
+            subtitle: character.subtitle,
+            entityType: 'player',
+            initiative: null,
+            health: { ...character.health },
+            conditions: character.conditions.map((condition) => ({ ...condition })),
+            state: 'waiting',
+            visibility: 'party',
+            source: { kind: 'character', characterId: character.id },
+          });
+        }
+
+        const combat: CombatInstance = {
+          id: id<'CombatInstance'>(`cb-${nextId()}`),
+          campaignId: template.campaignId,
+          encounterTemplateId: template.id,
+          name: template.name,
+          ...(template.location ? { location: template.location } : {}),
+          status: 'preparing',
+          round: 0,
+          activeParticipantId: null,
+          participants,
+          startedAt: new Date().toISOString(),
+        };
+
+        ALL_COMBATS.push(combat);
+
+        // The template records that it has been run. That is a note about the template,
+        // not a change to the fight it describes — the roster is untouched.
+        const index = ALL_ENCOUNTERS.findIndex((entry) => entry.id === encounterId);
+        if (index >= 0) {
+          ALL_ENCOUNTERS[index] = { ...template, lastRunAt: combat.startedAt };
+        }
+
+        return resolve(combat);
+      },
     },
 
     rolls: {

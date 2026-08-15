@@ -60,6 +60,7 @@ import {
   normaliseMonster as homebrewNormaliseMonster,
   validateMonster as homebrewValidateMonster,
 } from './homebrew.ts';
+import { encounterDifficulty as encounterDifficulty5e } from './encounters.ts';
 import {
   ABILITY_KEYS,
   ABILITY_LABELS,
@@ -347,6 +348,7 @@ export const dnd5e2024: Ruleset = {
   estimateChallenge: homebrewEstimateChallenge,
   hitPointsFromDice: homebrewHitPointsFromDice,
   challengeScale: sheetChallengeScale,
+  encounterDifficulty: encounterDifficulty5e,
   sheetSections: sheetSectionsFor,
   sheetContent: sheetContentFor,
   levelUpStepForm: sheetLevelUpStepForm,

@@ -5,10 +5,11 @@
  * Each skeleton renders the real page chrome with the design system's loading skeleton
  * standing in for content. Nothing here renders a disabled future feature.
  */
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Button, EmptyState, SectionHeader, Skeleton } from '../design-system';
 import { DMPage } from '../app/DMShell';
 import { PlayerPage } from '../app/PlayerShell';
+import { CURRENT_USER_ID, useAsync, useRepositories, type CombatInstanceId } from '../domain';
 
 /** Section header plus skeleton rows — the shape the real content will take. */
 function PendingSection({
@@ -37,30 +38,67 @@ export { BuilderScreen } from './builder/BuilderScreen';
 
 /* ── DM ─────────────────────────────────────────────────────────────────────── */
 
+/**
+ * The combat runner is TC-11. Until then this route resolves the fight it was sent to and
+ * states what is actually true of it — an encounter that has just been started must not
+ * land the DM on a screen claiming no combat is running.
+ */
 export function DMCombat() {
+  const { combatId } = useParams();
+  const { combats } = useRepositories();
+
+  const state = useAsync(async () => {
+    if (combatId) return combats.byId(combatId as CombatInstanceId);
+    return combats.liveForUser(CURRENT_USER_ID);
+  }, ['dm-combat', combatId ?? '']);
+
+  const combat = state.status === 'ready' ? state.data : null;
+
   return (
-    <DMPage eyebrow="Session" title="Combat">
+    <DMPage eyebrow={combat?.location ?? 'Session'} title={combat?.name ?? 'Combat'}>
       <div className="tc-page">
-        <EmptyState
-          icon="sword"
-          title="No combat is running"
-          description="Start one from a prepared encounter, and it will pin itself to the top of the sidebar until it ends."
-          actions={
-            <Button variant="primary" icon="flag-banner" as={Link} to="/dm/encounters">
-              Open encounters
-            </Button>
-          }
-        />
+        {state.status === 'loading' && <Skeleton count={6} height={44} gap={8} />}
+
+        {state.status === 'ready' && !combat && (
+          <EmptyState
+            icon="sword"
+            title="No combat is running"
+            description="Start one from a prepared encounter, and it will pin itself to the top of the sidebar until it ends."
+            actions={
+              <Button variant="primary" icon="flag-banner" as={Link} to="/dm/encounters">
+                Open encounters
+              </Button>
+            }
+          />
+        )}
+
+        {combat && (
+          <PendingSection
+            title={`${combat.participants.length} combatants · ${
+              combat.status === 'preparing' ? 'rolling initiative' : `round ${combat.round}`
+            }`}
+            rows={Math.min(8, Math.max(1, combat.participants.length))}
+            height={48}
+          />
+        )}
       </div>
     </DMPage>
   );
 }
 
-export function DMEncounters() {
+/**
+ * The encounter builder's route, held open for TC-10.
+ *
+ * The library and the detail page both link here, so the path has to resolve. It renders
+ * the chrome and the skeleton the builder will fill — the same treatment every route
+ * skeleton in this file gets — rather than a disabled feature.
+ */
+export function EncounterBuilderPending() {
   return (
-    <DMPage eyebrow="Session" title="Encounters">
+    <DMPage eyebrow="Encounter template" title="Untitled encounter">
       <div className="tc-page">
-        <PendingSection title="Prepared encounters" />
+        <PendingSection title="Monsters" rows={4} height={48} />
+        <PendingSection title="Party" rows={4} height={48} />
       </div>
     </DMPage>
   );

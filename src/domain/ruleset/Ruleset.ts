@@ -258,6 +258,40 @@ export interface ReviewGroup {
   items: BuilderGrant[];
 }
 
+/** One line of an encounter roster: a creature and how many of it. */
+export interface EncounterCreature {
+  monster: Monster;
+  count: number;
+}
+
+/**
+ * How hard a fight is, in whatever terms the system uses.
+ *
+ * The core reads `label`, `tone` and `fill` to draw a badge and a bar, and prints
+ * `detail` and `breakdown` verbatim. It never does arithmetic on any of it.
+ */
+export interface EncounterDifficulty {
+  /** The system's own word, e.g. "Hard". */
+  label: string;
+  tone: 'neutral' | 'info' | 'warning' | 'danger';
+  /** 0–100, position on the system's own scale, for a progress bar. */
+  fill: number;
+  /**
+   * The system's headline number, when it has one — adjusted XP in D&D. Given as a
+   * label and a value so a table can sort on it without knowing what it means.
+   */
+  metric?: { label: string; value: number };
+  /** The working, stated in one line. */
+  detail: string;
+  /** Label/value rows for a balance panel. */
+  breakdown: { label: string; value: string }[];
+  /**
+   * A warning worth interrupting for, e.g. one more creature crossing into deadly.
+   * Absent when there is nothing to say.
+   */
+  warning?: string;
+}
+
 /** A dice expression the ruleset produced, ready to roll. */
 export interface DiceRequest {
   expression: string;
@@ -382,6 +416,18 @@ export interface Ruleset {
 
   /** Difficulty values this system uses, ascending, for a range filter. */
   challengeScale(): { value: number; label: string }[];
+
+  /* ── Encounters ───────────────────────────────────────────────────────────── */
+
+  /**
+   * How hard this encounter is for this party, or `null` when the system has no such
+   * metric. The core shows the difficulty column only when a ruleset answers, rather
+   * than inventing a number every system is assumed to have.
+   */
+  encounterDifficulty(
+    creatures: EncounterCreature[],
+    party: Character[],
+  ): EncounterDifficulty | null;
 
   /** The tabs this system's sheet has, in the order a player reaches for them. */
   sheetSections(character: Character): SheetSection[];

@@ -324,42 +324,170 @@ export const MONSTERS: Monster[] = [
 
 /* ── Encounters ─────────────────────────────────────────────────────────────── */
 
+/**
+ * A campaign's worth of prepared fights.
+ *
+ * Difficulty is deliberately not stored: the ruleset computes it against the party as it
+ * is today, so a level-up changes what the encounter table says. A stored label would go
+ * stale the first time someone gained a level, and two sources for one number is how they
+ * end up disagreeing.
+ *
+ * Twelve entries rather than a token three, because the list is the screen that grows
+ * with content and it should be exercised at the length a real adventure produces.
+ */
 export const ENCOUNTERS: EncounterTemplate[] = [
+  {
+    id: id<'EncounterTemplate'>('e-goblin-ambush'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'Goblin Ambush',
+    location: 'Cragmaw Hideout',
+    notes:
+      'Two goblins open from the ridge with shortbows; the Chief only reveals himself once a player crosses the stream. The Ambusher stays hidden until round 3 — start it with initiative 6 so it acts last.',
+    updatedAt: '2026-08-15T19:08:00.000Z',
+    lastRunAt: '2026-08-15T19:12:00.000Z',
+    entries: [
+      { id: 'e1', monsterId: id<'Monster'>('m-bugbear-chief'), count: 1 },
+      { id: 'e2', monsterId: id<'Monster'>('m-goblin'), count: 4 },
+      { id: 'e3', monsterId: id<'Monster'>('m-cragmaw-ambusher'), count: 1, hidden: true },
+    ],
+  },
   {
     id: id<'EncounterTemplate'>('e-cragmaw-castle'),
     campaignId: id<'Campaign'>('c-lmop'),
     name: 'Assault on Cragmaw Castle',
-    difficultyLabel: 'deadly · 9,600 adj. XP',
+    location: 'Cragmaw Castle',
+    notes:
+      'King Grol holds the north tower with Ripper. The goblins in the banquet hall join on round 2 if anyone shouts — give the party one round to be quiet about it.',
+    updatedAt: '2026-08-14T16:20:00.000Z',
     entries: [
-      { id: 'e1', monsterId: id<'Monster'>('m-bugbear-chief'), count: 2 },
-      { id: 'e2', monsterId: id<'Monster'>('m-goblin'), count: 12 },
-      { id: 'e3', monsterId: id<'Monster'>('m-cragmaw-ambusher'), count: 2, hidden: true },
+      { id: 'e1', monsterId: id<'Monster'>('m-goblin'), count: 8 },
+      { id: 'e2', monsterId: id<'Monster'>('m-bugbear'), count: 4 },
+      { id: 'e3', monsterId: id<'Monster'>('m-hobgoblin'), count: 3 },
+      { id: 'e4', monsterId: id<'Monster'>('m-dire-wolf'), count: 1, hidden: true },
+    ],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-redbrand'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'The Redbrand Hideout',
+    location: 'Tresendar Manor',
+    notes:
+      'The ruffians fight to the death only while Glasstaff is alive. Once he flees, offer a surrender.',
+    updatedAt: '2026-08-11T18:40:00.000Z',
+    lastRunAt: '2026-08-11T19:00:00.000Z',
+    entries: [
+      { id: 'e1', monsterId: id<'Monster'>('m-bandit'), count: 6 },
+      { id: 'e2', monsterId: id<'Monster'>('m-bandit-captain'), count: 1 },
+      { id: 'e3', monsterId: id<'Monster'>('m-veteran'), count: 1 },
     ],
   },
   {
     id: id<'EncounterTemplate'>('e-wave-echo'),
     campaignId: id<'Campaign'>('c-lmop'),
     name: 'Wave Echo Cave — first landing',
-    difficultyLabel: 'hard · 2,900 adj. XP',
+    location: 'Wave Echo Cave',
+    notes:
+      'The skeletons rise from the water as the party reaches the second bridge. The wight stays on the far bank and commands them.',
+    updatedAt: '2026-08-09T20:15:00.000Z',
     entries: [
-      { id: 'e1', monsterId: id<'Monster'>('m-bugbear-chief'), count: 1 },
-      { id: 'e2', monsterId: id<'Monster'>('m-goblin'), count: 6 },
+      { id: 'e1', monsterId: id<'Monster'>('m-wight'), count: 1 },
+      { id: 'e2', monsterId: id<'Monster'>('m-skeleton'), count: 8 },
+      { id: 'e3', monsterId: id<'Monster'>('m-gargoyle'), count: 1 },
     ],
   },
   {
     id: id<'EncounterTemplate'>('e-owlbear'),
     campaignId: id<'Campaign'>('c-lmop'),
     name: 'Owlbear in the ravine',
-    difficultyLabel: 'easy · 700 adj. XP',
+    location: 'Triboar Trail',
+    notes:
+      'Not a fight unless they make it one. The owlbear is guarding a kill and will back off if given room.',
+    updatedAt: '2026-08-02T11:05:00.000Z',
     entries: [{ id: 'e1', monsterId: id<'Monster'>('m-owlbear'), count: 1 }],
   },
   {
-    id: id<'EncounterTemplate'>('e-redbrand'),
+    id: id<'EncounterTemplate'>('e-thundertree'),
     campaignId: id<'Campaign'>('c-lmop'),
-    name: 'The Redbrand Hideout',
-    difficultyLabel: 'medium · 1,800 adj. XP',
-    lastRunAt: '2026-08-11T19:00:00.000Z',
-    entries: [{ id: 'e1', monsterId: id<'Monster'>('m-goblin'), count: 6 }],
+    name: 'Ruins of Thundertree — ash zombies',
+    location: 'Thundertree',
+    notes:
+      'They come out of three buildings at once. Spread the initiative so the party is never surrounded on the first round. The hag watches from the tower and only joins if the fight goes long.',
+    updatedAt: '2026-07-30T19:50:00.000Z',
+    entries: [
+      { id: 'e1', monsterId: id<'Monster'>('m-zombie'), count: 10 },
+      { id: 'e2', monsterId: id<'Monster'>('m-green-hag'), count: 1, hidden: true },
+    ],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-twin-spiders'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'Webs in the old mill',
+    location: 'Phandalin',
+    updatedAt: '2026-07-28T09:30:00.000Z',
+    entries: [{ id: 'e1', monsterId: id<'Monster'>('m-giant-spider'), count: 5 }],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-orc-raiders'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'Orc raiders at Wyvern Tor',
+    location: 'Wyvern Tor',
+    notes:
+      'The ogre is asleep at the back of the cave. It joins on round 3 unless the party is quiet.',
+    updatedAt: '2026-07-25T17:12:00.000Z',
+    lastRunAt: '2026-07-26T18:30:00.000Z',
+    entries: [
+      { id: 'e1', monsterId: id<'Monster'>('m-orc'), count: 8 },
+      { id: 'e2', monsterId: id<'Monster'>('m-ogre'), count: 2, hidden: true },
+    ],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-kobold-warren'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'Kobold warren',
+    location: 'Old Owl Well',
+    updatedAt: '2026-07-21T14:00:00.000Z',
+    entries: [{ id: 'e1', monsterId: id<'Monster'>('m-kobold'), count: 12 }],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-cultists'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'The Dragon Cult in the barrow',
+    location: 'Old Owl Well',
+    notes:
+      'The cultists are stalling for the ritual, not trying to win. Two rounds of talking is a legitimate outcome.',
+    updatedAt: '2026-07-18T21:45:00.000Z',
+    entries: [
+      { id: 'e1', monsterId: id<'Monster'>('m-cultist'), count: 8 },
+      { id: 'e2', monsterId: id<'Monster'>('m-veteran'), count: 2 },
+    ],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-ghouls'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'Ghouls under the graveyard',
+    location: 'Phandalin',
+    updatedAt: '2026-07-12T20:10:00.000Z',
+    entries: [{ id: 'e1', monsterId: id<'Monster'>('m-ghoul'), count: 4 }],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-wolves'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'Wolves on the road',
+    location: 'Triboar Trail',
+    updatedAt: '2026-07-04T08:25:00.000Z',
+    lastRunAt: '2026-07-04T19:15:00.000Z',
+    entries: [{ id: 'e1', monsterId: id<'Monster'>('m-wolf'), count: 4 }],
+  },
+
+  // A campaign with a DM and no players yet. The difficulty metric has nothing to rate
+  // against, and the screens have to say so rather than printing a confident number.
+  {
+    id: id<'EncounterTemplate'>('e-death-house'),
+    campaignId: id<'Campaign'>('c-strahd'),
+    name: 'Death House — the attic',
+    location: 'Death House',
+    updatedAt: '2026-07-20T22:00:00.000Z',
+    entries: [{ id: 'e1', monsterId: id<'Monster'>('m-ghoul'), count: 2 }],
   },
 ];
 
@@ -371,6 +499,7 @@ export const COMBATS: CombatInstance[] = [
   {
     id: id<'CombatInstance'>('cb-goblin-ambush'),
     campaignId: LMOP,
+    encounterTemplateId: id<'EncounterTemplate'>('e-goblin-ambush'),
     name: 'Goblin Ambush',
     location: 'Cragmaw Hideout',
     status: 'live',

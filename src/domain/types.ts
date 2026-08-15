@@ -284,10 +284,12 @@ export interface EncounterTemplate {
   id: EncounterTemplateId;
   campaignId: CampaignId;
   name: string;
+  /** Where the fight happens. Carried into the combat instance's top bar. */
+  location?: string;
   entries: EncounterEntry[];
-  /** Ruleset-computed difficulty, e.g. "deadly · 9,600 adj. XP". */
-  difficultyLabel?: string;
+  /** DM-only setup notes. Never sent to a player device. */
   notes?: string;
+  updatedAt?: Timestamp;
   lastRunAt?: Timestamp;
 }
 

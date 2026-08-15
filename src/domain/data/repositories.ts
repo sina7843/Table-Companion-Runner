@@ -95,6 +95,16 @@ export interface MonsterRepository {
 export interface EncounterRepository {
   listForCampaign(campaignId: CampaignId): Promise<EncounterTemplate[]>;
   byId(encounterId: EncounterTemplateId): Promise<EncounterTemplate | null>;
+
+  create(input: { campaignId: CampaignId; name: string }): Promise<EncounterTemplate>;
+  /** Autosave. The builder calls this on every change. */
+  save(encounter: EncounterTemplate): Promise<EncounterTemplate>;
+  remove(encounterId: EncounterTemplateId): Promise<void>;
+  /**
+   * A separate template with the same roster. How a DM safely reuses a fight they have
+   * already run, so it is offered next to the destructive actions rather than behind them.
+   */
+  duplicate(encounterId: EncounterTemplateId): Promise<EncounterTemplate>;
 }
 
 export interface CombatRepository {
@@ -110,6 +120,15 @@ export interface CombatRepository {
   liveForUser(userId: UserId): Promise<CombatInstance | null>;
   listForCampaign(campaignId: CampaignId): Promise<CombatInstance[]>;
   byId(combatId: CombatInstanceId): Promise<CombatInstance | null>;
+
+  /**
+   * Creates a new fight from a template.
+   *
+   * The instance is a copy: hit points, conditions and initiative change on it and the
+   * template is never written to. Running the same prepared encounter twice therefore
+   * produces two independent instances, which is the whole reason templates exist.
+   */
+  startFromTemplate(encounterId: EncounterTemplateId): Promise<CombatInstance>;
 }
 
 export interface RollRepository {

@@ -19,6 +19,8 @@ export type {
   BuilderScoreSlot,
   BuilderStep,
   BuilderStepForm,
+  EncounterCreature,
+  EncounterDifficulty,
   FacetDefinition,
   LevelUpChange,
   LevelUpOutcome,

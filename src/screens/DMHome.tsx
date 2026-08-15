@@ -277,7 +277,7 @@ export function DMHome() {
               title="Nothing prepared"
               description="Build an encounter now and it will be one tap from the table tonight."
               actions={
-                <Button size="sm" variant="secondary" icon="plus" as={Link} to="/dm/encounters">
+                <Button size="sm" variant="secondary" icon="plus" as={Link} to="/dm/encounters/new">
                   New encounter
                 </Button>
               }
@@ -286,24 +286,21 @@ export function DMHome() {
             prepared.map((encounter: EncounterTemplate) => (
               <ListRow
                 key={encounter.id}
+                as={Link}
+                to={`/dm/encounters/${encounter.id}`}
                 leading={<Icon name="flag-banner" />}
                 title={encounter.name}
                 meta={[
                   `${encounter.entries.reduce((sum, entry) => sum + entry.count, 0)} creatures`,
-                  encounter.difficultyLabel,
+                  encounter.location,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
                 trailing={
-                  <Button
-                    size="sm"
-                    variant={encounter.lastRunAt ? 'tertiary' : 'secondary'}
-                    icon="sword"
-                  >
-                    {encounter.lastRunAt ? 'Run again' : 'Start combat'}
-                  </Button>
+                  <Badge tone="neutral" icon={encounter.lastRunAt ? 'check' : undefined}>
+                    {encounter.lastRunAt ? 'Run before' : 'Prepared'}
+                  </Badge>
                 }
-                onClick={() => undefined}
               />
             ))
           )}

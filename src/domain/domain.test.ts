@@ -307,7 +307,9 @@ test('repositories resolve the fixture graph', async () => {
   assert.ok(library.every((monster) => monster.ownerUserId === undefined));
 
   const encounters = await repos.encounters.listForCampaign(id<'Campaign'>('c-lmop'));
-  assert.equal(encounters.length, 4);
+  assert.equal(encounters.length, 12);
+  // Encounters belong to one campaign; the second one has its own.
+  assert.ok(encounters.every((encounter) => encounter.campaignId === id<'Campaign'>('c-lmop')));
 
   // A substring search reaches every goblinoid, not only the one named exactly that.
   const search = await repos.monsters.list({ search: 'gob' });

@@ -11,7 +11,15 @@ export * from './types.ts';
 export * from './permissions.ts';
 
 export type {
+  BuilderField,
+  BuilderFieldKind,
+  BuilderGrant,
+  BuilderIssue,
+  BuilderOption,
+  BuilderScoreSlot,
   BuilderStep,
+  BuilderStepForm,
+  ReviewGroup,
   ConditionDefinition,
   DiceRequest,
   RandomSource,
@@ -23,6 +31,9 @@ export { findRuleset, listGameSystems, requireRuleset } from './ruleset/registry
 
 export type {
   ActivityRepository,
+  CreateCampaignInput,
+  CreateDraftInput,
+  DraftRepository,
   CampaignRepository,
   CharacterRepository,
   CombatRepository,

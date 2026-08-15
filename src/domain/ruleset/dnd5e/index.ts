@@ -9,6 +9,7 @@ import {
   id,
   type Attribute,
   type Character,
+  type CharacterDraft,
   type CombatParticipant,
   type DeathSaves,
   type DerivedValue,
@@ -29,6 +30,21 @@ import type {
   RulesetCapabilities,
 } from '../Ruleset.ts';
 import {
+  answers,
+  applyChoice as builderApplyChoice,
+  backgroundOf,
+  canOverride as builderCanOverride,
+  classOf,
+  draftStepForm as builderStepForm,
+  draftSteps as builderSteps,
+  finalAbilities,
+  reviewGroups as builderReviewGroups,
+  speciesOf,
+  startingHitPoints,
+  validateStep as builderValidateStep,
+} from './builder.ts';
+import {
+  ABILITY_KEYS,
   ABILITY_LABELS,
   ARMOUR,
   CONDITIONS,
@@ -294,6 +310,74 @@ export const dnd5e2024: Ruleset = {
 
     steps.push({ id: 'review', label: 'Review changes' });
     return steps;
+  },
+
+  /* ── The guided builder ─────────────────────────────────────────────────── */
+
+  draftSteps: builderSteps,
+  draftStepForm: builderStepForm,
+  validateStep: builderValidateStep,
+  applyChoice: builderApplyChoice,
+  reviewGroups: builderReviewGroups,
+  canOverride: builderCanOverride,
+
+  /**
+   * The character a draft currently describes.
+   *
+   * Tolerates every missing choice, because it drives the live summary from step one —
+   * an unchosen class means no hit die yet, not an exception.
+   */
+  draftToCharacter(draft: CharacterDraft): Character {
+    const scores = finalAbilities(draft);
+    const klass = classOf(draft);
+    const species = speciesOf(draft);
+    const background = backgroundOf(draft);
+    const answered = answers(draft);
+
+    const hitPoints = answered.overrides?.hp ?? startingHitPoints(draft);
+    const subtitle = [species?.label, klass?.label, klass ? '1' : null]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    return {
+      id: id<'Character'>(draft.id),
+      systemId: draft.systemId,
+      campaignId: draft.campaignId,
+      ownerUserId: draft.ownerUserId,
+      name: draft.name,
+      subtitle: subtitle || 'New character',
+      archetype: klass?.label,
+      level: 1,
+      attributes: ABILITY_KEYS.map((key) => ({
+        key,
+        label: ABILITY_LABELS[key],
+        value: scores[key] ?? 10,
+        modifier: abilityModifier(scores[key] ?? 10),
+      })),
+      resources: [],
+      health: { current: hitPoints, max: hitPoints, temporary: 0 },
+      conditions: [],
+      sectionVisibility: {},
+      systemData: {
+        classKey: klass?.key,
+        className: klass?.label,
+        species: species?.label,
+        background: background?.label,
+        armour: klass?.startingArmour ?? 'none',
+        shield: klass?.startingShield ?? false,
+        fightingStyle: answered.fightingStyle,
+        skills: answered.skills,
+        cantrips: answered.cantrips,
+        spells: answered.spells,
+        equipment: answered.equipment,
+        appearance: answered.appearance,
+        backstory: answered.backstory,
+        ...(answered.overrides?.ac === undefined
+          ? {}
+          : { armourClassOverride: answered.overrides.ac }),
+      },
+    };
   },
 
   applyHealthDelta(health: HealthTrack, delta: number): HealthTrack {

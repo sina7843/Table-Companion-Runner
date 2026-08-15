@@ -14,6 +14,8 @@ import type {
   CampaignActivity,
   CampaignId,
   Character,
+  CharacterDraft,
+  CharacterDraftId,
   CharacterId,
   CombatInstance,
   CombatInstanceId,
@@ -105,6 +107,28 @@ export interface GameSystemRepository {
   list(): Promise<readonly GameSystem[]>;
 }
 
+export interface CreateDraftInput {
+  systemId: GameSystemId;
+  ownerUserId: UserId;
+  campaignId?: CampaignId;
+  name?: string;
+}
+
+/**
+ * Character drafts. Separate from `CharacterRepository` because a draft is not a
+ * character yet — it has no rules-valid shape and must never appear in a party.
+ */
+export interface DraftRepository {
+  listForOwner(userId: UserId): Promise<CharacterDraft[]>;
+  byId(draftId: CharacterDraftId): Promise<CharacterDraft | null>;
+  create(input: CreateDraftInput): Promise<CharacterDraft>;
+  /** Autosave. Called on every answer, so it must be cheap and idempotent. */
+  save(draft: CharacterDraft): Promise<CharacterDraft>;
+  discard(draftId: CharacterDraftId): Promise<void>;
+  /** Turns a finished draft into a real character and removes the draft. */
+  finalise(draftId: CharacterDraftId, character: Character): Promise<Character>;
+}
+
 export interface RecentsRepository {
   /** Most recent first. The DM home shows one row of these. */
   listForUser(userId: UserId, limit?: number): Promise<RecentItem[]>;
@@ -127,4 +151,5 @@ export interface Repositories {
   rolls: RollRepository;
   recents: RecentsRepository;
   activity: ActivityRepository;
+  drafts: DraftRepository;
 }

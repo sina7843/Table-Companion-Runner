@@ -189,7 +189,7 @@ export function PlayerHome() {
                   width: '100%',
                 }}
               >
-                <Button variant="primary" size="lg" block icon="plus" as={Link} to="/play/builder">
+                <Button variant="primary" size="lg" block icon="plus" as={Link} to="/builder">
                   Create character
                 </Button>
                 <Button variant="tertiary" block icon="flag-banner" as={Link} to="/join">
@@ -273,7 +273,7 @@ export function PlayerHome() {
             icon="arrow-up"
             title={`Level ${character.level + 1} available`}
             actions={
-              <Button size="sm" variant="secondary" icon="arrow-up" as={Link} to="/play/builder">
+              <Button size="sm" variant="secondary" icon="arrow-up" as={Link} to="/builder">
                 Start level up
               </Button>
             }

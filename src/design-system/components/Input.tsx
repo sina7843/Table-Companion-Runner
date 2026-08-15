@@ -1,4 +1,9 @@
-import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import {
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from 'react';
 import { Icon } from './Icon';
 import { cx, type IconName } from './types';
 
@@ -110,7 +115,9 @@ export function TextInput({
   );
 }
 
-export interface TextareaProps extends InputHTMLAttributes<HTMLTextAreaElement> {
+// TextareaHTMLAttributes, not InputHTMLAttributes: the two differ (`rows`, `cols`, `wrap`),
+// and the wrong one silently rejects valid textarea props.
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   invalid?: boolean;
 }
 

@@ -441,3 +441,61 @@ the fixtures, and `as` on `ListRow`.
 Five new: campaign creation gives exactly one DM and a well-formed invite code, attaching links
 without transferring ownership, attaching a missing character rejects, `byIds` resolves a party in
 one call, and past combats sit alongside the live one.
+
+---
+
+## TC-06 — The guided character builder
+
+### How it stays game-system agnostic
+
+`Ruleset` gained a step-form contract. The wizard shell renders four field kinds and
+nothing else:
+
+| Kind | Used by D&D for |
+| --- | --- |
+| `single-choice` | species, background, class, fighting style, ability method, equipment |
+| `multi-choice` | skills (bounded by class), cantrips, spells |
+| `score-assignment` | the ability array |
+| `text` | appearance, backstory |
+
+`BuilderScreen.tsx` and `fields.tsx` name no D&D concept. All content lives in
+`ruleset/dnd5e/builder.ts`: 8 species, 6 backgrounds, 8 classes, 4 fighting styles, 4
+equipment packs and spell lists for all five caster classes.
+
+### The flow
+
+Ruleset → Species → Background → Class → Ability scores → *(Fighting style | Spells)* →
+Proficiencies → Equipment → Details *(optional)* → Review.
+
+The middle is generated: a Fighter gains Fighting style and never sees Spells; a Cleric
+gets the reverse. The step count in the header moves with it.
+
+### Behaviour
+
+- **Live summary** — avatar, name, subtitle, headline stats, all six abilities, decisions
+  left. Updates on every answer.
+- **"Updated by this step"** — the shell diffs derived values across a step and reports
+  what moved, e.g. hit points 8 → 12.
+- **Validation** — per field. The alert names the missing choice, that group alone is
+  outlined, the footer counts what remains, and issues appear only after a Continue
+  attempt. Continue disables; Back and "Save and finish later" do not.
+- **Dependencies** — changing class clears style, skills, cantrips and spells; choosing a
+  background releases a class skill it now grants free; a background skill is shown in the
+  class list with its reason but is not selectable.
+- **Autosave** — debounced 400ms to localStorage, with the state shown as "Saving…" /
+  "Saved just now".
+- **Overrides** — hit points and armour class only, decided by `canOverride()`.
+
+### Composition
+
+Desktop (≥1024px): three columns — step rail, question, live summary — with the footer
+spanning the middle. Mobile: one decision per screen, the rail reduced to a progress bar,
+a sticky Continue, and the summary behind a header button as a Drawer.
+
+### Tests — 45, all passing (13 new in `builder.test.ts`)
+
+Including the acceptance criterion end to end: a Human Soldier Fighter with the standard
+array reaches Review with every step valid, STR 15 → 17 and CON 14 → 15 from the 2024
+background increases, hit points 12 from d10 + Constitution, armour class 18 from chain
+mail with a capped Dexterity plus a shield, initiative +2 and proficiency +2 — none of it
+typed in by the user.

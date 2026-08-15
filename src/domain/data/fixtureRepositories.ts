@@ -19,6 +19,8 @@ import type {
   Campaign,
   CampaignId,
   Character,
+  CharacterDraft,
+  CharacterDraftId,
   CharacterId,
   CombatInstance,
   CombatInstanceId,
@@ -42,7 +44,12 @@ import {
   ROLLS,
   USERS,
 } from './fixtures.ts';
-import type { CreateCampaignInput, MonsterQuery, Repositories } from './repositories.ts';
+import type {
+  CreateCampaignInput,
+  CreateDraftInput,
+  MonsterQuery,
+  Repositories,
+} from './repositories.ts';
 
 /**
  * Which world the fixtures describe.
@@ -83,6 +90,39 @@ let idCounter = 0;
 function nextId(): string {
   idCounter += 1;
   return `new-${idCounter}`;
+}
+
+/**
+ * Drafts persist to localStorage rather than a module array.
+ *
+ * Autosave that vanishes on reload is not autosave. A half-built character is exactly the
+ * thing a user expects to survive closing a tab, so the fixture layer keeps it in the one
+ * store a browser gives us for free. TC-13 moves this to the server; the interface does
+ * not change when it does.
+ */
+const DRAFT_KEY = 'table-companion.drafts';
+let memoryDrafts: CharacterDraft[] = [];
+
+function loadDrafts(): CharacterDraft[] {
+  if (typeof localStorage === 'undefined') return memoryDrafts;
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as CharacterDraft[]) : [];
+  } catch {
+    // Corrupt or unavailable storage must not take the builder down with it.
+    return memoryDrafts;
+  }
+}
+
+function writeDrafts(drafts: CharacterDraft[]): void {
+  memoryDrafts = drafts;
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+  } catch {
+    // Quota or private-mode failures leave the in-memory copy authoritative for the
+    // session, which is still better than losing the answer the user just gave.
+  }
 }
 
 /**
@@ -253,6 +293,47 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
             b.at.localeCompare(a.at),
           ),
         ),
+    },
+
+    drafts: {
+      listForOwner: (userId: UserId) =>
+        resolve(loadDrafts().filter((draft) => draft.ownerUserId === userId)),
+      byId: (draftId: CharacterDraftId) =>
+        resolve(loadDrafts().find((draft) => draft.id === draftId) ?? null),
+      create: (input: CreateDraftInput) => {
+        const draft: CharacterDraft = {
+          id: id<'CharacterDraft'>(`draft-${nextId()}`),
+          systemId: input.systemId,
+          ownerUserId: input.ownerUserId,
+          campaignId: input.campaignId,
+          name: input.name ?? '',
+          choices: { ruleset: input.systemId },
+          stepId: 'ruleset',
+          updatedAt: new Date().toISOString(),
+        };
+        writeDrafts([...loadDrafts(), draft]);
+        return resolve(draft);
+      },
+      save: (draft: CharacterDraft) => {
+        const stored = loadDrafts().filter((entry) => entry.id !== draft.id);
+        const saved = { ...draft, updatedAt: new Date().toISOString() };
+        writeDrafts([...stored, saved]);
+        return resolve(saved);
+      },
+      discard: (draftId: CharacterDraftId) => {
+        writeDrafts(loadDrafts().filter((draft) => draft.id !== draftId));
+        return resolve(undefined);
+      },
+      finalise: (draftId: CharacterDraftId, character: Character) => {
+        ALL_CHARACTERS.push(character);
+        if (character.campaignId) {
+          const campaign = ALL_CAMPAIGNS.find((entry) => entry.id === character.campaignId);
+          const member = campaign?.members.find((entry) => entry.userId === character.ownerUserId);
+          if (member) member.characterId = character.id;
+        }
+        writeDrafts(loadDrafts().filter((draft) => draft.id !== draftId));
+        return resolve(character);
+      },
     },
 
     recents: {

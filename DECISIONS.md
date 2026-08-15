@@ -290,3 +290,59 @@ list, and none is shown disabled today.
 **Invite codes are generated client-side and are not a secret.** `makeInviteCode` produces the
 design's `WORD-1234` shape for the fixture flow. A real code is minted server-side in TC-13; this
 must not become the thing that guards a campaign, and the code says so.
+
+---
+
+## TC-06 — The guided character builder
+
+**The wizard renders a schema, not D&D.** This is the whole design of TC-06. The prompt
+requires that steps come from the active ruleset adapter, so `Ruleset` gained a step-form
+contract — `draftSteps`, `draftStepForm`, `validateStep`, `applyChoice`, `draftToCharacter`,
+`reviewGroups`, `canOverride` — and the shell renders exactly four field kinds:
+`single-choice`, `multi-choice`, `score-assignment` and `text`.
+
+`BuilderScreen.tsx` and `fields.tsx` contain no species, no classes, no ability scores, no
+armour. A different system emits the same four shapes and gets the same wizard. The
+boundary test that has guarded the D&D adapter since TC-03 covers these files too.
+
+**A `CharacterDraft` is not a `Character`.** It has no rules-valid shape, so it lives in
+its own repository and can never turn up in a party by accident. Only `finalise()` turns
+one into the other.
+
+**Autosave persists to localStorage.** Autosave that vanishes on reload is not autosave —
+a half-built character is exactly what a user expects to survive closing a tab. Writes are
+debounced 400ms so typing a backstory does not write per keystroke, and both a corrupt
+store and a quota failure fall back to memory rather than taking the builder down. TC-13
+moves this to the server without the interface changing.
+
+**Validation is per field, not per step.** `validateStep` returns issues carrying the
+field key, which is what lets the design's behaviour work: the alert names the missing
+choice, that group alone is outlined in crimson, and the footer counts what remains.
+Issues only surface after a Continue attempt — being told you are wrong before you have
+tried is hostile.
+
+**Continue disables; Back and "Save and finish later" never do.** The design is explicit
+that an incomplete character is a legitimate draft.
+
+**Dependencies are cleared, not silently kept.** Changing class drops a fighting style,
+skills, cantrips and spells, because a Fighter's picks are not a Wizard's and keeping them
+would produce a character the rules disallow. Choosing a background releases a class skill
+it now grants free. Both are tested.
+
+**Two compositions, not one responsive layout.** Desktop is three columns — steps,
+question, live summary. Mobile is one decision per screen, a sticky Continue, the desktop
+rail reduced to a progress bar, and the summary behind a header button as a Drawer. The
+design calls this out specifically: "not a compressed version of the same layout".
+
+**"Updated by this step" is computed, not written.** The shell diffs the derived values
+before and after a step and reports what moved. It has no idea that hit points or armour
+class exist — it compares labelled numbers.
+
+**Overrides are the ruleset's call.** `canOverride()` allows hit points and armour class
+and refuses everything else, so the review step cannot be used to edit around the rules.
+
+**Fixed a latent TC-01 bug**: `TextareaProps` extended `InputHTMLAttributes`, which
+silently rejects valid textarea props such as `rows`.
+
+**The builder sits outside both shells** at `/builder`. It is a focused task rather than a
+destination, and the design gives it the whole viewport on desktop and mobile alike.

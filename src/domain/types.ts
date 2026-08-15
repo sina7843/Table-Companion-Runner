@@ -319,6 +319,34 @@ export interface Roll {
   at: Timestamp;
 }
 
+/* ── Character drafts ───────────────────────────────────────────────────────── */
+
+export type CharacterDraftId = Id<'CharacterDraft'>;
+
+/**
+ * A character part-way through the builder.
+ *
+ * The core owns identity, ownership and where the user got to. It does NOT own what any
+ * of the choices mean: `choices` is a bag the active ruleset writes and reads, keyed by
+ * the field keys that ruleset declared. That is what lets the same wizard shell drive a
+ * different system without a line of it changing.
+ *
+ * An incomplete character is a legitimate thing to have — the design is explicit that
+ * "Save and finish later" stays enabled even when the step is invalid.
+ */
+export interface CharacterDraft {
+  id: CharacterDraftId;
+  systemId: GameSystemId;
+  ownerUserId: UserId;
+  campaignId?: CampaignId;
+  name: string;
+  /** Ruleset-interpreted answers, keyed by `BuilderField.key`. */
+  choices: Readonly<Record<string, unknown>>;
+  /** Which step the user is on. */
+  stepId: string;
+  updatedAt: Timestamp;
+}
+
 /* ── Recall and activity ────────────────────────────────────────────────────── */
 
 /** What an entry in the recall list or the activity feed points at. */

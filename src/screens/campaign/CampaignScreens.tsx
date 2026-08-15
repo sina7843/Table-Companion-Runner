@@ -434,7 +434,7 @@ export function CampaignParty() {
             <Button variant="tertiary" onClick={() => setAttachOpen(false)}>
               Cancel
             </Button>
-            <Button variant="secondary" icon="plus" as={Link} to="/play/builder">
+            <Button variant="secondary" icon="plus" as={Link} to="/builder">
               Create a new character
             </Button>
           </>

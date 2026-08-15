@@ -13,6 +13,7 @@
 import type {
   Attribute,
   Character,
+  CharacterDraft,
   CombatParticipant,
   Condition,
   DeathSaves,
@@ -62,6 +63,97 @@ export interface BuilderStep {
   summary?: string;
 }
 
+/* ── The builder's step schema ──────────────────────────────────────────────── */
+
+/**
+ * How a builder step asks its question.
+ *
+ * The wizard shell renders these and nothing else. It has no idea what a species or a
+ * fighting style is — it knows how to present a single choice, a bounded multiple choice,
+ * an assignment of numbers to named slots, and some text. Adding a system means writing
+ * an adapter that emits these shapes, not touching the wizard.
+ */
+export type BuilderFieldKind = 'single-choice' | 'multi-choice' | 'score-assignment' | 'text';
+
+export interface BuilderOption {
+  value: string;
+  label: string;
+  /** Meta line under the label, e.g. "d10 · martial · no spells". */
+  description?: string;
+  /** Shown but not selectable, with the reason stated rather than left to guess. */
+  disabled?: boolean;
+  disabledReason?: string;
+  /** Marks the option the system suggests for a first-time player. */
+  recommended?: boolean;
+}
+
+export interface BuilderScoreSlot {
+  key: string;
+  label: string;
+}
+
+export interface BuilderField {
+  key: string;
+  label: string;
+  kind: BuilderFieldKind;
+  required?: boolean;
+  /** Beginner-facing explanation of what this field decides. */
+  help?: string;
+  /** `single-choice` and `multi-choice`. */
+  options?: BuilderOption[];
+  /** `multi-choice`: exactly how many must be picked. */
+  choose?: number;
+  /** `score-assignment`: the numbers to place. */
+  pool?: number[];
+  /** `score-assignment`: the named slots to place them in. */
+  slots?: BuilderScoreSlot[];
+  /** `text`: render a textarea rather than a single line. */
+  multiline?: boolean;
+  /** Layout hint only — the shell may ignore it. */
+  columns?: number;
+}
+
+/** Something the rules calculated as a consequence of this step's choices. */
+export interface BuilderGrant {
+  label: string;
+  value: string;
+}
+
+/**
+ * One step's question, ready to render.
+ *
+ * `grants` is the design's "What this class gives you" — the dependencies a choice pulls
+ * in, stated in words and marked as calculated, so a player can see what the system
+ * decided for them and an experienced one can check it.
+ */
+export interface BuilderStepForm {
+  stepId: string;
+  title: string;
+  /** The framing sentence above the fields. */
+  intro?: string;
+  fields: BuilderField[];
+  grants?: BuilderGrant[];
+  /** True for the terminal review step, which the shell renders differently. */
+  review?: boolean;
+}
+
+/** A specific, bounded validation failure. */
+export interface BuilderIssue {
+  /** The field that is missing or wrong, so the shell can outline exactly that group. */
+  fieldKey: string;
+  message: string;
+}
+
+/** One block of the review screen. */
+export interface ReviewGroup {
+  /** The step this block came from, so a correction is one click rather than a hunt. */
+  stepId: string;
+  title: string;
+  /** True when the rules produced these values rather than the player choosing them. */
+  calculated?: boolean;
+  items: BuilderGrant[];
+}
+
 /** A dice expression the ruleset produced, ready to roll. */
 export interface DiceRequest {
   expression: string;
@@ -105,6 +197,48 @@ export interface Ruleset {
 
   /** Steps for building a new character, given what has been chosen so far. */
   characterCreationSteps(character: Partial<Character>): BuilderStep[];
+
+  /* ── The guided builder ───────────────────────────────────────────────────── */
+
+  /**
+   * The step list for a draft. Generated, not fixed: choosing a Fighter removes the
+   * Spells step and adds Fighting Style, and the step count moves with it.
+   */
+  draftSteps(draft: CharacterDraft): BuilderStep[];
+
+  /** The question this step asks, or null when the step id is not in the current list. */
+  draftStepForm(draft: CharacterDraft, stepId: string): BuilderStepForm | null;
+
+  /**
+   * What is missing on this step. Empty means the step is complete.
+   *
+   * Bounded on purpose: the design requires the alert to name the missing choice and the
+   * footer to state how many remain, which needs issues per field rather than a boolean.
+   */
+  validateStep(draft: CharacterDraft, stepId: string): BuilderIssue[];
+
+  /**
+   * Records an answer and lets the rules react — choosing a class may clear a fighting
+   * style that no longer applies, or re-apply a background's ability bonuses.
+   */
+  applyChoice(draft: CharacterDraft, fieldKey: string, value: unknown): CharacterDraft;
+
+  /**
+   * The character a draft currently describes, however incomplete.
+   *
+   * Drives the live summary, so it must tolerate missing choices rather than throwing —
+   * a builder that crashes on step 2 because step 7 is empty is useless.
+   */
+  draftToCharacter(draft: CharacterDraft): Character;
+
+  /** The review screen's grouped read-back, split into chosen and calculated. */
+  reviewGroups(draft: CharacterDraft): ReviewGroup[];
+
+  /**
+   * Whether a derived value may be overridden by hand on the review step. The design
+   * allows it for combat values and not for everything.
+   */
+  canOverride(key: string): boolean;
 
   /** Steps for advancing a character. The list is generated, not fixed. */
   levelUpSteps(character: Character, toLevel: number): BuilderStep[];

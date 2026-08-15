@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { DMShell } from './DMShell';
 import { PlayerShell } from './PlayerShell';
 import { Showcase } from '../showcase/Showcase';
+import { BuilderScreen } from '../screens/builder/BuilderScreen';
 import {
   CampaignCombats,
   CampaignEncounters,
@@ -20,7 +21,6 @@ import {
   JoinCampaign,
   NewCampaign,
   NotFound,
-  PlayerBuilder,
   PlayerCharacters,
   PlayerCombat,
   PlayerDice,
@@ -41,6 +41,11 @@ import {
 export const router = createBrowserRouter([
   { path: '/', element: <SignIn /> },
   { path: '/join', element: <JoinCampaign /> },
+
+  // The builder is a focused task rather than a destination, so it sits outside both
+  // shells — the design gives it the whole viewport on desktop and on mobile alike.
+  { path: '/builder', element: <BuilderScreen /> },
+  { path: '/builder/:draftId', element: <BuilderScreen /> },
   { path: '/campaigns/new', element: <NewCampaign /> },
 
   {
@@ -84,7 +89,6 @@ export const router = createBrowserRouter([
       { path: 'dice', element: <PlayerDice /> },
       { path: 'party', element: <PlayerParty /> },
       { path: 'characters', element: <PlayerCharacters /> },
-      { path: 'builder', element: <PlayerBuilder /> },
     ],
   },
 

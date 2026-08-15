@@ -50,6 +50,7 @@ function PendingSection({
 export { DMHome } from './DMHome';
 export { PlayerHome } from './PlayerHome';
 export { SignIn, JoinCampaign, NewCampaign, NotFound } from './entry';
+export { BuilderScreen } from './builder/BuilderScreen';
 
 /* ── DM ─────────────────────────────────────────────────────────────────────── */
 
@@ -277,23 +278,13 @@ export function PlayerCharacters() {
     <PlayerPage
       title="My characters"
       actions={
-        <Button variant="tertiary" size="sm" icon="plus" as={Link} to="/play/builder">
+        <Button variant="tertiary" size="sm" icon="plus" as={Link} to="/builder">
           New
         </Button>
       }
     >
       <div className="tc-page">
         <PendingSection title="Characters" rows={4} height={52} />
-      </div>
-    </PlayerPage>
-  );
-}
-
-export function PlayerBuilder() {
-  return (
-    <PlayerPage eyebrow="New character · step 1 of 10" title="Ruleset">
-      <div className="tc-page">
-        <PendingSection title="Choose a ruleset" rows={3} height={52} />
       </div>
     </PlayerPage>
   );

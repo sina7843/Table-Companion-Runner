@@ -64,9 +64,27 @@ function monsterPanel(monster: Monster): PanelContent {
             <Button variant="primary" size="sm" icon="plus">
               Add to encounter
             </Button>
-            <Button variant="secondary" size="sm" icon="copy">
-              Clone
-            </Button>
+            {monster.origin === 'homebrew' ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="pencil"
+                as={Link}
+                to={`/dm/monsters/${monster.id}/edit`}
+              >
+                Edit
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="copy"
+                as={Link}
+                to={`/dm/monsters/${monster.id}/clone`}
+              >
+                Clone
+              </Button>
+            )}
             <Button
               variant="tertiary"
               size="sm"
@@ -308,7 +326,15 @@ export function MonsterLibrary() {
 
             <div style={{ flex: 1 }} />
 
-            <Button variant="secondary" size="sm" icon="copy" disabled={selected === null}>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="copy"
+              disabled={selected === null}
+              {...(selected === null
+                ? {}
+                : { as: Link, to: `/dm/monsters/${selected}/clone` as const })}
+            >
               Clone selected
             </Button>
             <Button variant="primary" size="sm" icon="plus" as={Link} to="/dm/monsters/new">

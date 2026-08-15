@@ -358,6 +358,28 @@ export interface Ruleset {
    */
   monsterActionGroups(monster: Monster): MonsterActionGroup[];
 
+  /**
+   * Recomputes everything the rules derive for an edited creature: ability modifiers, the
+   * subtitle, the difficulty label, the stat line. The editor calls this on every
+   * keystroke so the preview never disagrees with the form.
+   */
+  normaliseMonster(monster: Monster): Monster;
+
+  /**
+   * What is wrong with an edited creature, per field. Empty means it is usable.
+   *
+   * A creature that fails this is still saved, because a half-finished homebrew is a
+   * legitimate draft, but it is not offered to the encounter builder and the editor says
+   * so rather than leaving the DM to wonder.
+   */
+  validateMonster(monster: Monster): BuilderIssue[];
+
+  /** The system's difficulty estimate for an edited creature, stated with its working. */
+  estimateChallenge(monster: Monster): { rank: number; label: string; detail: string };
+
+  /** Average hit points for a dice expression, or null when it cannot be read. */
+  hitPointsFromDice(expression: string): number | null;
+
   /** Difficulty values this system uses, ascending, for a range filter. */
   challengeScale(): { value: number; label: string }[];
 

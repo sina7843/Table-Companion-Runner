@@ -239,6 +239,12 @@ export interface Monster {
    */
   origin: 'library' | 'homebrew';
   ownerUserId?: UserId;
+  /**
+   * The library entry this was copied from. Kept so the editor can say what changed and
+   * the DM can tell at a glance that this is a variant rather than something invented.
+   * The original is never modified.
+   */
+  clonedFrom?: MonsterId;
   /** Ruleset-formatted difficulty label, e.g. "CR 3". Never parsed by the core. */
   challengeLabel: string;
   /** Sort key for difficulty, so generic list code can order without understanding CR. */

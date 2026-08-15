@@ -654,3 +654,59 @@ their count qualifier; minor creatures not being given legendary actions they la
 and damage expressions; actions with no roll not inventing one; pre-built rolls left alone;
 resource tags; spells as a tiered group; the Beholder volume case; homebrew reaching the
 sheet with the same shape; and the instance-versus-template boundary.
+
+## TC-08c — Homebrew creature flows
+
+Create from scratch, clone an existing creature, and edit a clone. One component,
+`src/screens/monsters/MonsterEditor.tsx`, in three modes.
+
+### Routes
+
+`/dm/monsters/new`, `/dm/monsters/:monsterId/clone`, `/dm/monsters/:monsterId/edit`.
+Entry points: **New monster** in the library toolbar and the empty state, **Clone
+selected** in the toolbar, and per-creature **Clone** (library content) or **Edit**
+(homebrew) in both the context panel and the full monster page.
+
+### Field groups
+
+Always open: identity (name, size, type, alignment, environment), defences (armour class,
+hit points with a dice-expression helper, speed), ability scores, actions. Collapsed behind
+a `+`: traits, senses, languages, resistances and immunities, legendary actions. Actions are
+edited in a modal rather than inline, so the row list stays scannable at ten entries.
+
+### Live preview
+
+The real `MonsterSheet`, fed the draft through `Ruleset.normaliseMonster()` on every edit.
+Subtitle, ability modifiers, current health and the armour-class/hit-point/challenge derived
+values are rebuilt; DM-stated speed, senses and languages are preserved.
+
+### Persistence
+
+Clone writes on open. All modes autosave on a 500 ms debounce, with a saving/saved
+indicator and an inline error if a write is refused. Create inserts once, then updates.
+
+### Domain additions
+
+`Monster.clonedFrom`; `MonsterRepository.create` / `save` / `remove` / `cloneFrom`;
+`Ruleset.normaliseMonster` / `validateMonster` / `estimateChallenge` / `hitPointsFromDice`,
+implemented in the new `src/domain/ruleset/dnd5e/homebrew.ts`.
+
+### Tests — 94, all passing (11 new in `homebrew.test.ts`)
+
+Dice expressions parsed and nonsense refused; validation naming each wrong field; library
+content already valid; the estimate rising with hit points and explaining itself;
+normalisation rebuilding derived values while keeping stated ones; a clone that cannot
+mutate its source; a saved clone found by search and by the Homebrew filter, then deleted;
+library records rejecting `save` and surviving `remove`; and a forged `origin: 'library'`
+write coming back as homebrew.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (94 passing), `npm run format:check`,
+`npm run build`. Dev server serves all three editor routes and compiles the module.
+
+### Not done
+
+Encounter Builder does not exist yet (TC-09), so "use it in Encounter Builder" is covered
+only insofar as homebrew creatures flow through the same `MonsterRepository` every monster
+surface reads from. **Add to encounter** remains an inert button until that slice.

@@ -55,6 +55,12 @@ import {
   validateLevelUpStep as sheetValidateLevelUpStep,
 } from './sheet.ts';
 import {
+  estimateChallenge as homebrewEstimateChallenge,
+  hitPointsFromDice as homebrewHitPointsFromDice,
+  normaliseMonster as homebrewNormaliseMonster,
+  validateMonster as homebrewValidateMonster,
+} from './homebrew.ts';
+import {
   ABILITY_KEYS,
   ABILITY_LABELS,
   ARMOUR,
@@ -336,6 +342,10 @@ export const dnd5e2024: Ruleset = {
 
   monsterFacets: sheetMonsterFacets,
   monsterActionGroups: sheetMonsterActionGroups,
+  normaliseMonster: homebrewNormaliseMonster,
+  validateMonster: homebrewValidateMonster,
+  estimateChallenge: homebrewEstimateChallenge,
+  hitPointsFromDice: homebrewHitPointsFromDice,
   challengeScale: sheetChallengeScale,
   sheetSections: sheetSectionsFor,
   sheetContent: sheetContentFor,

@@ -290,6 +290,63 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
         resolve(MONSTERS.find((monster) => monster.id === monsterId) ?? null),
       count: (query?: MonsterQuery) =>
         resolve(MONSTERS.filter((monster) => matchesMonsterQuery(monster, query)).length),
+
+      create: (monster: Monster) => {
+        // Writes always produce homebrew. Library content is ingested reference data, and
+        // a DM must not be able to change what the book says by accident.
+        const created: Monster = { ...monster, origin: 'homebrew' };
+        ALL_MONSTERS.push(created);
+        return resolve(created);
+      },
+
+      save: (monster: Monster) => {
+        const index = ALL_MONSTERS.findIndex((entry) => entry.id === monster.id);
+        if (index < 0) return Promise.reject(new Error('That creature no longer exists.'));
+        if (ALL_MONSTERS[index]?.origin === 'library') {
+          return Promise.reject(new Error('Library creatures cannot be edited. Clone it first.'));
+        }
+        const saved: Monster = { ...monster, origin: 'homebrew' };
+        ALL_MONSTERS[index] = saved;
+        return resolve(saved);
+      },
+
+      remove: (monsterId: MonsterId) => {
+        const index = ALL_MONSTERS.findIndex((entry) => entry.id === monsterId);
+        if (index >= 0 && ALL_MONSTERS[index]?.origin === 'homebrew') {
+          ALL_MONSTERS.splice(index, 1);
+        }
+        return resolve(undefined);
+      },
+
+      cloneFrom: (sourceId: MonsterId, ownerUserId: UserId, ownerName: string) => {
+        const source = ALL_MONSTERS.find((entry) => entry.id === sourceId);
+        if (!source) return Promise.reject(new Error('That creature no longer exists.'));
+
+        // A deep-enough copy that editing the clone cannot reach back into the original.
+        const clone: Monster = {
+          ...source,
+          id: id<'Monster'>(`m-${nextId()}`),
+          name: `${source.name} (copy)`,
+          origin: 'homebrew',
+          ownerUserId,
+          source: ownerName,
+          clonedFrom: source.id,
+          facets: Object.fromEntries(
+            Object.entries(source.facets).map(([facet, values]) => [facet, [...values]]),
+          ),
+          attributes: source.attributes.map((attribute) => ({ ...attribute })),
+          health: { ...source.health },
+          derived: source.derived.map((value) => ({ ...value })),
+          traits: source.traits.map((trait) => ({ ...trait })),
+          actionGroups: source.actionGroups.map((group) => ({
+            ...group,
+            entries: group.entries.map((entry) => ({ ...entry })),
+          })),
+        };
+
+        ALL_MONSTERS.push(clone);
+        return resolve(clone);
+      },
     },
 
     encounters: {

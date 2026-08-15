@@ -506,3 +506,57 @@ usable stat line the base table gives them, and every creature gets a speed and 
 line because without those it cannot be run at all. Inventing legendary actions for a
 goblin so the data looked consistent would be worse than leaving it honest. A test enforces
 the floor, and it caught the homebrew creature missing both.
+
+## TC-08c — Homebrew creatures
+
+**One screen, three states.** Create, clone and edit are the same `MonsterEditor` with a
+different seed and a different banner. The fields a DM edits do not change between them, so
+three components would have been three places for the same bug.
+
+**Not one giant form.** Four groups are always open because every creature needs them —
+identity, defences, ability scores, actions. Five more are collapsed behind a `+` until
+asked for: traits, senses, languages, resistances and immunities, legendary actions. A
+goblin variant needs none of them; a homebrew dragon needs all five. Opening an existing
+clone expands whichever groups it already uses, so progressive disclosure never hides
+content that exists.
+
+**The preview is the real sheet.** `MonsterSheet` renders the live draft, recomputed
+through `Ruleset.normaliseMonster()` on every keystroke. A preview built from its own markup
+would drift from the sheet the DM actually reads at the table, and then the preview is a
+lie. Cost is a re-render per edit on a component that already handles the Beholder.
+
+**Cloning writes immediately.** The copy exists in the library before the DM types
+anything, so navigating away mid-edit loses nothing. Everything after that autosaves on a
+500 ms debounce — a homebrew creature is a document, not a form to submit. The first write
+in create mode inserts; every later write updates.
+
+**Writes always produce homebrew.** `MonsterRepository.create()` and `save()` force
+`origin: 'homebrew'` regardless of what they are handed, `save()` rejects a library record
+outright, and `remove()` only deletes homebrew. Library content is ingested reference data;
+a DM must not be able to change what the book says by accident, and the guard belongs at
+the repository rather than in each caller.
+
+**Validation is the ruleset's, not the form's.** `Ruleset.validateMonster()` returns
+per-field `BuilderIssue[]` — name present, armour class 1–30, hit points 1–400, each ability
+1–30, at least one action. The editor renders whatever it is given against the matching
+field key and knows none of those numbers itself, which is the same seam the character
+builder uses.
+
+**The difficulty estimate is labelled an estimate.** `Ruleset.estimateChallenge()` bands by
+hit points and nudges by armour class and best attack bonus. The published maths scores
+defence and offence against separate tables and averages the two; this does the defensive
+half properly and says "estimated" everywhere it appears. A DM can always set the challenge
+by hand. `ponytail:` upgrade path is noted in `homebrew.ts` — replace with the full
+two-table calculation if homebrew balance becomes a feature rather than a convenience.
+
+**`hitPointsFromDice()` refuses rather than guesses.** `"17d12 - 17"` reads as 93; `"lots"`,
+`"2d"` and `"0d6"` return `null` and leave the typed hit points alone. Silently producing a
+number from nonsense would put a wrong total on a creature that then runs a real fight.
+
+**Clone is a deep-enough copy.** Facets, attributes, health, derived values, traits and
+every action entry are copied rather than shared. A test mutates the clone and asserts the
+source is byte-identical, because a shallow spread here corrupts library data through an
+edit that looks local.
+
+**Scope held to Monster.** No class, subclass, species, background, spell, item or feat
+editors, as the prompt specifies for Phase 1.

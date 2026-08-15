@@ -84,9 +84,27 @@ export function MonsterPage() {
                 <Button variant="primary" size="sm" icon="plus">
                   Add to encounter
                 </Button>
-                <Button variant="secondary" size="sm" icon="copy">
-                  Clone
-                </Button>
+                {monster.origin === 'homebrew' ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon="pencil"
+                    as={Link}
+                    to={`/dm/monsters/${monster.id}/edit`}
+                  >
+                    Edit
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon="copy"
+                    as={Link}
+                    to={`/dm/monsters/${monster.id}/clone`}
+                  >
+                    Clone
+                  </Button>
+                )}
               </>
             }
           />

@@ -79,6 +79,17 @@ export interface MonsterRepository {
   list(query?: MonsterQuery): Promise<Monster[]>;
   byId(monsterId: MonsterId): Promise<Monster | null>;
   count(query?: MonsterQuery): Promise<number>;
+
+  /**
+   * Homebrew writes. Library content is ingested reference data and is never edited
+   * through here — `create` and `save` always produce a homebrew record, so a DM cannot
+   * accidentally change what the book says.
+   */
+  create(monster: Monster): Promise<Monster>;
+  save(monster: Monster): Promise<Monster>;
+  remove(monsterId: MonsterId): Promise<void>;
+  /** Copies a library entry into the user's own collection. The original is untouched. */
+  cloneFrom(sourceId: MonsterId, ownerUserId: UserId, ownerName: string): Promise<Monster>;
 }
 
 export interface EncounterRepository {

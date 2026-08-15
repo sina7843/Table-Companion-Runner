@@ -195,3 +195,47 @@
   height: 100%;
   min-height: 0;
 }
+
+/* A condition the participant does not have. Same chip, offered rather than stated —
+   dimmed and outlined, so the ones that are actually applied still carry their tone. */
+.tc-cond--off {
+  background: none;
+  border-style: dashed;
+  color: var(--color-text-tertiary);
+  border-color: var(--color-border-default);
+}
+.tc-cond--off:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+/* ── Roll log and dice tray ─────────────────────────────────────────────────
+   The design's Extension 2: a fixed strip below the fight holding the log and a
+   row of DiceButtons with an undo whose label names what it will reverse. */
+.tc-rolllog {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  max-height: 40vh;
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-surface-primary);
+}
+.tc-rolllog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--space-16) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.tc-dicetray {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  padding: var(--space-8) var(--space-16);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-secondary);
+}

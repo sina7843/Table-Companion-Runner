@@ -1005,3 +1005,63 @@ fixture returning to where it started.
 ### Not done
 
 Damage, healing, condition editing, the roll log and the dice tray are TC-11b.
+
+## TC-11b — Combat actions, dice and hit points
+
+### Action execution
+
+The context panel (`src/screens/combat/CombatPanel.tsx`) shows hit points, death saves,
+conditions and then the stat block. Creature actions come from `MonsterSheet` with its new
+`onRoll` prop; character actions from `Ruleset.sheetContent(character, 'actions')`. Every
+roll button logs. A damage roll applies to the targeted combatant immediately.
+
+### Dice and the log
+
+`useCombatLog` records actor, title, expression, dice, modifier, total, outcome, visibility
+and time for every roll, and writes plain notes for damage, healing, undo and condition
+changes. The log renders under the initiative list with a dice tray strip: four expressions,
+an amount stepper, Damage and Heal against the target, and the undo.
+
+### Public and secret
+
+A `Roll secretly` switch on the log header. Secret rolls are stored `dm-only` and rendered
+inside the hatched DM zone. The split uses `isPlayerVisibleRoll`, the same predicate
+`canSeeRoll` gives a player device.
+
+### Hit points, conditions, death saves
+
+`src/screens/combat/actions.ts`: `applyHealth`, `revertHealth`, `setTargeted`,
+`addCondition`, `removeCondition`, `applyDeathSave`. Row controls apply the tray amount as
+damage or healing; `HPControl` in the panel does the same with its own entry. Conditions are
+chips from `Ruleset.conditions`, toggled in place.
+
+### Ruleset additions
+
+`deathSaveRequest`, `applyDeathSave`, `concentrationCheck`, `concentrationKey`, plus the
+`DeathSaveResult` shape. `RollRepository.record`; `CombatParticipant.targeted`;
+`isPlayerVisibleRoll` and `visibleRolls` in `permissions.ts`.
+
+### Tests — 171, all passing (18 new)
+
+`screens/combat/actions.test.ts` — damage landing with no approval step; temporary hit
+points absorbing first; a character going unconscious with a tally while a creature is
+defeated; healing clearing it; undo restoring exactly; single targeting; conditions added
+once and removed by key; concentration asked for only on damage to someone holding it, with
+the ruleset's own difficulty; death saves for a success, a failure, a natural 1, a natural
+20, three failures and three successes; and the prompt's flow end to end — attack, damage,
+target, apply, hit points move.
+
+`domain/rolls.test.ts` — a secret roll reaching the DM and no player; ordinary rolls
+reaching everyone; the shared predicate and the viewer test agreeing for every visibility;
+a player log filtered clean; a recorded secret roll surviving the round trip and staying out
+of a player log; and the log handing out copies.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (171 passing), `npm run format:check`,
+`npm run build`. Dev server serves the live fight and compiles every new module.
+
+### Not done
+
+Player-facing combat is TC-12. The dice tray's expressions are fixed rather than derived
+from the active combatant.

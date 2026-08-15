@@ -835,3 +835,59 @@ players, 8 creatures and 1 NPC, and between them every state the row draws — a
 unconscious with death saves, defeated, DM-only, four conditions on one row, temporary hit
 points. A test asserts all of it, and that the order it ships in matches its own numbers so
 the runner never opens by telling a DM their fixture is out of order.
+
+## TC-11b — Acting in combat
+
+**One roll path, one log.** Every roll in a fight — a stat-block action, a character's
+longsword, a dice-tray button, a concentration save, a death save — goes through
+`useCombatLog`, which uses the same `evaluate` the roll primitive uses. `MonsterSheet`
+gained an `onRoll` prop so a sheet opened in a fight logs instead of showing its own local
+readout; the same sheet in the library is unchanged.
+
+**The flow is one pass, not a chain.** Attack from the panel, damage from the panel, and if
+a combatant is targeted the damage lands on them the moment it is rolled. That is the whole
+sequence the prompt names, and there is not a dialog anywhere in it. Targeting is a
+crosshair on the row and in the panel header; at most one combatant holds it, because "the
+next damage" is singular.
+
+**No approval, and undo names its target.** Hit points move immediately. The last change is
+kept as a `HealthChange` carrying what the track read before, so the tray offers
+`Undo 12 damage to Goblin #2` rather than a bare arrow — and the undo restores the exact
+prior values instead of re-deriving them. There is no global stack a DM can fire blind.
+
+**Corrections are additive.** `RollRepository` has `record` and nothing else: no update, no
+delete. An undo appends a correction line rather than rewriting the entry it corrects,
+because the log is a history a DM may read back at the end of a session.
+
+**Secret rolls are separated by one predicate, not two lists.** `isPlayerVisibleRoll` is
+what the DM's log splits on and what a player device would filter with, and a test asserts
+the two answers cannot diverge for any `Visibility`. The secret half renders inside the
+hatched DM zone with the words `DM only — not sent to players`, exactly as the design
+specifies: the hatch, the violet edge and the sentence all say the same thing, so a DM can
+tell from across a table whether what they are about to read aloud was ever visible.
+
+**Concentration is rolled, not queued.** A hit on someone holding it makes the save
+immediately, logs it, and drops the condition on a failure. A prompt the DM has to dismiss
+is a prompt they start dismissing without reading — and the difficulty, the roll and the
+condition key are all the ruleset's, so a system without concentration simply never
+returns one.
+
+**Death saves are the adapter's.** `deathSaveRequest`, `applyDeathSave` and the existing
+`deathSaveOutcome` mean the screen never knows that a natural 20 gets you up at one hit
+point or that a natural 1 costs two failures. `applyHealth` starts a tally when a
+*character* reaches zero and marks a *creature* defeated — the design's distinction, and
+why the two row states look different.
+
+**The panel repaints on every change.** The context panel keeps whatever JSX it was handed,
+so a body built at open time would show the hit points a combatant had when it was opened
+and write against that stale fight for the rest of the session. Selection is state; an
+effect repaints from the current fight. Same bug class as the encounter builder's, fixed
+the same way.
+
+**Runtime writes stay straight through.** No debounce on damage, and still no path from the
+combat route to `encounters.save`. Everything TC-10c guaranteed about the template holds.
+
+**What this slice does not do.** Player-facing combat is TC-12: this builds the DM side and
+the visibility rule it will rely on. The dice tray's four expressions are fixed rather than
+derived from the active combatant's actions — the actions themselves are already rollable
+from the panel, and a tray that rebuilt itself every turn would move under the DM's hand.

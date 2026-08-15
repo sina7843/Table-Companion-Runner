@@ -292,6 +292,15 @@ export interface EncounterDifficulty {
   warning?: string;
 }
 
+/** A death save resolved by the rules. */
+export interface DeathSaveResult {
+  saves: DeathSaves;
+  /** Hit points to restore when the roll brings the character back up. */
+  revivedAt?: number;
+  /** What the tally means now, stated by the system rather than counted by the screen. */
+  outcome: 'stable' | 'dead' | 'pending';
+}
+
 /** A dice expression the ruleset produced, ready to roll. */
 export interface DiceRequest {
   expression: string;
@@ -340,6 +349,24 @@ export interface Ruleset {
    * Returning 'pending' means the character is still rolling.
    */
   deathSaveOutcome(saves: DeathSaves): 'stable' | 'dead' | 'pending' | null;
+
+  /** The roll a downed character makes, or null when the system has no death saves. */
+  deathSaveRequest(): DiceRequest | null;
+
+  /**
+   * A death save resolved. The system owns what a natural 20 or a natural 1 does, which is
+   * why the whole evaluation is handed over rather than just the total.
+   */
+  applyDeathSave(saves: DeathSaves, roll: RollEvaluation): DeathSaveResult;
+
+  /**
+   * The save a hit forces on someone holding concentration, or null when the system has no
+   * such rule. The difficulty is the system's to set from the damage taken.
+   */
+  concentrationCheck(damage: number): { request: DiceRequest; difficulty: number } | null;
+
+  /** The condition key this system uses for concentration, or null if it has none. */
+  concentrationKey(): string | null;
 
   /** Steps for building a new character, given what has been chosen so far. */
   characterCreationSteps(character: Partial<Character>): BuilderStep[];

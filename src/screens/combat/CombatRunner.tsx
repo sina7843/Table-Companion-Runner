@@ -19,17 +19,22 @@ import {
   Badge,
   Button,
   ConditionChip,
+  DiceButton,
+  Icon,
   IconButton,
   InitiativeRow,
   Modal,
   NumberInput,
+  RollResult,
   RoundCounter,
+  SectionHeader,
+  Switch,
   TurnIndicator,
   type ConditionTone,
 } from '../../design-system';
 import { DMPage } from '../../app/DMShell';
 import { useContextPanel } from '../../app/panelContext';
-import { MonsterSheet, monsterEyebrow } from '../monsters/MonsterSheet';
+import { monsterEyebrow } from '../monsters/MonsterSheet';
 import {
   type Campaign,
   type Character,
@@ -37,8 +42,21 @@ import {
   type CombatParticipant,
   type Monster,
   type ParticipantId,
+  type Roll,
   type Ruleset,
 } from '../../domain';
+import { CombatPanel } from './CombatPanel';
+import { useCombatLog } from './useCombatLog';
+import {
+  addCondition,
+  applyDeathSave,
+  applyHealth,
+  removeCondition,
+  revertHealth,
+  setTargeted,
+  targetedParticipant,
+  type HealthChange,
+} from './actions';
 import {
   activeParticipant,
   endCombat,
@@ -73,6 +91,58 @@ const CONDITION_TONE: Record<string, ConditionTone> = {
 /** Four chips fit a row; past that the count is honest and the rest open in the panel. */
 const CHIPS_ON_A_ROW = 4;
 
+/**
+ * One line of the log.
+ *
+ * A roll shows its total and the arithmetic that produced it — a dropped die struck
+ * through rather than removed, because it is still part of what the table may check. A
+ * note is not a roll and does not pretend to have a number.
+ */
+function LogLine({ roll }: { roll: Roll }) {
+  const time = roll.at.slice(11, 16);
+
+  if (roll.dice.length === 0) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          gap: 'var(--space-8)',
+          fontSize: 'var(--font-size-12)',
+          color: 'var(--color-text-secondary)',
+        }}
+      >
+        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-tertiary)' }}>
+          {time}
+        </span>
+        <span>
+          <strong>{roll.actor}</strong> · {roll.title}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <RollResult
+      total={roll.total}
+      title={`${roll.actor} — ${roll.title}`}
+      outcome={roll.outcome}
+      breakdown={
+        <>
+          {roll.expression} ·{' '}
+          {roll.dice.map((die, position) => (
+            <span key={position}>
+              {position > 0 && ' + '}
+              {die.dropped ? <s>{die.value}</s> : die.value}
+            </span>
+          ))}
+          {roll.modifier !== 0 && ` ${roll.modifier > 0 ? '+' : '−'} ${Math.abs(roll.modifier)}`}
+          {` · ${time}`}
+        </>
+      }
+    />
+  );
+}
+
 export function CombatRunner({
   combat,
   rules,
@@ -84,8 +154,13 @@ export function CombatRunner({
   busy,
 }: CombatRunnerProps) {
   const { show, close } = useContextPanel();
+  const log = useCombatLog(combat.id, rules.system.id);
+
   const [selected, setSelected] = useState<string | null>(null);
   const [editing, setEditing] = useState<CombatParticipant | null>(null);
+  const [amount, setAmount] = useState(5);
+  const [secret, setSecret] = useState(false);
+  const [undoable, setUndoable] = useState<HealthChange | null>(null);
 
   // The panel is shared, so a stat block must not follow the DM onto the next screen.
   useEffect(() => close, [close]);
@@ -93,6 +168,7 @@ export function CombatRunner({
   const active = activeParticipant(combat);
   const upNext = nextParticipant(combat);
   const index = turnIndex(combat);
+  const target = targetedParticipant(combat);
   const outOfOrder = useMemo(() => orderDiffersFromInitiative(combat, rules), [combat, rules]);
 
   const characterFor = (participant: CombatParticipant): Character | null => {
@@ -118,60 +194,178 @@ export function CombatRunner({
     return armour === undefined ? null : `AC ${armour}`;
   };
 
-  const open = (participant: CombatParticipant) => {
-    setSelected(participant.id);
+  /* ── Acting ───────────────────────────────────────────────────────────────── */
 
-    const creature = monsterFor(participant);
+  /**
+   * Hit points change immediately. No approval step and no dialog — the design's rule is
+   * that correction comes through undo, so the change is kept by name and the tray offers
+   * to put it back.
+   */
+  const changeHealth = (participantId: ParticipantId, delta: number, actor: string) => {
+    const outcome = applyHealth(combat, participantId, delta, rules);
+    if (!outcome.change) return;
 
-    if (creature) {
-      show({
-        eyebrow: `${monsterEyebrow(creature)} · in this combat`,
-        title: participant.name,
-        body: (
-          <MonsterSheet
-            monster={creature}
-            instance={{
-              current: participant.health.current,
-              max: participant.health.max,
-              temporary: participant.health.temporary,
-              conditions: participant.conditions,
-            }}
-          />
-        ),
-      });
-      return;
+    onChange(outcome.combat);
+    setUndoable(outcome.change);
+
+    const moved = Math.abs(delta);
+    log.note({
+      actor,
+      title: `${delta < 0 ? `${moved} damage to` : `${moved} healing to`} ${outcome.change.name}`,
+    });
+
+    // A hit on someone concentrating forces a save. It is rolled here rather than
+    // queued behind a dialog, because a prompt the DM has to dismiss is a prompt they
+    // start dismissing without reading.
+    if (outcome.concentration) {
+      const check = rules.concentrationCheck(outcome.concentration.damage);
+      if (check) {
+        const evaluated = log.roll({
+          actor: outcome.concentration.participant.name,
+          title: check.request.title,
+          expression: check.request.expression,
+          mode: check.request.mode,
+        });
+        if (evaluated.total < check.difficulty) {
+          const key = rules.concentrationKey();
+          if (key) {
+            onChange(removeCondition(outcome.combat, participantId, key));
+            log.note({
+              actor: outcome.concentration.participant.name,
+              title: 'Concentration broken',
+            });
+          }
+        }
+      }
     }
+  };
 
+  /**
+   * A roll fired from a stat block or an action row.
+   *
+   * A damage roll lands on the target if there is one, which is what makes the flow
+   * attack → damage → apply a single pass rather than a chain of prompts.
+   */
+  const fireRoll = (actor: string) => (title: string, expression: string) => {
+    const evaluated = log.roll({ actor, title, expression, secret });
+
+    const isDamage = /damage/i.test(title);
+    if (isDamage && target) {
+      changeHealth(target.id, -evaluated.total, actor);
+    }
+  };
+
+  const rollDeathSave = (participant: CombatParticipant) => {
+    const request = rules.deathSaveRequest();
+    if (!request) return;
+
+    const evaluated = log.roll({
+      actor: participant.name,
+      title: request.title,
+      expression: request.expression,
+      mode: request.mode,
+    });
+
+    const result = applyDeathSave(combat, participant.id, evaluated, rules);
+    onChange(result.combat);
+    if (result.revived) log.note({ actor: participant.name, title: 'Back on their feet at 1 HP' });
+    if (result.outcome === 'dead') log.note({ actor: participant.name, title: 'Died' });
+  };
+
+  /**
+   * Fills the panel with whoever is selected, from the current fight.
+   *
+   * This runs from an effect rather than from the click, because the panel keeps the JSX
+   * it was handed: a body built once at open time would show the hit points the combatant
+   * had when it opened and write against that stale fight for the rest of the session.
+   */
+  const paint = (participant: CombatParticipant) => {
+    const creature = monsterFor(participant);
     const character = characterFor(participant);
 
     show({
-      eyebrow: `${participant.entityType === 'player' ? 'Character' : 'Ally'} · in this combat`,
+      eyebrow: creature
+        ? `${monsterEyebrow(creature)} · in this combat`
+        : `${participant.entityType === 'player' ? 'Character' : 'Ally'} · in this combat`,
       title: participant.name,
+      actions: (
+        <IconButton
+          icon="crosshair"
+          size="sm"
+          active={participant.targeted}
+          label={
+            participant.targeted
+              ? `${participant.name} is the target`
+              : `Target ${participant.name}`
+          }
+          onClick={() => onChange(setTargeted(combat, participant.id))}
+        />
+      ),
       body: (
-        <div className="tc-page">
-          <dl className="tc-deflist">
-            <dt>Identity</dt>
-            <dd>{participant.subtitle || '—'}</dd>
-            <dt>Hit points</dt>
-            <dd>
-              {participant.health.current} / {participant.health.max}
-              {participant.health.temporary > 0 && ` (+${participant.health.temporary} temp)`}
-            </dd>
-            <dt>Initiative</dt>
-            <dd>{participant.initiative ?? 'Not rolled'}</dd>
-            <dt>Armour</dt>
-            <dd>{armourOf(participant) ?? '—'}</dd>
-          </dl>
+        <div style={{ padding: 'var(--space-12) var(--space-16)' }}>
+          <CombatPanel
+            participant={participant}
+            rules={rules}
+            monster={creature}
+            character={character}
+            onApplyHealth={(delta) => changeHealth(participant.id, delta, participant.name)}
+            onToggleCondition={(definition) =>
+              onChange(
+                participant.conditions.some((entry) => entry.key === definition.key)
+                  ? removeCondition(combat, participant.id, definition.key)
+                  : addCondition(combat, participant.id, definition),
+              )
+            }
+            onDeathSave={() => rollDeathSave(participant)}
+            onRoll={fireRoll(participant.name)}
+          />
           {character && (
-            <Link to={`/dm/characters/${character.id}`}>Open the full character sheet</Link>
+            <div style={{ marginTop: 'var(--space-12)' }}>
+              <Link to={`/dm/characters/${character.id}`}>Open the full character sheet</Link>
+            </div>
           )}
         </div>
       ),
     });
   };
 
+  // Repainting on every change is what keeps the panel's hit points, conditions and death
+  // saves the fight's rather than a snapshot of when it was opened.
+  const chosen = combat.participants.find((entry) => entry.id === selected) ?? null;
+  useEffect(() => {
+    if (chosen) paint(chosen);
+    // `paint` closes over this render's combat, which is precisely the point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combat, selected]);
+
   const rowActions = (participant: CombatParticipant, position: number) => (
     <>
+      <IconButton
+        icon="drop"
+        size="sm"
+        label={`Apply ${amount} damage to ${participant.name}`}
+        disabled={busy}
+        onClick={() => changeHealth(participant.id, -amount, participant.name)}
+      />
+      <IconButton
+        icon="heart"
+        size="sm"
+        label={`Heal ${participant.name} for ${amount}`}
+        disabled={busy}
+        onClick={() => changeHealth(participant.id, amount, participant.name)}
+      />
+      <IconButton
+        icon="crosshair"
+        size="sm"
+        active={participant.targeted}
+        label={
+          participant.targeted
+            ? `${participant.name} is the target — clear it`
+            : `Target ${participant.name} for the next damage`
+        }
+        disabled={busy}
+        onClick={() => onChange(setTargeted(combat, participant.id))}
+      />
       <IconButton
         icon="caret-up"
         size="sm"
@@ -329,10 +523,133 @@ export function CombatRunner({
                   </>
                 }
                 actions={rowActions(participant, position)}
-                onOpen={() => open(participant)}
+                onOpen={() => setSelected(participant.id)}
               />
             );
           })}
+        </div>
+
+        {/* ── Roll log and dice tray ───────────────────────────────────────── */}
+        <div className="tc-rolllog">
+          <div style={{ padding: 'var(--space-10) var(--space-16) 0' }}>
+            <SectionHeader
+              sub
+              title="Roll log"
+              actions={<Switch checked={secret} onChange={setSecret} label="Roll secretly" />}
+            />
+          </div>
+
+          <div className="tc-rolllog__body">
+            {/*
+              Secret rolls live inside a hatched DM zone with a written header, not behind
+              a small eye icon: the hatch, the violet edge and the words all say the same
+              thing, so a DM can tell from across a table whether what they are about to
+              read aloud was ever visible to the party.
+            */}
+            {log.secret.length > 0 && (
+              <div className="tc-dmzone" style={{ padding: 'var(--space-10)' }}>
+                <span className="tc-dmzone__label">
+                  <Icon name="eye-slash" size={11} />
+                  DM only — not sent to players
+                </span>
+                {log.secret.slice(0, 6).map((entry) => (
+                  <LogLine key={entry.id} roll={entry} />
+                ))}
+              </div>
+            )}
+
+            {log.party.slice(0, 12).map((entry) => (
+              <LogLine key={entry.id} roll={entry} />
+            ))}
+
+            {log.party.length === 0 && log.secret.length === 0 && (
+              <span
+                style={{ fontSize: 'var(--font-size-12)', color: 'var(--color-text-tertiary)' }}
+              >
+                Nothing rolled yet. Every roll in this fight is recorded here.
+              </span>
+            )}
+          </div>
+
+          <div className="tc-dicetray">
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--font-size-10)',
+                letterSpacing: 'var(--tracking-caps)',
+                textTransform: 'uppercase',
+                color: 'var(--color-text-tertiary)',
+              }}
+            >
+              Dice tray
+            </span>
+            {['1d20', '1d20 + 5', '2d6 + 3', '1d8 + 4'].map((expression) => (
+              <DiceButton
+                key={expression}
+                expression={expression}
+                onClick={() =>
+                  log.roll({ actor: active?.name ?? 'DM', title: expression, expression, secret })
+                }
+              />
+            ))}
+
+            <span style={{ width: 1, height: 20, background: 'var(--color-border-default)' }} />
+
+            <NumberInput
+              value={amount}
+              min={1}
+              max={200}
+              width={48}
+              ariaLabel="Amount to apply"
+              onChange={setAmount}
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="drop"
+              disabled={busy || !target}
+              onClick={() => target && changeHealth(target.id, -amount, active?.name ?? 'DM')}
+            >
+              {target ? `Damage ${target.name}` : 'Damage — no target'}
+            </Button>
+            <Button
+              size="sm"
+              variant="tertiary"
+              icon="heart"
+              disabled={busy || !target}
+              onClick={() => target && changeHealth(target.id, amount, active?.name ?? 'DM')}
+            >
+              Heal
+            </Button>
+
+            <div style={{ flex: 1 }} />
+
+            {/*
+              Undo names exactly what it will reverse, and appends a correction rather than
+              deleting the line it corrects — the log is a history a DM reads back later.
+            */}
+            {undoable && (
+              <Button
+                size="sm"
+                variant="tertiary"
+                icon="arrow-counter-clockwise"
+                disabled={busy}
+                onClick={() => {
+                  onChange(revertHealth(combat, undoable));
+                  log.note({
+                    actor: 'Correction',
+                    title: `Undid ${Math.abs(undoable.delta)} ${
+                      undoable.delta < 0 ? 'damage to' : 'healing to'
+                    } ${undoable.name}`,
+                  });
+                  setUndoable(null);
+                }}
+              >
+                Undo {Math.abs(undoable.delta)} {undoable.delta < 0 ? 'damage to' : 'healing to'}{' '}
+                {undoable.name}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

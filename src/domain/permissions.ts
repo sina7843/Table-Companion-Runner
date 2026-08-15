@@ -7,15 +7,16 @@
  * server, the same rules have to be enforced there as well — a client that decides its
  * own permissions is a client that can be asked not to.
  */
-import type {
-  Campaign,
-  CampaignRole,
-  Character,
-  CharacterSectionKey,
-  CombatParticipant,
-  Roll,
-  UserId,
-  Visibility,
+import {
+  id,
+  type Campaign,
+  type CampaignRole,
+  type Character,
+  type CharacterSectionKey,
+  type CombatParticipant,
+  type Roll,
+  type UserId,
+  type Visibility,
 } from './types.ts';
 
 export interface Viewer {
@@ -104,4 +105,24 @@ export function visibleParticipants(
   participants: CombatParticipant[],
 ): CombatParticipant[] {
   return participants.filter((participant) => canSeeParticipant(viewer, participant));
+}
+
+/**
+ * Would a player device receive this roll?
+ *
+ * The DM's own log splits on exactly this test rather than on a list of its own, so the
+ * rolls shown under "sent to the party" are literally the ones a player can see. A second
+ * predicate here is how a secret roll eventually leaks: one of the two gets a new case.
+ */
+export function isPlayerVisibleRoll(roll: Roll): boolean {
+  // A roll has no owner, so any player answers the same: only the role and the visibility
+  // matter, which is what makes one shared predicate correct for every player device.
+  return canSee(SOME_PLAYER, roll.visibility, false);
+}
+
+const SOME_PLAYER: Viewer = { role: 'player', userId: id<'User'>('any-player') };
+
+/** Filters a roll log down to what this viewer is allowed to read. */
+export function visibleRolls(viewer: Viewer, rolls: Roll[]): Roll[] {
+  return rolls.filter((roll) => canSeeRoll(viewer, roll));
 }

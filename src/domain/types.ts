@@ -316,6 +316,8 @@ export interface CombatParticipant {
   deathSaves?: DeathSaves;
   /** Hidden from player devices entirely until revealed. */
   visibility: Visibility;
+  /** Will receive the next damage the DM applies. At most one at a time. */
+  targeted?: boolean;
   /** Identical monsters share one grouped initiative entry, expandable per member. */
   groupKey?: string;
   /** What this participant was created from. */

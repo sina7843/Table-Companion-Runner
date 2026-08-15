@@ -554,10 +554,17 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
     rolls: {
       listForCombat: (combatId: CombatInstanceId) =>
         resolve(
-          ROLLS.filter((roll) => roll.combatId === combatId).toSorted((a, b) =>
-            b.at.localeCompare(a.at),
-          ),
+          ROLLS.filter((roll) => roll.combatId === combatId)
+            .toSorted((a, b) => b.at.localeCompare(a.at))
+            .map((roll) => ({ ...roll, dice: roll.dice.map((die) => ({ ...die })) })),
         ),
+
+      // Append only. A correction is a new line, never an edit to the one it corrects.
+      record: (roll: Roll) => {
+        const recorded: Roll = { ...roll, dice: roll.dice.map((die) => ({ ...die })) };
+        ROLLS.push(recorded);
+        return resolve({ ...recorded, dice: recorded.dice.map((die) => ({ ...die })) });
+      },
     },
 
     drafts: {

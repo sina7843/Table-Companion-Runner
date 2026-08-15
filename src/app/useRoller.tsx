@@ -14,7 +14,13 @@
  */
 import { useCallback, useState } from 'react';
 import { IconButton, RollResult } from '../design-system';
-import { requireRuleset, type GameSystemId, type RollMode, type RollOutcome } from '../domain';
+import {
+  requireRuleset,
+  type GameSystemId,
+  type RollEvaluation,
+  type RollMode,
+  type RollOutcome,
+} from '../domain';
 
 export interface RolledResult {
   title: string;
@@ -32,21 +38,39 @@ export interface Roller {
   clear: () => void;
 }
 
+/**
+ * One roll, evaluated.
+ *
+ * Exported because the combat log needs the same arithmetic without the hook's state —
+ * two copies of this mapping is exactly how two screens end up disagreeing about what a
+ * dropped die is.
+ */
+export function evaluate(
+  systemId: GameSystemId,
+  title: string,
+  expression: string,
+  mode: RollMode = 'normal',
+  random: () => number = Math.random,
+): RolledResult & { raw: RollEvaluation } {
+  const ruleset = requireRuleset(systemId);
+  const raw = ruleset.evaluateRoll({ expression, mode, title }, 0, random);
+  return {
+    title,
+    expression,
+    total: raw.total,
+    dice: raw.dice.map((die) => ({ value: die.value, dropped: die.dropped })),
+    modifier: raw.modifier,
+    outcome: raw.outcome,
+    raw,
+  };
+}
+
 export function useRoller(systemId: GameSystemId): Roller {
   const [last, setLast] = useState<RolledResult | null>(null);
 
   const roll = useCallback(
     (title: string, expression: string, mode: RollMode = 'normal') => {
-      const ruleset = requireRuleset(systemId);
-      const evaluated = ruleset.evaluateRoll({ expression, mode, title }, 0, Math.random);
-      setLast({
-        title,
-        expression,
-        total: evaluated.total,
-        dice: evaluated.dice.map((die) => ({ value: die.value, dropped: die.dropped })),
-        modifier: evaluated.modifier,
-        outcome: evaluated.outcome,
-      });
+      setLast(evaluate(systemId, title, expression, mode));
     },
     [systemId],
   );

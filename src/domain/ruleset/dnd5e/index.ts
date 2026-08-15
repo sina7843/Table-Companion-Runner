@@ -23,6 +23,7 @@ import {
 import type {
   BuilderStep,
   ConditionDefinition,
+  DeathSaveResult,
   DiceRequest,
   RandomSource,
   RollEvaluation,
@@ -66,6 +67,7 @@ import {
   ABILITY_LABELS,
   ARMOUR,
   CONDITIONS,
+  DEATH_SAVE_DC,
   DEATH_SAVE_TARGET,
   FULL_CASTER_CLASSES,
   FULL_CASTER_SLOTS,
@@ -293,6 +295,59 @@ export const dnd5e2024: Ruleset = {
     if (saves.failures >= DEATH_SAVE_TARGET) return 'dead';
     if (saves.successes >= DEATH_SAVE_TARGET) return 'stable';
     return 'pending';
+  },
+
+  deathSaveRequest(): DiceRequest {
+    return { expression: '1d20', mode: 'normal', title: 'Death saving throw' };
+  },
+
+  applyDeathSave(saves: DeathSaves, roll: RollEvaluation): DeathSaveResult {
+    const natural = roll.dice.find((die) => !die.dropped && die.sides === 20)?.value ?? roll.total;
+
+    // A natural 20 puts the character back on their feet with one hit point; a natural 1
+    // costs two failures. Both are the system's rules, not arithmetic the screen can do.
+    if (natural === 20) {
+      const cleared = { successes: 0, failures: 0 };
+      return { saves: cleared, revivedAt: 1, outcome: 'stable' };
+    }
+
+    const next =
+      natural === 1
+        ? { ...saves, failures: saves.failures + 2 }
+        : roll.total >= DEATH_SAVE_DC
+          ? { ...saves, successes: saves.successes + 1 }
+          : { ...saves, failures: saves.failures + 1 };
+
+    const capped = {
+      successes: Math.min(DEATH_SAVE_TARGET, next.successes),
+      failures: Math.min(DEATH_SAVE_TARGET, next.failures),
+    };
+    const outcome =
+      capped.failures >= DEATH_SAVE_TARGET
+        ? 'dead'
+        : capped.successes >= DEATH_SAVE_TARGET
+          ? 'stable'
+          : 'pending';
+    return { saves: capped, outcome };
+  },
+
+  concentrationCheck(damage: number): { request: DiceRequest; difficulty: number } | null {
+    if (damage <= 0) return null;
+
+    // Half the damage taken, with a floor of 10.
+    const difficulty = Math.max(10, Math.floor(damage / 2));
+    return {
+      difficulty,
+      request: {
+        expression: '1d20',
+        mode: 'normal',
+        title: `Concentration save, DC ${difficulty}`,
+      },
+    };
+  },
+
+  concentrationKey(): string {
+    return 'concentration';
   },
 
   characterCreationSteps(character: Partial<Character>): BuilderStep[] {

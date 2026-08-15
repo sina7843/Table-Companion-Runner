@@ -43,6 +43,11 @@ export interface MonsterSheetProps {
     position?: { index: number; total: number };
     onApplyHealth?: (delta: number) => void;
   };
+  /**
+   * Diverts every roll on this sheet somewhere else — the combat log, when the sheet is
+   * open in a fight. Without it the sheet keeps its own local readout.
+   */
+  onRoll?: (title: string, expression: string) => void;
   /** Primary actions vary by where the sheet was opened from. */
   actions?: React.ReactNode;
   /** A full page has room for two columns; a 440px panel does not. */
@@ -113,9 +118,11 @@ function ActionRow({
   );
 }
 
-export function MonsterSheet({ monster, instance, actions, wide }: MonsterSheetProps) {
+export function MonsterSheet({ monster, instance, actions, wide, onRoll }: MonsterSheetProps) {
   const ruleset = requireRuleset(monster.systemId);
   const roller = useRoller(monster.systemId);
+  // A sheet open in a fight logs its rolls; one in the library shows its own last result.
+  const fire = onRoll ?? roller.roll;
   const derived = ruleset.deriveMonster(monster);
 
   // Hit points and challenge already sit in the header and the control, so the definition
@@ -167,7 +174,7 @@ export function MonsterSheet({ monster, instance, actions, wide }: MonsterSheetP
         </div>
       )}
 
-      <RollReadout roller={roller} />
+      {!onRoll && <RollReadout roller={roller} />}
 
       <div className="tc-statblock">
         <div className="tc-statblock__head">
@@ -203,7 +210,7 @@ export function MonsterSheet({ monster, instance, actions, wide }: MonsterSheetP
                   className="tc-stat"
                   data-interactive="true"
                   key={attribute.key}
-                  onClick={() => roller.roll(`${monster.name} — ${attribute.label}`, expression)}
+                  onClick={() => fire(`${monster.name} — ${attribute.label}`, expression)}
                 >
                   <span className="tc-stat__label">{attribute.label}</span>
                   <span className="tc-stat__value">{attribute.value}</span>
@@ -229,7 +236,7 @@ export function MonsterSheet({ monster, instance, actions, wide }: MonsterSheetP
             actions={group.note ? <Badge tone="neutral">{group.note}</Badge> : null}
           />
           {group.entries.map((action) => (
-            <ActionRow key={action.name} action={action} onRoll={roller.roll} />
+            <ActionRow key={action.name} action={action} onRoll={fire} />
           ))}
         </div>
       ))}

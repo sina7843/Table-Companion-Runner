@@ -140,7 +140,14 @@ export interface CombatRepository {
 }
 
 export interface RollRepository {
+  /** Most recent first. The log is a history a DM may read back after a session. */
   listForCombat(combatId: CombatInstanceId): Promise<Roll[]>;
+  /**
+   * Appends a roll. There is no update and no delete: the design is explicit that
+   * corrections are additive, so an undo writes a correction line rather than rewriting
+   * what happened.
+   */
+  record(roll: Roll): Promise<Roll>;
 }
 
 export interface UserRepository {

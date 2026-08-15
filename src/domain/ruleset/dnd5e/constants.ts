@@ -62,6 +62,9 @@ export const SHIELD_BONUS = 2;
 /** Death saves: three successes stabilise, three failures kill. */
 export const DEATH_SAVE_TARGET = 3;
 
+/** A death save succeeds on a 10 or better. */
+export const DEATH_SAVE_DC = 10;
+
 /** Full-caster spell slots by character level, index 0 = 1st level slots. */
 export const FULL_CASTER_SLOTS: readonly (readonly number[])[] = [
   [2],

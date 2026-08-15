@@ -44,6 +44,14 @@ import {
   validateStep as builderValidateStep,
 } from './builder.ts';
 import {
+  applyLevelUp as sheetApplyLevelUp,
+  levelUpChanges as sheetLevelUpChanges,
+  levelUpStepForm as sheetLevelUpStepForm,
+  sheetContent as sheetContentFor,
+  sheetSections as sheetSectionsFor,
+  validateLevelUpStep as sheetValidateLevelUpStep,
+} from './sheet.ts';
+import {
   ABILITY_KEYS,
   ABILITY_LABELS,
   ARMOUR,
@@ -320,6 +328,15 @@ export const dnd5e2024: Ruleset = {
   applyChoice: builderApplyChoice,
   reviewGroups: builderReviewGroups,
   canOverride: builderCanOverride,
+
+  /* ── The character sheet and level up ───────────────────────────────────── */
+
+  sheetSections: sheetSectionsFor,
+  sheetContent: sheetContentFor,
+  levelUpStepForm: sheetLevelUpStepForm,
+  validateLevelUpStep: sheetValidateLevelUpStep,
+  levelUpChanges: sheetLevelUpChanges,
+  applyLevelUp: sheetApplyLevelUp,
 
   /**
    * The character a draft currently describes.

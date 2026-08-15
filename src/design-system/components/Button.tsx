@@ -82,6 +82,10 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   size?: ControlSize;
   variant?: 'plain' | 'outlined' | 'danger';
   active?: boolean;
+  /** Element to render. Pass a router link when the control navigates. */
+  as?: ElementType;
+  /** Forwarded to the rendered element (`to`, `href`, …) when `as` is set. */
+  [key: string]: unknown;
 }
 
 export function IconButton({
@@ -91,13 +95,16 @@ export function IconButton({
   variant = 'plain',
   active,
   className,
-  type = 'button',
+  as: Component = 'button',
+  type,
   ...rest
 }: IconButtonProps) {
+  const isButton = Component === 'button';
+
   return (
-    <button
+    <Component
       {...rest}
-      type={type}
+      {...(isButton ? { type: type ?? 'button' } : {})}
       aria-label={label}
       title={label}
       data-active={active ? 'true' : undefined}
@@ -109,6 +116,6 @@ export function IconButton({
       )}
     >
       <Icon name={icon} />
-    </button>
+    </Component>
   );
 }

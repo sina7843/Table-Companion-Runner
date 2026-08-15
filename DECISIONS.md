@@ -346,3 +346,62 @@ silently rejects valid textarea props such as `rows`.
 
 **The builder sits outside both shells** at `/builder`. It is a focused task rather than a
 destination, and the design gives it the whole viewport on desktop and mobile alike.
+
+---
+
+## TC-07 — Character sheet, privacy and level up
+
+**The sheet's content comes through the ruleset seam too.** `Ruleset` gained
+`sheetSections()` and `sheetContent()`, returning generic shapes — a rollable row, a
+label/value pair, a prose block, a resource pool. `CharacterSheet.tsx` renders those four
+and names no D&D concept, exactly as the builder does.
+
+**Modifiers arrive applied, and stay checkable.** An attack row's button reads
+`1d20 +6` with proficiency and ability already in it, and the damage row shows the die and
+the modifier separately. A fighting style reaches the button rather than a footnote:
+Archery adds +2 to ranged attacks inside `sheetContent`, so what a player taps is correct
+without them doing arithmetic at the table.
+
+**Privacy is a sentence, not a lock icon.** The requirement is that it be understandable
+beyond a tiny glyph, and the design's answer is specific, so each row carries three
+things: the level as a word with a glyph, a sentence naming who is affected ("Hidden from
+the party. Marta can still see it."), and the switch. The screen opens with "Your DM
+always sees everything", because that is the fact a player most needs and most doubts.
+
+**A hidden section has no tab at all.** Not a locked tab, not an empty one — another
+player simply does not see that the section exists. `sheetSections()` is filtered through
+`canSeeCharacterSection` before rendering.
+
+**Sections that cannot be hidden show fixed text, never a disabled switch**, so nobody
+hunts for a control that does not exist. Combat state is the one that cannot: a fight
+cannot be run if the other players cannot see who is hurt.
+
+**Level up reuses the builder.** Same field schema, same `BuilderFieldControl`, same
+validation shape — `levelUpStepForm` returns a `BuilderStepForm`. The step list is
+generated: a Battle Master Fighter reaching 7 gets hit points, one manoeuvre and a review,
+because that is genuinely all they decide.
+
+**The review's split is computed, not written.** `levelUpChanges()` returns `chosen` and
+`automatic` separately, and "Proficiency bonus unchanged · No change" is stated rather
+than omitted — silence about a value that did not move is worse than a line saying so.
+
+**Desktop spends width on simultaneity, not features.** A fixed 360px identity column and
+a scrolling content column, skills two-up, and the full hit-point control inline rather
+than behind a tap. The tab set, the row components and the ordering are identical to
+mobile, so a player who learned the phone knows the desktop.
+
+**`IconButton` became polymorphic**, joining `Button`, `NavItem`, `Chip` and `ListRow`.
+
+**Fixture characters gained skill proficiencies**, so the sheet shows real numbers —
+Aria reads Athletics +6 and Intimidation +4, matching the design's own screen.
+
+### Two honest gaps
+
+**Privacy changes do not persist.** The character repository has no update method; TC-13
+owns writes to an existing character. The toggles work and the screen states plainly that
+the change is held on the device. Building a write path here would mean guessing at the
+API TC-13 defines.
+
+**Confirming a level up computes the advanced character but does not save it**, for the
+same reason. `applyLevelUp()` runs and is tested; persisting its result is one call away.
+Both are marked in the code rather than left to be discovered.

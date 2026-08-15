@@ -3,6 +3,9 @@ import { DMShell } from './DMShell';
 import { PlayerShell } from './PlayerShell';
 import { Showcase } from '../showcase/Showcase';
 import { BuilderScreen } from '../screens/builder/BuilderScreen';
+import { CharacterSheet } from '../screens/character/CharacterSheet';
+import { CharacterEdit, CharacterPrivacy } from '../screens/character/Privacy';
+import { LevelUp } from '../screens/character/LevelUp';
 import {
   CampaignCombats,
   CampaignEncounters,
@@ -26,7 +29,6 @@ import {
   PlayerDice,
   PlayerHome,
   PlayerParty,
-  PlayerSheet,
   SignIn,
 } from '../screens';
 
@@ -46,6 +48,15 @@ export const router = createBrowserRouter([
   // shells — the design gives it the whole viewport on desktop and on mobile alike.
   { path: '/builder', element: <BuilderScreen /> },
   { path: '/builder/:draftId', element: <BuilderScreen /> },
+
+  // The sheet and its sub-flows take the whole viewport on both shapes, as the design
+  // gives them: a player reading their sheet mid-fight wants no chrome around it.
+  { path: '/play/sheet', element: <CharacterSheet /> },
+  { path: '/play/sheet/:characterId', element: <CharacterSheet /> },
+  { path: '/play/sheet/:characterId/privacy', element: <CharacterPrivacy /> },
+  { path: '/play/sheet/:characterId/edit', element: <CharacterEdit /> },
+  { path: '/play/sheet/:characterId/level-up', element: <LevelUp /> },
+  { path: '/dm/characters/:characterId', element: <CharacterSheet /> },
   { path: '/campaigns/new', element: <NewCampaign /> },
 
   {
@@ -58,7 +69,7 @@ export const router = createBrowserRouter([
       { path: 'encounters', element: <DMEncounters /> },
       { path: 'encounters/:encounterId', element: <DMEncounters /> },
       { path: 'characters', element: <DMCharacters /> },
-      { path: 'characters/:characterId', element: <DMCharacters /> },
+
       { path: 'monsters', element: <DMMonsters /> },
       { path: 'monsters/:monsterId', element: <DMMonsters /> },
       { path: 'spells', element: <DMSpells /> },
@@ -83,8 +94,7 @@ export const router = createBrowserRouter([
     element: <PlayerShell />,
     children: [
       { index: true, element: <PlayerHome /> },
-      { path: 'sheet', element: <PlayerSheet /> },
-      { path: 'sheet/:characterId', element: <PlayerSheet /> },
+
       { path: 'combat', element: <PlayerCombat /> },
       { path: 'dice', element: <PlayerDice /> },
       { path: 'party', element: <PlayerParty /> },

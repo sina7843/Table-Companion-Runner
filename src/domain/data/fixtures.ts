@@ -115,6 +115,7 @@ export const CHARACTERS: Character[] = [
     sectionVisibility: {},
     systemData: {
       classKey: 'fighter',
+      skills: ['Athletics', 'Intimidation', 'Perception', 'Survival'],
       className: 'Fighter',
       subclass: 'Battle Master',
       species: 'Human',
@@ -142,6 +143,7 @@ export const CHARACTERS: Character[] = [
     sectionVisibility: {},
     systemData: {
       classKey: 'warlock',
+      skills: ['Deception', 'Arcana', 'Investigation'],
       className: 'Warlock',
       subclass: 'The Fiend',
       species: 'Half-elf',
@@ -167,6 +169,7 @@ export const CHARACTERS: Character[] = [
     sectionVisibility: { inventory: 'private' },
     systemData: {
       classKey: 'cleric',
+      skills: ['Insight', 'Religion', 'Medicine', 'Persuasion'],
       className: 'Cleric',
       subclass: 'Life Domain',
       species: 'Dwarf',
@@ -191,6 +194,14 @@ export const CHARACTERS: Character[] = [
     sectionVisibility: { background: 'private' },
     systemData: {
       classKey: 'rogue',
+      skills: [
+        'Stealth',
+        'Sleight of Hand',
+        'Acrobatics',
+        'Perception',
+        'Deception',
+        'Investigation',
+      ],
       className: 'Rogue',
       subclass: 'Assassin',
       species: 'Halfling',
@@ -214,6 +225,7 @@ export const CHARACTERS: Character[] = [
     sectionVisibility: {},
     systemData: {
       classKey: 'druid',
+      skills: ['Nature', 'Survival', 'Medicine', 'Perception'],
       className: 'Druid',
       species: 'Wood Elf',
       background: 'Hermit',
@@ -237,6 +249,7 @@ export const CHARACTERS: Character[] = [
     draft: { step: 5, totalSteps: 10 },
     systemData: {
       classKey: 'wizard',
+      skills: ['Arcana', 'History'],
       className: 'Wizard',
       species: 'Human',
       background: 'Sage',

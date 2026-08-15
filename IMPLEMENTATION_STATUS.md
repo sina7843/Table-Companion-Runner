@@ -499,3 +499,60 @@ array reaches Review with every step valid, STR 15 → 17 and CON 14 → 15 from
 background increases, hit points 12 from d10 + Constitution, armour class 18 from chain
 mail with a capped Dexterity plus a shield, initiative +2 and proficiency +2 — none of it
 typed in by the user.
+
+---
+
+## TC-07 — Character sheet, privacy and level up
+
+### Routes
+
+| Route | Screen |
+| --- | --- |
+| `/play/sheet`, `/play/sheet/:id` | Character sheet (mobile and desktop) |
+| `/play/sheet/:id/privacy` | Who can see what |
+| `/play/sheet/:id/edit` | Character editing |
+| `/play/sheet/:id/level-up` | Guided level up |
+| `/dm/characters/:id` | The same sheet, viewed by the DM |
+
+### The sheet
+
+Fixed top block, never scrolls: identity, health, the calculated stats (armour class,
+initiative, passive perception), all six abilities and any conditions. Everything else is
+tabbed — Actions, Spells (casters only), Skills & saves, Items, Features, Background — in
+the order a player reaches for them.
+
+Rows are rollable where the ruleset makes them rollable. Expressions arrive with modifiers
+applied (`1d20 +6`) and the breakdown stays visible, so the arithmetic is checkable.
+Unprepared spells are listed with a hollow marker rather than hidden.
+
+Desktop: fixed 360px identity column plus a scrolling content column, skills two-up, and
+the full `HPControl` inline instead of behind a tap.
+
+### Privacy
+
+Three states, exactly as required: owner full access, DM full access, other players see
+only what is shared. Each row states the level as a word and a glyph, then repeats it as a
+sentence naming who is affected. A hidden section's tab does not exist for another player.
+Combat state cannot be hidden and shows fixed text rather than a disabled switch.
+
+### Level up
+
+The builder's field schema and controls, with a step list the rules generate. For a Battle
+Master Fighter reaching 7: hit points, one manoeuvre, review. The review splits **You
+chose** from **Applied automatically**, with per-change badges (`+9`, `New`, `No change`).
+
+### Domain additions
+
+`Ruleset.sheetSections()`, `sheetContent()`, `levelUpStepForm()`, `validateLevelUpStep()`,
+`levelUpChanges()`, `applyLevelUp()`. New types `SheetSection`, `SheetContent`,
+`RollableEntry`, `ValueEntry`, `LevelUpChange`, `LevelUpOutcome`. `IconButton` gained `as`.
+Fixture characters gained skill proficiencies.
+
+### Tests — 61, all passing (16 new in `sheet.test.ts`)
+
+Section ordering and caster-only tabs; attack expressions with proficiency and a fighting
+style applied; skill and save proficiency; unprepared spells staying listed; all three
+privacy states against Bram's hidden inventory; a hidden section's tab disappearing for a
+player but not the DM; the generated level-up step list; the chosen/automatic split
+producing the design's own `+9` and `No change`; and an ability score improvement reaching
+the attributes and the derived values.

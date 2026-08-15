@@ -229,16 +229,6 @@ export {
 
 /* ── Player ─────────────────────────────────────────────────────────────────── */
 
-export function PlayerSheet() {
-  return (
-    <PlayerPage title="Aria Nightfall">
-      <div className="tc-page">
-        <PendingSection title="Actions" rows={5} height={52} />
-      </div>
-    </PlayerPage>
-  );
-}
-
 export function PlayerCombat() {
   return (
     <PlayerPage title="Combat">

@@ -14,6 +14,7 @@ import type {
   Attribute,
   Character,
   CharacterDraft,
+  CharacterSectionKey,
   CombatParticipant,
   Condition,
   DeathSaves,
@@ -137,6 +138,91 @@ export interface BuilderStepForm {
   review?: boolean;
 }
 
+/* ── The character sheet ────────────────────────────────────────────────────── */
+
+/**
+ * One tab on the sheet.
+ *
+ * Ordered by how often a player touches it during play, not by importance on paper.
+ * `privacyKey` links the tab to the section a player can hide from the party.
+ */
+export interface SheetSection {
+  id: string;
+  label: string;
+  /** Shown beside the label when it helps — number of actions, number of items. */
+  count?: number;
+  privacyKey?: CharacterSectionKey;
+}
+
+/** A row that can be rolled: an attack, an action, a spell. */
+export interface RollableEntry {
+  key: string;
+  name: string;
+  /**
+   * Ready-to-roll expressions with modifiers already applied, e.g. `1d20 + 7`. The
+   * design requires the arithmetic to arrive done and still be checkable.
+   */
+  rolls?: { label: string; expression: string }[];
+  /** Mono meta line: damage, range, casting time. */
+  meta?: string[];
+  tags?: string[];
+  /** Grouping marker — spell level, action cost. */
+  tier?: string;
+  /**
+   * False for something known but not currently available. Never hidden: the design is
+   * explicit that hiding an unprepared spell makes a player think they lost it.
+   */
+  prepared?: boolean;
+  description?: string;
+}
+
+/** A label/value pair: a skill, a saving throw. */
+export interface ValueEntry {
+  key: string;
+  label: string;
+  value: string;
+  /** Trained in it. Rendered with a word, not colour alone. */
+  proficient?: boolean;
+  /** Set when the value can be rolled directly. */
+  expression?: string;
+}
+
+/** What one sheet tab contains. A section uses whichever of these it needs. */
+export interface SheetContent {
+  /** Rollable rows: attacks, actions, spells. */
+  rollables?: RollableEntry[];
+  /** Two-up pairs: skills, saving throws. */
+  values?: ValueEntry[];
+  /** Long-form, secondary to everything above. */
+  prose?: { name: string; text: string }[];
+  /** Pips pinned above the list, e.g. spell slots. */
+  resources?: ResourcePool[];
+}
+
+/* ── Level up ───────────────────────────────────────────────────────────────── */
+
+/**
+ * One line of what a level-up did.
+ *
+ * The design splits these into what the player chose and what the rules applied, and
+ * calls that split the single most useful thing the screen can do for someone who does
+ * not know the rules.
+ */
+export interface LevelUpChange {
+  key: string;
+  summary: string;
+  detail?: string;
+  /** Short delta badge, e.g. `+9` or `No change`. */
+  badge?: string;
+  /** Marks a change that added something rather than moving a number. */
+  isNew?: boolean;
+}
+
+export interface LevelUpOutcome {
+  chosen: LevelUpChange[];
+  automatic: LevelUpChange[];
+}
+
 /** A specific, bounded validation failure. */
 export interface BuilderIssue {
   /** The field that is missing or wrong, so the shell can outline exactly that group. */
@@ -239,6 +325,49 @@ export interface Ruleset {
    * allows it for combat values and not for everything.
    */
   canOverride(key: string): boolean;
+
+  /* ── The character sheet ──────────────────────────────────────────────────── */
+
+  /** The tabs this system's sheet has, in the order a player reaches for them. */
+  sheetSections(character: Character): SheetSection[];
+
+  /** What one tab contains. Unknown ids return an empty section rather than throwing. */
+  sheetContent(character: Character, sectionId: string): SheetContent;
+
+  /* ── Level up ─────────────────────────────────────────────────────────────── */
+
+  /**
+   * The question a level-up step asks. Reuses the builder's field schema, so the same
+   * shell renders both flows.
+   */
+  levelUpStepForm(
+    character: Character,
+    toLevel: number,
+    stepId: string,
+    choices: Readonly<Record<string, unknown>>,
+  ): BuilderStepForm | null;
+
+  /** What is still missing on a level-up step. */
+  validateLevelUpStep(
+    character: Character,
+    toLevel: number,
+    stepId: string,
+    choices: Readonly<Record<string, unknown>>,
+  ): BuilderIssue[];
+
+  /** What this level-up will do, split into the player's decisions and the rules'. */
+  levelUpChanges(
+    character: Character,
+    toLevel: number,
+    choices: Readonly<Record<string, unknown>>,
+  ): LevelUpOutcome;
+
+  /** Applies the level-up, producing the advanced character. */
+  applyLevelUp(
+    character: Character,
+    toLevel: number,
+    choices: Readonly<Record<string, unknown>>,
+  ): Character;
 
   /** Steps for advancing a character. The list is generated, not fixed. */
   levelUpSteps(character: Character, toLevel: number): BuilderStep[];

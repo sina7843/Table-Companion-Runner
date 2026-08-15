@@ -54,11 +54,14 @@ import { BalancePanel } from './BalancePanel';
 import {
   MAX_PER_GROUP,
   addCreature,
+  blockingIssues,
   mergeRoster,
   patchEntry,
   removeEntry,
   searchCreatures,
   setPresent,
+  summarise,
+  validateEncounter,
 } from './composition';
 import { creatureCount, partyOf, presentParty, rosterOf, startLabel, statusOf } from './shared';
 
@@ -69,6 +72,9 @@ const SOURCES = [
   { id: 'party', label: 'Party', icon: 'users-three' },
   { id: 'saved', label: 'Saved', icon: 'flag-banner' },
 ];
+
+/** Groups past which the roster outruns the aside and earns its own summary bar. */
+const LONG_ROSTER = 4;
 
 /** One creature's experience, asked of the ruleset rather than assumed by the screen. */
 function xpFor(rules: Ruleset, monster: Monster): string {
@@ -104,7 +110,7 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
   const [draft, setDraft] = useState<EncounterTemplate | null>(null);
   const [source, setSource] = useState<Source>('monsters');
   const [search, setSearch] = useState('');
-  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [failure, setFailure] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -165,7 +171,41 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
 
   // Autosave, debounced. The design states saving is automatic — an encounter is a
   // document being edited, not a form waiting to be submitted.
+  //
+  // `pending` is what makes it reliable rather than merely automatic: a debounce that only
+  // ever fires on a timer loses the last edit whenever the DM types and immediately
+  // clicks Start, so every exit path flushes it first.
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef<EncounterTemplate | null>(null);
+
+  const write = useCallback(
+    (next: EncounterTemplate) => {
+      pending.current = null;
+      setSaving('saving');
+      return encounters.save(next).then(
+        () => {
+          // A newer edit landed while this one was in flight; that one owns the state.
+          if (!pending.current) setSaving('saved');
+          setFailure(null);
+        },
+        (error: unknown) => {
+          // Keep it pending so Retry, and the next edit, both send it again.
+          pending.current = next;
+          setSaving('failed');
+          setFailure(error instanceof Error ? error.message : 'That change was not saved.');
+        },
+      );
+    },
+    [encounters],
+  );
+
+  const flush = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const next = pending.current;
+    return next ? write(next) : Promise.resolve();
+  }, [write]);
+
   const edit = useCallback(
     (change: (current: EncounterTemplate) => EncounterTemplate) => {
       const current = draftRef.current;
@@ -173,28 +213,38 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
 
       const next = change(current);
       draftRef.current = next;
+      pending.current = next;
       setDraft(next);
       setSaving('saving');
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => {
-        void encounters.save(next).then(
-          () => setSaving('saved'),
-          (error: unknown) => {
-            setSaving('idle');
-            setFailure(error instanceof Error ? error.message : 'That change was not saved.');
-          },
-        );
+        timer.current = null;
+        void write(next);
       }, 500);
+    },
+    [write],
+  );
+
+  // Leaving the builder writes whatever is still queued. Without this, the last thing a
+  // DM typed is the one thing that does not survive.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (pending.current) void encounters.save(pending.current);
     },
     [encounters],
   );
 
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  // Closing the tab is the one exit React never sees.
+  useEffect(() => {
+    const onLeave = (event: BeforeUnloadEvent) => {
+      if (!pending.current) return;
+      void encounters.save(pending.current);
+      event.preventDefault();
+    };
+    window.addEventListener('beforeunload', onLeave);
+    return () => window.removeEventListener('beforeunload', onLeave);
+  }, [encounters]);
 
   // "/" focuses search, as the design's SearchInput shortcut specifies — but never while
   // the DM is already typing into the name, the notes or the quantity fields.
@@ -300,7 +350,25 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
   const absent = new Set<string>(draft.absentCharacterIds ?? []);
   const difficulty = rules.encounterDifficulty(roster, present);
   const { status, live } = statusOf(draft, data.fights);
-  const heads = creatureCount(draft);
+
+  const summary = summarise(draft, roster, present);
+  const issues = validateEncounter(draft, summary);
+  const blocking = blockingIssues(issues);
+
+  const start = () => {
+    if (live) {
+      void navigate(`/dm/combat/${live.id}`);
+      return;
+    }
+    // Flush first: the roster the fight is built from must include whatever the DM
+    // changed a quarter of a second ago.
+    void flush()
+      .then(() => combats.startFromTemplate(draft.id))
+      .then((combat) => navigate(`/dm/combat/${combat.id}`))
+      .catch((error: unknown) =>
+        setFailure(error instanceof Error ? error.message : 'Could not start combat.'),
+      );
+  };
 
   const libraryRows = searchCreatures(data.creatures, search);
   const siblings = data.siblings.filter(
@@ -335,8 +403,14 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
       ),
     });
 
-  const savedLabel =
-    saving === 'saving' ? 'Saving…' : saving === 'saved' ? 'Saved' : 'Draft · autosaved';
+  // Save feedback is one quiet line that changes word, never a toast and never a spinner
+  // over the page. It only becomes loud when a write actually failed.
+  const SAVED_LABEL = {
+    idle: 'Draft · autosaved',
+    saving: 'Saving…',
+    saved: 'Saved',
+    failed: 'Not saved',
+  } as const;
 
   const railStyle = {
     flex: '1 1 300px',
@@ -362,22 +436,26 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
       title={draft.name || 'Untitled encounter'}
       actions={
         <>
+          {difficulty && roster.length > 0 && (
+            <Badge tone={difficulty.tone}>{difficulty.label}</Badge>
+          )}
           <span
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 'var(--font-size-11)',
-              color: 'var(--color-text-tertiary)',
+              color:
+                saving === 'failed' ? 'var(--color-danger-text)' : 'var(--color-text-tertiary)',
             }}
             role="status"
+            aria-live="polite"
           >
-            {savedLabel}
+            {SAVED_LABEL[saving]}
           </span>
           <Button
             size="sm"
             variant="secondary"
             icon="eye"
-            as={Link}
-            to={`/dm/encounters/${draft.id}`}
+            onClick={() => void flush().then(() => navigate(`/dm/encounters/${draft.id}`))}
           >
             Done
           </Button>
@@ -537,8 +615,16 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
           }}
         >
           {failure && (
-            <Alert tone="danger" title="That change was not saved">
-              {failure}
+            <Alert
+              tone="danger"
+              title="That change was not saved"
+              actions={
+                <Button size="sm" variant="secondary" icon="arrow-clockwise" onClick={flush}>
+                  Try again
+                </Button>
+              }
+            >
+              {failure} Your edits are still here — nothing has been lost.
             </Alert>
           )}
 
@@ -586,14 +672,26 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
             </Field>
           </div>
 
+          {/*
+            Warnings sit above the roster rather than beside the start button, because
+            every one of them is about something the DM can fix right here.
+          */}
+          {issues
+            .filter((issue) => issue.severity !== 'blocking')
+            .map((issue) => (
+              <Alert key={issue.key} tone="warning">
+                {issue.message}
+              </Alert>
+            ))}
+
           <section>
             <SectionHeader
               title="Monsters"
               icon="skull"
               eyebrow={
-                roster.length === 0
+                summary.groups === 0
                   ? 'Nothing added yet'
-                  : `${heads} creatures · ${roster.length} groups · ${heads + present.length} combatants with the party`
+                  : `${summary.creatures} creatures · ${summary.groups} groups · ${summary.combatants} combatants with the party`
               }
             />
 
@@ -748,6 +846,60 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
               />
             </div>
           </section>
+
+          {/*
+            The large-encounter bar. A sixteen-creature roster is long enough that the
+            aside scrolls off on a wrapped layout, and the DM should never have to scroll
+            back up to find out what they have built or to start it.
+          */}
+          {summary.groups >= LONG_ROSTER && (
+            <div
+              style={{
+                position: 'sticky',
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-12)',
+                flexWrap: 'wrap',
+                padding: 'var(--space-10) var(--space-16)',
+                background: 'var(--color-surface-secondary)',
+                borderTop: '1px solid var(--color-border-default)',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--font-size-10)',
+                  letterSpacing: 'var(--tracking-caps)',
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text-tertiary)',
+                }}
+              >
+                {summary.creatures} creatures · {summary.groups} groups · {summary.combatants}{' '}
+                combatants
+              </span>
+              {difficulty && (
+                <span
+                  style={{
+                    fontSize: 'var(--font-size-12)',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                >
+                  {difficulty.detail}
+                </span>
+              )}
+              <div style={{ flex: 1 }} />
+              <Button
+                size="sm"
+                variant="primary"
+                icon={status === 'live' ? 'broadcast' : 'sword'}
+                disabled={blocking.length > 0}
+                onClick={start}
+              >
+                {startLabel(status)}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* ── Summary ──────────────────────────────────────────────────────── */}
@@ -764,6 +916,28 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
             gap: 'var(--space-16)',
           }}
         >
+          <section>
+            <SectionHeader sub title="This encounter" />
+            <dl className="tc-deflist">
+              <dt>Creatures</dt>
+              <dd>
+                {summary.creatures} in {summary.groups} {summary.groups === 1 ? 'group' : 'groups'}
+              </dd>
+              <dt>Party</dt>
+              <dd>
+                {summary.present} of {party.length} present
+              </dd>
+              <dt>Combatants</dt>
+              <dd>{summary.combatants}</dd>
+              {draft.location && (
+                <>
+                  <dt>Location</dt>
+                  <dd>{draft.location}</dd>
+                </>
+              )}
+            </dl>
+          </section>
+
           <BalancePanel difficulty={difficulty} />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
@@ -772,22 +946,18 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
               and this template stays as it is.
             </Alert>
 
+            {/* Blocking issues are stated where the blocked action is, not at the top. */}
+            {blocking.map((issue) => (
+              <Alert key={issue.key} tone="danger">
+                {issue.message}
+              </Alert>
+            ))}
+
             <Button
               variant="primary"
               icon={status === 'live' ? 'broadcast' : 'sword'}
-              disabled={roster.length === 0}
-              onClick={() => {
-                if (live) {
-                  void navigate(`/dm/combat/${live.id}`);
-                  return;
-                }
-                void combats
-                  .startFromTemplate(draft.id)
-                  .then((combat) => navigate(`/dm/combat/${combat.id}`))
-                  .catch((error: unknown) =>
-                    setFailure(error instanceof Error ? error.message : 'Could not start combat.'),
-                  );
-              }}
+              disabled={blocking.length > 0}
+              onClick={start}
             >
               {startLabel(status)}
             </Button>
@@ -795,8 +965,8 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
               variant="secondary"
               icon="copy"
               onClick={() =>
-                void encounters
-                  .duplicate(draft.id)
+                void flush()
+                  .then(() => encounters.duplicate(draft.id))
                   .then((copy) => navigate(`/dm/encounters/${copy.id}/edit`))
                   .catch((error: unknown) =>
                     setFailure(error instanceof Error ? error.message : 'Could not duplicate.'),

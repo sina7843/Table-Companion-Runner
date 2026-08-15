@@ -8,15 +8,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createFixtureRepositories } from '../../domain/data/fixtureRepositories.ts';
-import { id, type EncounterTemplate, type Monster } from '../../domain/types.ts';
+import { id, type Character, type EncounterTemplate, type Monster } from '../../domain/types.ts';
 import {
   MAX_PER_GROUP,
   addCreature,
+  blockingIssues,
   mergeRoster,
   patchEntry,
   removeEntry,
   searchCreatures,
   setPresent,
+  summarise,
+  validateEncounter,
 } from './composition.ts';
 
 const LMOP = id<'Campaign'>('c-lmop');
@@ -159,4 +162,141 @@ test('search is forgiving and bounded', async () => {
   // An empty term is every creature, capped so a long library cannot stall the rail.
   assert.equal(searchCreatures(creatures, '', 5).length, 5);
   assert.equal(searchCreatures(creatures, '   ').length, Math.min(60, creatures.length));
+});
+
+/* ── Summary and validation ─────────────────────────────────────────────────── */
+
+const party = (count: number): Character[] =>
+  Array.from({ length: count }, (_, index) => ({
+    id: id<'Character'>(`ch-${index}`),
+    systemId: id<'GameSystem'>('dnd5e-2024'),
+    ownerUserId: id<'User'>('u-marta'),
+    name: `Test ${index}`,
+    subtitle: '',
+    level: 5,
+    attributes: [],
+    resources: [],
+    health: { current: 10, max: 10, temporary: 0 },
+    conditions: [],
+    sectionVisibility: {},
+    systemData: {},
+  }));
+
+async function creature(name: string): Promise<Monster> {
+  const all = await repos.monsters.list();
+  const found = all.find((monster) => monster.name === name);
+  assert.ok(found, `fixture creature "${name}" is missing`);
+  return found;
+}
+
+test('the summary counts groups, creatures and everyone who will roll initiative', async () => {
+  const goblin = await creature('Goblin');
+  const bugbear = await creature('Bugbear');
+
+  const encounter: EncounterTemplate = {
+    ...blank(),
+    entries: [
+      { id: 'a', monsterId: goblin.id, count: 8 },
+      { id: 'b', monsterId: bugbear.id, count: 4 },
+    ],
+  };
+  const summary = summarise(
+    encounter,
+    [
+      { monster: goblin, count: 8 },
+      { monster: bugbear, count: 4 },
+    ],
+    party(4),
+  );
+
+  assert.equal(summary.creatures, 12);
+  assert.equal(summary.groups, 2, 'twelve creatures are two rows, not twelve');
+  assert.equal(summary.present, 4);
+  assert.equal(summary.combatants, 16);
+  assert.equal(summary.missing, 0);
+});
+
+test('a creature deleted from the library is counted as missing, not silently dropped', async () => {
+  const goblin = await creature('Goblin');
+  const encounter: EncounterTemplate = {
+    ...blank(),
+    entries: [
+      { id: 'a', monsterId: goblin.id, count: 2 },
+      { id: 'b', monsterId: id<'Monster'>('m-deleted'), count: 3 },
+    ],
+  };
+
+  // The roster resolves only what still exists; the template still declares five.
+  const summary = summarise(encounter, [{ monster: goblin, count: 2 }], party(4));
+  assert.equal(summary.creatures, 2);
+  assert.equal(summary.missing, 3);
+
+  const issue = validateEncounter(encounter, summary).find((entry) => entry.severity === 'warning');
+  assert.ok(issue);
+  assert.match(issue.message, /3 creatures are/);
+});
+
+test('an empty or unnamed encounter cannot be started', () => {
+  const summary = summarise(blank(), [], party(4));
+  const stops = blockingIssues(validateEncounter(blank(), summary));
+  assert.deepEqual(
+    stops.map((issue) => issue.message),
+    ['Add at least one creature before starting this fight'],
+  );
+
+  const unnamed = { ...blank(), name: '   ' };
+  assert.equal(blockingIssues(validateEncounter(unnamed, summary)).length, 2);
+});
+
+test('a normal fight raises nothing at all', async () => {
+  const bugbear = await creature('Bugbear');
+  const encounter: EncounterTemplate = {
+    ...blank(),
+    entries: [{ id: 'a', monsterId: bugbear.id, count: 4 }],
+  };
+
+  const roster = [{ monster: bugbear, count: 4 }];
+  assert.deepEqual(validateEncounter(encounter, summarise(encounter, roster, party(4))), []);
+});
+
+test('a crowded fight is warned about but never blocked', async () => {
+  const goblin = await creature('Goblin');
+  const encounter: EncounterTemplate = {
+    ...blank(),
+    entries: [{ id: 'a', monsterId: goblin.id, count: 18 }],
+  };
+
+  const summary = summarise(encounter, [{ monster: goblin, count: 18 }], party(4));
+  const issues = validateEncounter(encounter, summary);
+
+  const crowded = issues.find((issue) => issue.message.includes('combatants take a long time'));
+  assert.ok(crowded);
+  assert.equal(crowded.severity, 'warning');
+  assert.match(crowded.message, /22 combatants/);
+  assert.deepEqual(blockingIssues(issues), [], 'a DM running a siege knows what they are doing');
+});
+
+test('nobody present, and nothing visible, are both said out loud', async () => {
+  const goblin = await creature('Goblin');
+  const encounter: EncounterTemplate = {
+    ...blank(),
+    entries: [{ id: 'a', monsterId: goblin.id, count: 2, hidden: true }],
+  };
+  const roster = [{ monster: goblin, count: 2 }];
+
+  const said = validateEncounter(encounter, summarise(encounter, roster, [])).map(
+    (issue) => issue.message,
+  );
+  assert.ok(said.some((message) => message.includes('Nobody from the party')));
+  assert.ok(said.some((message) => message.includes('Every creature starts hidden')));
+
+  // One hidden group among several is an ambush, not a mistake.
+  const ambush: EncounterTemplate = {
+    ...encounter,
+    entries: [...encounter.entries, { id: 'b', monsterId: goblin.id, count: 1 }],
+  };
+  const fine = validateEncounter(ambush, summarise(ambush, roster, party(4))).map(
+    (issue) => issue.message,
+  );
+  assert.ok(!fine.some((message) => message.includes('Every creature starts hidden')));
 });

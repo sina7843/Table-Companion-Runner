@@ -841,3 +841,58 @@ compiles every new module.
 No drag-and-drop: roster order carries no meaning, so it would be a second way to do
 nothing. No "Group identical" expand toggle — per-participant names and initiative live on
 a combat instance, which is TC-11.
+
+## TC-10b — Encounter summary, validation and save feedback
+
+### Summary
+
+`summarise()` returns creatures, groups, party present, total combatants and how many
+entries reference a creature that no longer exists. It feeds the Monsters section header,
+the new **This encounter** block in the aside, the large-encounter bar and the detail page,
+so all four agree by construction.
+
+### Difficulty
+
+Unchanged seam: `Ruleset.encounterDifficulty` supplies label, tone, bar position, breakdown
+and warning, and every surface prints it verbatim. The builder's top bar now carries the
+difficulty badge, and `BalancePanel` still degrades to "This game system does not rate
+encounter difficulty" when a ruleset declines.
+
+### Validation
+
+`validateEncounter()` in `screens/encounters/composition.ts`. Blocking: unnamed, no
+creatures — Start is disabled and the reason sits beside it. Warnings, above the roster:
+creatures missing from the library, nobody from the party present, more than twenty
+combatants, and every creature starting hidden. The detail page runs the same checks.
+
+### Autosave
+
+`pending` ref plus `flush()`. Flushed on the debounce, on unmount, on `beforeunload`, and
+before Start, Duplicate and Done. A failed write stays pending and is retried by the alert's
+Try again or by the next edit. Indicator: `Draft · autosaved` / `Saving…` / `Saved` /
+`Not saved`, `aria-live="polite"`, red only on failure.
+
+### Template immutability
+
+`EncounterRepository.byId`, `listForCampaign`, `create`, `save` and `duplicate` all return
+detached copies via `copyTemplate`; `startFromTemplate` writes only `lastRunAt` and does so
+through the same copy. Nothing a caller holds can reach the stored template.
+
+### Large-encounter state
+
+Past four groups a sticky bar appears under the roster with `N creatures · N groups · N
+combatants`, the ruleset's own summary line, and Start combat.
+
+### Tests — 125, all passing (9 new)
+
+Six in `composition.test.ts`: the summary's counts; missing creatures counted rather than
+dropped; empty and unnamed both blocking; a normal fight raising nothing; a crowded fight
+warned but not blocked; nobody-present and nothing-visible both stated, and a single hidden
+group correctly left alone. Three in `encounters.test.ts`: a mutated read not reaching the
+store, two reads not sharing a roster, and a saved draft the caller keeps editing.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (125 passing), `npm run format:check`,
+`npm run build`. Dev server serves the builder for an empty, a small and a sixteen-creature
+encounter.

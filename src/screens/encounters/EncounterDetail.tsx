@@ -35,7 +35,8 @@ import {
   type Monster,
 } from '../../domain';
 import { BalancePanel } from './BalancePanel';
-import { creatureCount, partyOf, presentParty, rosterOf, startLabel, statusOf } from './shared';
+import { blockingIssues, summarise, validateEncounter } from './composition';
+import { partyOf, presentParty, rosterOf, startLabel, statusOf } from './shared';
 
 export function EncounterDetail() {
   const { encounterId } = useParams();
@@ -165,7 +166,9 @@ export function EncounterDetail() {
     .filter(Boolean)
     .join(' · ');
 
-  const missing = creatureCount(encounter) - entries.reduce((sum, entry) => sum + entry.count, 0);
+  const summary = summarise(encounter, entries, present);
+  const issues = validateEncounter(encounter, summary);
+  const blocked = blockingIssues(issues).length > 0;
 
   return (
     <DMPage
@@ -235,17 +238,19 @@ export function EncounterDetail() {
             </Alert>
           )}
 
-          {missing > 0 && (
-            <Alert tone="warning" title="Some creatures are missing">
-              {missing} of this encounter&rsquo;s creatures are no longer in the library. They will
-              not be added when it starts.
+          {/* The same checks the builder runs, so a template never reads as fine here
+              and broken there. */}
+          {issues.map((issue) => (
+            <Alert key={issue.key} tone={issue.severity === 'blocking' ? 'danger' : 'warning'}>
+              {issue.message}
             </Alert>
-          )}
+          ))}
 
           <section>
             <SectionHeader
               title="Monsters"
-              eyebrow={`${creatureCount(encounter)} creatures · ${entries.length} groups`}
+              icon="skull"
+              eyebrow={`${summary.creatures} creatures · ${summary.groups} groups · ${summary.combatants} combatants with the party`}
             />
             {entries.length === 0 ? (
               <EmptyState
@@ -368,7 +373,8 @@ export function EncounterDetail() {
             <Button
               variant="primary"
               icon={status === 'live' ? 'broadcast' : 'sword'}
-              disabled={busy}
+              // An encounter with nothing in it is not a fight; the alert above says why.
+              disabled={busy || (status !== 'live' && blocked)}
               onClick={start}
             >
               {startLabel(status)}

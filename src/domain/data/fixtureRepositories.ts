@@ -94,6 +94,23 @@ function nextId(): string {
 }
 
 /**
+ * A template detached from the store.
+ *
+ * Every nested array is rebuilt, so nothing a caller does to what it was handed can reach
+ * the fixture behind it. This is the guarantee that lets a combat instance be built from a
+ * template without the fight ever writing back into the fight it was prepared as.
+ */
+function copyTemplate(template: EncounterTemplate): EncounterTemplate {
+  return {
+    ...template,
+    entries: template.entries.map((entry) => ({ ...entry })),
+    ...(template.absentCharacterIds
+      ? { absentCharacterIds: [...template.absentCharacterIds] }
+      : {}),
+  };
+}
+
+/**
  * Drafts persist to localStorage rather than a module array.
  *
  * Autosave that vanishes on reload is not autosave. A half-built character is exactly the
@@ -351,10 +368,17 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
     },
 
     encounters: {
+      // Reads hand out copies. A template is the one record a combat instance is built
+      // from, and a screen that mutated what it was handed would silently rewrite a
+      // prepared fight — the bug this repository exists to make impossible.
       listForCampaign: (campaignId: CampaignId) =>
-        resolve(ENCOUNTERS.filter((encounter) => encounter.campaignId === campaignId)),
-      byId: (encounterId: EncounterTemplateId) =>
-        resolve(ENCOUNTERS.find((encounter) => encounter.id === encounterId) ?? null),
+        resolve(
+          ENCOUNTERS.filter((encounter) => encounter.campaignId === campaignId).map(copyTemplate),
+        ),
+      byId: (encounterId: EncounterTemplateId) => {
+        const found = ENCOUNTERS.find((encounter) => encounter.id === encounterId);
+        return resolve(found ? copyTemplate(found) : null);
+      },
 
       create: (input: { campaignId: CampaignId; name: string }) => {
         const created: EncounterTemplate = {
@@ -365,15 +389,15 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
           updatedAt: new Date().toISOString(),
         };
         ALL_ENCOUNTERS.push(created);
-        return resolve(created);
+        return resolve(copyTemplate(created));
       },
 
       save: (encounter: EncounterTemplate) => {
         const index = ALL_ENCOUNTERS.findIndex((entry) => entry.id === encounter.id);
         if (index < 0) return Promise.reject(new Error('That encounter no longer exists.'));
-        const saved: EncounterTemplate = { ...encounter, updatedAt: new Date().toISOString() };
+        const saved = copyTemplate({ ...encounter, updatedAt: new Date().toISOString() });
         ALL_ENCOUNTERS[index] = saved;
-        return resolve(saved);
+        return resolve(copyTemplate(saved));
       },
 
       remove: (encounterId: EncounterTemplateId) => {
@@ -386,21 +410,18 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
         const source = ALL_ENCOUNTERS.find((entry) => entry.id === encounterId);
         if (!source) return Promise.reject(new Error('That encounter no longer exists.'));
 
-        const copy: EncounterTemplate = {
+        // Entries and absences are copied, not shared: editing the duplicate must not
+        // reach back into the encounter it came from.
+        const copy = copyTemplate({
           ...source,
           id: id<'EncounterTemplate'>(`e-${nextId()}`),
           name: `${source.name} (copy)`,
-          // Entries are copied, not shared: editing the duplicate must not reach back.
-          entries: source.entries.map((entry) => ({ ...entry })),
-          ...(source.absentCharacterIds
-            ? { absentCharacterIds: [...source.absentCharacterIds] }
-            : {}),
           updatedAt: new Date().toISOString(),
           // A copy has not been run, whatever the original has done.
           lastRunAt: undefined,
-        };
+        });
         ALL_ENCOUNTERS.push(copy);
-        return resolve(copy);
+        return resolve(copyTemplate(copy));
       },
     },
 
@@ -494,7 +515,7 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
         // not a change to the fight it describes — the roster is untouched.
         const index = ALL_ENCOUNTERS.findIndex((entry) => entry.id === encounterId);
         if (index >= 0) {
-          ALL_ENCOUNTERS[index] = { ...template, lastRunAt: combat.startedAt };
+          ALL_ENCOUNTERS[index] = copyTemplate({ ...template, lastRunAt: combat.startedAt });
         }
 
         return resolve(combat);

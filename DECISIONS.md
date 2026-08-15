@@ -683,3 +683,49 @@ builder needed, and nothing about the visual contract changed.
 only state with data behind it, and an expanded view would render N identical rows with
 nothing per-creature to edit. It arrives when combat instances carry per-participant names
 and initiative, which is TC-11.
+
+## TC-10b — Summary, validation and reliable autosave
+
+**Structural validation is generic; difficulty is the ruleset's.** `validateEncounter`
+checks what any system needs — a name, something to fight, someone to fight it, creatures
+that still exist, a battlefield that is not entirely invisible, a combatant count that
+will not stall a round. It never judges how hard the fight is, because "deadly" is a
+judgement a system makes and "empty" is not. No new seam method: the difficulty warning
+already comes from `encounterDifficulty`.
+
+**Two severities, and only one of them stops anything.** Blocking issues (no name, no
+creatures) disable Start and are stated next to the disabled button, so the reason sits
+where the blocked action is. Warnings sit above the roster, because every one of them is
+about something the DM can fix right there. A crowded fight is never blocked — a DM
+running a siege knows what they are doing.
+
+**Autosave is flushed, not merely debounced.** A 500 ms timer alone loses the last edit
+whenever a DM types and immediately clicks Start, Duplicate or Done. Every edit is held in
+a `pending` ref; the timer, unmount, `beforeunload` and all three exit paths flush it, and
+Start flushes before building the combat so the fight is made from what is actually on
+screen. A failed write keeps the edit pending, so both Retry and the next keystroke resend
+it.
+
+**Save feedback is one word that changes.** `Draft · autosaved` → `Saving…` → `Saved`, in
+the top bar, in `aria-live="polite"`, tinted red only when a write actually failed. No
+toast, no spinner over the page — the design's own indicator is a single mono line, and a
+DM adding fifteen goblins should not be interrupted fifteen times.
+
+**A stale success can no longer overwrite a fresh save.** `write` only reports `Saved` if
+nothing new is queued behind it, so a slow response landing after a newer edit does not
+claim the newer one is written.
+
+**The repository hands out copies.** `EncounterRepository` reads, writes and duplicates all
+go through `copyTemplate`, which rebuilds `entries` and `absentCharacterIds`. This is what
+makes "the template is immutable from combat" a guarantee rather than a convention: no
+screen and no future combat runtime can reach the stored template through an object it was
+handed, and three tests hold it — a mutated read, two reads not sharing a roster, and a
+saved draft the builder keeps editing.
+
+**The large-encounter bar is conditional, not always on.** Past four groups the roster
+outruns the aside on a wrapped layout, so a sticky bottom bar carries the counts, the
+ruleset's own summary line and Start. Below that it would be chrome duplicating what is
+already two inches to the right.
+
+**The difficulty badge moved into the top bar.** The design's large-encounter frame carries
+it beside the title, which is the one place it stays visible whatever is scrolled.

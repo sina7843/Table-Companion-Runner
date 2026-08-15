@@ -13,6 +13,7 @@ import { id, type Character, type Monster } from './types.ts';
 
 const SYSTEM = id<'GameSystem'>('dnd5e-2024');
 const LMOP = id<'Campaign'>('c-lmop');
+const GOBLIN = id<'Monster'>('m-goblin');
 const STRAHD = id<'Campaign'>('c-strahd');
 const rules = requireRuleset(SYSTEM);
 const repos = createFixtureRepositories();
@@ -165,6 +166,50 @@ test('a new template is stamped and belongs to the campaign it was made in', asy
     const saved = await repos.encounters.save({ ...created, name: 'Bonegrinder, upstairs' });
     assert.equal(saved.name, 'Bonegrinder, upstairs');
     assert.equal((await repos.encounters.byId(created.id))?.name, 'Bonegrinder, upstairs');
+  } finally {
+    await repos.encounters.remove(created.id);
+  }
+});
+
+/* ── The template is not the store ──────────────────────────────────────────── */
+
+test('a template handed out is a copy, so a screen cannot rewrite a prepared fight', async () => {
+  const before = await encounter('Assault on Cragmaw Castle');
+  const held = await repos.encounters.byId(before.id);
+  assert.ok(held);
+
+  // Everything a careless caller might reach for.
+  held.name = 'Vandalised';
+  held.location = 'Nowhere';
+  held.entries[0]!.count = 99;
+  held.entries.push({ id: 'junk', monsterId: id<'Monster'>('m-goblin'), count: 7 });
+  held.absentCharacterIds = [id<'Character'>('ch-aria')];
+
+  const after = await repos.encounters.byId(before.id);
+  assert.equal(after?.name, before.name);
+  assert.equal(after?.location, before.location);
+  assert.deepEqual(after?.entries, before.entries);
+  assert.equal(after?.absentCharacterIds, undefined);
+});
+
+test('two reads of the same encounter do not share their rosters', async () => {
+  const first = await encounter('Goblin Ambush');
+  const second = await repos.encounters.byId(first.id);
+
+  first.entries[0]!.count = 42;
+  assert.notEqual(second?.entries[0]?.count, 42);
+});
+
+test('a saved template is detached from what the caller kept', async () => {
+  const created = await repos.encounters.create({ campaignId: LMOP, name: 'Detach me' });
+  try {
+    const draft = { ...created, entries: [{ id: 'a', monsterId: GOBLIN, count: 2 }] };
+    await repos.encounters.save(draft);
+
+    // The builder holds its draft after saving and keeps editing it.
+    draft.entries[0]!.count = 11;
+
+    assert.equal((await repos.encounters.byId(created.id))?.entries[0]?.count, 2);
   } finally {
     await repos.encounters.remove(created.id);
   }

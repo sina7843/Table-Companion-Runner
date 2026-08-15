@@ -950,3 +950,58 @@ encounter that starts one.
 
 The combat runner — turn advance, damage, conditions, the roll log, the initiative row
 component — is TC-11.
+
+## TC-11a — DM live combat
+
+`src/screens/combat/CombatRunner.tsx`, reached when a `CombatInstance` is `live`.
+
+### Command bar
+
+`.tc-combatbar` in `shell.css` — the design's proposed Extension 1. Round counter,
+`TurnIndicator` naming the participant, `Next · <name>` in mono, then Previous, Next turn
+and End combat.
+
+### Initiative list
+
+New `InitiativeRow` design-system adapter over the vendored `.tc-init` CSS: marker,
+initiative, entity dot, name, state flag, identity line with armour class, condition chips
+(four, then a count), death-save pips, HP bar and a row action cluster — move earlier, move
+later, set initiative, give the turn. The list is wrapped in `.tc-initlist`, which arms the
+design's container queries for tablet widths.
+
+### Turn logic
+
+`src/screens/combat/turns.ts`: `nextTurn`, `previousTurn`, `jumpToTurn`, `moveParticipant`,
+`resortByInitiative`, `setInitiativeDuringCombat`, `orderDiffersFromInitiative`,
+`nextParticipant`, `endCombat`. All pure transforms of a `CombatInstance`; none can name an
+`EncounterTemplate`.
+
+### Context panel
+
+The shared `useContextPanel`. A creature opens the real `MonsterSheet` with its live hit
+points and conditions; a character opens a compact identity block plus a link to the full
+sheet. Docked at ≥1280, drawer below.
+
+### Fixture
+
+The live fight is now 13 combatants — 4 players, 8 creatures, 1 NPC — carrying every state
+the row draws.
+
+### Tests — 153, all passing (16 new in `screens/combat/turns.test.ts`)
+
+Turn advance and the round only moving on a wrap; previous walking back a round and
+refusing to go below round 1; defeated stepped over; an unconscious player keeping their
+turn; no survivors leaving the fight put; a lone survivor still starting a new round;
+jumping the turn; manual moves not touching initiative and refusing to run off either end;
+a changed number not reordering until asked, and the re-sort offer appearing and clearing;
+ending clearing and stamping; the fixture's load and states; and a full round of the real
+fixture returning to where it started.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (153 passing), `npm run format:check`,
+`npm run build`. Dev server serves the live fight, an ended fight and the no-combat state.
+
+### Not done
+
+Damage, healing, condition editing, the roll log and the dice tray are TC-11b.

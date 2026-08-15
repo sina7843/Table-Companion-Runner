@@ -776,3 +776,62 @@ discipline the encounter repository already had, participants and their conditio
 `ended` report the fight and its turn order until TC-11 fills them. The old `DMCombat` route
 skeleton is gone. `InitiativeRow` is deliberately not built here — it belongs to the runner,
 and half of it now would be two implementations to reconcile later.
+
+## TC-11a — Live combat, the DM's command centre
+
+**The turn is stated four ways, and colour is never one of them alone.** Position in the
+order, the round counter reading `Round 3 · turn 3 of 13`, the brass pill naming the
+participant, and on the row a solid marker, a tinted surface and the word `Turn`. A DM in a
+dim room, or one who does not separate red from green, still knows whose turn it is. Every
+other row state pairs its colour with a glyph and a word the same way — `Down` with a
+heartbeat, `Out` with a skull, `DM only` with an eye-slash.
+
+**`InitiativeRow` is a div, not a button.** The design's CSS resets `.tc-init` like a button
+and the row carries controls, which is a control inside a control: invalid markup whose
+inner control never reaches the keyboard. So the row is a div a pointer can click anywhere,
+and the *name* is the button — the keyboard path is real rather than nominal, and the
+design's own reset moves onto that button instead of into the vendored CSS.
+
+**`.tc-initlist` does the tablet work.** The design ships container queries on that
+wrapper: the action cluster is the first thing dropped as the column narrows, the turn
+pill's label next, and the name column has a 96px floor so knowing who is in the fight is
+the last thing to go. Wrapping the list in it is the whole responsive story — no second
+layout, and the same row will work in a Phase 3 VTT sidebar.
+
+**`combat.participants` is the order, not a view of the numbers.** It is sorted once when
+the fight begins; after that it is the record. Changing an initiative mid-fight therefore
+moves nobody — a list that rearranged under a DM mid-sentence would be worse than a wrong
+one — and an inline alert offers `Sort by initiative` when the two disagree. A manual move
+is a ruling ("you readied, go after them") and survives until that re-sort is asked for.
+
+**The round moves only when the order wraps.** That is the single place it advances, so
+`Previous` past the top of a round steps the round back, and past the top of round 1 does
+nothing at all. Defeated combatants are stepped over rather than given a turn to pass on; an
+unconscious player still gets theirs, because death saves are a turn.
+
+**The context panel is the shared one.** The same `useContextPanel` the monster library and
+the encounter builder use, so a stat block opened from a fight is the one opened everywhere
+else, docked in its own column at ≥1280 and a non-modal drawer below it — the fight is
+never covered. A character opens a compact identity block instead, because a player's sheet
+is theirs and the DM wants hit points and armour, not their backstory.
+
+**Armour class rides the identity line.** `CombatParticipant` does not carry AC, and the
+design's row does not show it either — but the prompt requires it and a DM asking "does a
+19 hit?" should not have to open a panel. It is resolved from the character or creature
+behind the participant and printed in the sub line as text. No new row element.
+
+**Extension 1, as the design proposed it.** `.tc-combatbar` is a 40px toolbar composing
+`RoundCounter`, `TurnIndicator`, the `Next ·` label and the turn buttons on
+`surface-secondary`. Layout only — no new colour, radius, type or shadow value — and it
+lives in the app's own `shell.css`, not in the vendored design system.
+
+**What this slice does not do.** Damage, healing, conditions, the roll log and the dice tray
+are TC-11b: this slice's brief is turn order, identity and the context panel, and the HP
+control belongs with the actions that change hit points rather than ahead of them. The row
+already renders conditions the fixture carries.
+
+**The fixture is the load the screen is judged against.** The live fight now carries 4
+players, 8 creatures and 1 NPC, and between them every state the row draws — active,
+unconscious with death saves, defeated, DM-only, four conditions on one row, temporary hit
+points. A test asserts all of it, and that the order it ships in matches its own numbers so
+the runner never opens by telling a DM their fixture is out of order.

@@ -24,12 +24,14 @@ import {
 import { DMPage } from '../../app/DMShell';
 import {
   CURRENT_USER_ID,
+  requireRuleset,
   useAsync,
   useRepositories,
   type CombatInstance,
   type CombatInstanceId,
   type Monster,
 } from '../../domain';
+import { CombatRunner } from './CombatRunner';
 import { CombatSetup } from './CombatSetup';
 import { groupParticipants } from './setup';
 
@@ -169,29 +171,44 @@ export function CombatScreen() {
     );
   }
 
-  // The runner is TC-11. Until it lands this reports the fight honestly rather than
-  // claiming nothing is running, and the order it shows is the one initiative produced.
+  if (combat.status === 'live') {
+    return (
+      <>
+        {failure && (
+          <div className="tc-page" style={{ paddingBottom: 0 }}>
+            <Alert tone="danger" title="That change was not saved">
+              {failure}
+            </Alert>
+          </div>
+        )}
+        <CombatRunner
+          combat={combat}
+          rules={requireRuleset(loaded.data.systemId)}
+          campaign={loaded.data.campaign}
+          characters={loaded.data.characters}
+          monsters={loaded.data.monsters}
+          onChange={change}
+          busy={busy}
+        />
+      </>
+    );
+  }
+
+  // Ended. The roll log and the after-action summary are TC-11b; what is true right now
+  // is who was in it and in what order.
   const groups = groupParticipants(combat);
 
   return (
     <DMPage
       eyebrow={[loaded.data.campaign?.name, combat.location].filter(Boolean).join(' · ')}
       title={combat.name}
-      actions={
-        combat.status === 'live' ? (
-          <Badge tone="success" icon="broadcast" solid>
-            Round {combat.round}
-          </Badge>
-        ) : (
-          <Badge tone="neutral">Ended</Badge>
-        )
-      }
+      actions={<Badge tone="neutral">Ended</Badge>}
     >
       <div className="tc-page">
         {loaded.data.template && (
           <Alert tone="info" icon="info">
-            This fight came from <strong>{loaded.data.template.name}</strong>. Nothing that happens
-            here changes that template.
+            This fight came from <strong>{loaded.data.template.name}</strong>. Nothing that happened
+            here changed that template.
           </Alert>
         )}
 
@@ -199,7 +216,7 @@ export function CombatScreen() {
           <SectionHeader
             title="Turn order"
             icon="sword"
-            eyebrow={`${combat.participants.length} combatants`}
+            eyebrow={`${combat.participants.length} combatants · ${combat.round} rounds`}
           />
           {groups.map((group) => (
             <ListRow
@@ -207,16 +224,7 @@ export function CombatScreen() {
               static
               title={group.name}
               meta={group.members[0]?.subtitle}
-              trailing={
-                <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
-                  {combat.participants.some(
-                    (entry) =>
-                      entry.id === combat.activeParticipantId &&
-                      group.members.some((member) => member.id === entry.id),
-                  ) && <Badge tone="accent">On turn</Badge>}
-                  <span className="tc-init__init">{group.initiative ?? '—'}</span>
-                </span>
-              }
+              trailing={<span className="tc-init__init">{group.initiative ?? '—'}</span>}
             />
           ))}
         </section>

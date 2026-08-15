@@ -168,3 +168,30 @@
     padding: var(--space-page-y) var(--space-page-x-mobile);
   }
 }
+
+/* ── Combat control bar ─────────────────────────────────────────────────────
+   The design's Extension 1: a 40px toolbar composing RoundCounter, TurnIndicator,
+   the NEXT label and the turn buttons on surface-secondary with a strong bottom
+   rule. Layout only — no new colour, radius, type or shadow value appears here.
+
+   It sits inside .tc-subbar, which supplies the box the shell already reserves
+   space for when the context panel is docked. */
+.tc-combatbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  flex-wrap: wrap;
+  min-height: 40px;
+  margin: 0 calc(var(--space-20) * -1);
+  padding: var(--space-8) var(--space-16);
+  background: var(--color-surface-secondary);
+}
+
+/* The initiative list owns the scroll, so the control bar stays put while ten rows
+   move under it. The workspace is the fight, not a document. */
+.tc-combat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}

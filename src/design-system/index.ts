@@ -114,8 +114,10 @@ export {
   RollResult,
   TurnIndicator,
   RoundCounter,
+  InitiativeRow,
   type ConditionChipProps,
   type ConditionTone,
   type DiceButtonProps,
   type RollResultProps,
+  type InitiativeRowProps,
 } from './components/Combat';

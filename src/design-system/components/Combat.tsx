@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Icon } from './Icon';
+import { HPBar } from './HitPoints';
 import { cx, type Advantage, type IconName, type RollOutcome } from './types';
 
 export type ConditionTone = 'neutral' | 'buff' | 'debuff' | 'concentration' | 'danger';
@@ -173,6 +174,178 @@ export function RoundCounter({ round, turn, of }: RoundCounterProps) {
           · turn <b>{turn}</b> of <b>{of}</b>
         </>
       )}
+    </span>
+  );
+}
+
+export interface InitiativeRowProps {
+  name: string;
+  /** The identity line under the name: class and player, or challenge and armour. */
+  sub?: ReactNode;
+  entity: 'player' | 'monster' | 'npc' | 'ally';
+  /** Null reads as a dash: an unrolled participant is never a slow one. */
+  initiative: number | null;
+  current: number;
+  max: number;
+  temp?: number;
+  /** Absent means waiting — the ordinary state, which needs no treatment of its own. */
+  state?: 'active' | 'unconscious' | 'defeated';
+  /** What the context panel is showing. Deliberately quieter than the turn. */
+  selected?: boolean;
+  /** Will receive the next damage. A dashed marker, distinct in shape from selected. */
+  targeted?: boolean;
+  /** Present in the DM's order, absent from every player device. */
+  dmOnly?: boolean;
+  deathSaves?: { successes: number; failures: number };
+  /** `ConditionChip`s. Four fit before the row wraps. */
+  conditions?: ReactNode;
+  /** Row controls. Hidden by the design's own container query below 560px. */
+  actions?: ReactNode;
+  /** Opens this participant in the context panel. */
+  onOpen?: () => void;
+  className?: string;
+}
+
+/** The word and glyph that carry a state when colour cannot. */
+const STATE_FLAG: Record<string, { icon: IconName; label: string }> = {
+  active: { icon: 'caret-right', label: 'Turn' },
+  unconscious: { icon: 'heartbeat', label: 'Down' },
+  defeated: { icon: 'skull', label: 'Out' },
+};
+
+/**
+ * The most reused component in the product: one row, eight states.
+ *
+ * Every state pairs its colour with a marker, a glyph and a word, because a DM running a
+ * fight in a dim room, or one who does not separate red from green, still has to know
+ * whose turn it is at a glance.
+ *
+ * The row is a div rather than a button even though the design's CSS resets it like one:
+ * it carries damage, heal and target controls, and a control inside a control is invalid
+ * markup whose inner control never reaches the keyboard. The name is the button instead,
+ * so the keyboard path is real; the whole row stays clickable for a pointer.
+ */
+export function InitiativeRow({
+  name,
+  sub,
+  entity,
+  initiative,
+  current,
+  max,
+  temp,
+  state,
+  selected,
+  targeted,
+  dmOnly,
+  deathSaves,
+  conditions,
+  actions,
+  onOpen,
+  className,
+}: InitiativeRowProps) {
+  const flag = state ? STATE_FLAG[state] : undefined;
+
+  return (
+    <div
+      className={cx('tc-init', className)}
+      data-state={state}
+      data-selected={selected ? 'true' : undefined}
+      data-targeted={targeted ? 'true' : undefined}
+      data-dm-only={dmOnly ? 'true' : undefined}
+      // A pointer gets the whole row; the keyboard gets the name button below, which is
+      // why this carries no role and no tabindex of its own.
+      onClick={onOpen}
+    >
+      <span className="tc-init__marker" />
+
+      <span className="tc-init__init">{initiative ?? '—'}</span>
+
+      <span className="tc-init__main">
+        <span className="tc-init__name">
+          <span className="tc-init__type" data-entity={entity} />
+          {onOpen ? (
+            <button
+              type="button"
+              // The design's own `.tc-init` rule resets a button to inherit; the row is a
+              // div now, so the same reset moves here rather than into the vendored CSS.
+              style={{
+                background: 'none',
+                border: 0,
+                padding: 0,
+                font: 'inherit',
+                color: 'inherit',
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen();
+              }}
+            >
+              {name}
+            </button>
+          ) : (
+            name
+          )}
+          {flag && (
+            <span className="tc-init__flag">
+              <Icon name={flag.icon} size={11} />
+              {flag.label}
+            </span>
+          )}
+          {dmOnly && (
+            <span className="tc-init__flag">
+              <Icon name="eye-slash" size={11} />
+              DM only
+            </span>
+          )}
+        </span>
+
+        <span className="tc-init__sub">
+          {sub}
+          {conditions}
+          {deathSaves && (
+            <span className="tc-init__deaths">
+              <span>
+                <Icon name="check" size={10} />
+                <DeathPips kind="success" filled={deathSaves.successes} />
+              </span>
+              <span>
+                <Icon name="x" size={10} />
+                <DeathPips kind="failure" filled={deathSaves.failures} />
+              </span>
+            </span>
+          )}
+        </span>
+      </span>
+
+      <span className="tc-init__trail">
+        <HPBar current={current} max={max} temp={temp} />
+        {actions && (
+          <span
+            className="tc-init__actions"
+            // The row opens the panel; a control on it does its own job instead.
+            onClick={(event) => event.stopPropagation()}
+          >
+            {actions}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function DeathPips({ kind, filled }: { kind: 'success' | 'failure'; filled: number }) {
+  return (
+    <span className="tc-init__deathpips">
+      {[0, 1, 2].map((index) => (
+        <span
+          key={index}
+          className="tc-init__deathpip"
+          data-kind={kind}
+          data-filled={index < filled ? 'true' : undefined}
+        />
+      ))}
     </span>
   );
 }

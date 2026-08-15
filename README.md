@@ -114,6 +114,38 @@ show({ eyebrow: 'Monster', title: 'Bugbear Chief', body: <StatBlock /> });
 The screen does not know whether the panel renders docked or as a drawer — that is the shell's
 job. `/dm/monsters` is a working example.
 
+## Domain layer
+
+The product is game-system agnostic. Two rules keep it that way, and both are enforced by tests
+in [src/domain/domain.test.ts](src/domain/domain.test.ts):
+
+1. **`src/domain/types.ts` names no D&D concept.** No armour class, no ability scores, no spell
+   slots. Those reach the UI as `Attribute`, `DerivedValue` and `ResourcePool`, plus an opaque
+   `systemData` bag the core never reads.
+2. **Only `ruleset/registry.ts` imports a concrete adapter.** Everything else calls
+   `requireRuleset(systemId)` and talks to the `Ruleset` interface.
+
+```tsx
+// Reading data
+const { monsters } = useRepositories();
+const state = useAsync(() => monsters.list(), ['monsters']);
+
+// Asking the rules a question
+const derived = requireRuleset(character.systemId).deriveCharacter(character);
+const slots = requireRuleset(character.systemId).spellSlots(character); // null if no magic
+```
+
+Where a system might not support something, the ruleset declines rather than the UI guessing —
+`spellSlots()` and `deathSaveOutcome()` return `null`, and `RulesetCapabilities` answers before a
+screen renders anything.
+
+If you need a D&D value outside `ruleset/dnd5e`, that is the signal to widen the `Ruleset`
+interface, not to import across the boundary. The test will fail if you do.
+
+Data comes from fixtures today ([src/domain/data/fixtures.ts](src/domain/data/fixtures.ts)) —
+the design's own party, fight and monsters. Every repository method is already async, so TC-13
+can swap in a real API without changing a caller.
+
 ## Environment
 
 No environment variables are needed yet. `.env.example` documents the names as they are
@@ -159,6 +191,11 @@ src/
     useMediaQuery.ts    Drives the density and sidebar-collapse attributes
     shell.css           Shell layout; tokens only, no new visual values
   screens/index.tsx     Route skeletons for the Phase 1 screens
+  domain/
+    types.ts            Core entities — names no D&D concept
+    permissions.ts      Visibility rules (a UI guard, not a security boundary)
+    ruleset/            The game-system seam; dnd5e is the first adapter
+    data/               Repository interfaces, fixtures, useRepositories()
   design-system/
     styles.css          Verbatim import barrel from the approved design source
     tokens/*.css        Verbatim — colour, type, spacing, shape, motion, layout

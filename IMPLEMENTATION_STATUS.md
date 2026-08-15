@@ -262,3 +262,68 @@ chrome with design-system skeletons standing in for content that arrives TC-04 o
 - Skip link as the first tab stop; `<main id="main" tabIndex={-1}>` receives it. Tab order is
   skip link → sidebar → top bar → main → context panel. Escape closes the panel; focus enters it
   on open and returns on close only if it is still inside.
+
+---
+
+## TC-03 — Domain model, ruleset seam and data layer
+
+```
+src/domain/
+  types.ts                 Core entities. Names no D&D concept.
+  permissions.ts           Visibility rules. A UI guard, not a security boundary.
+  ruleset/
+    Ruleset.ts             The seam: capabilities + derived calculations
+    registry.ts            The ONLY module importing a concrete adapter
+    dnd5e/constants.ts     Every D&D number and name in the product
+    dnd5e/index.ts         The first adapter
+  data/
+    repositories.ts        Async interfaces
+    fixtures.ts            The design's own sample data
+    fixtureRepositories.ts In-memory implementations
+    RepositoryProvider.tsx useRepositories() + useAsync()
+  domain.test.ts           21 tests, including the boundary guard
+```
+
+### Entities
+
+`User`, `GameSystem`, `Campaign` + `CampaignMember`, `Character`, `Monster`,
+`EncounterTemplate` + `EncounterEntry`, `CombatInstance`, `CombatParticipant`, `Roll` +
+`RolledDie`, `Condition`, `DeathSaves`, `HealthTrack`, `Attribute`, `DerivedValue`,
+`ResourcePool`, `Visibility`. Ids are nominally branded, so a `MonsterId` cannot be passed where
+a `CharacterId` is expected.
+
+### The ruleset seam
+
+`Ruleset` covers exactly what the prompt named: `deriveCharacter` / `deriveMonster` (armour class,
+initiative, proficiency), `initiativeRequest`, `spellSlots`, `deathSaveOutcome`, `conditions`,
+`characterCreationSteps`, `levelUpSteps`, plus `applyHealthDelta` and `evaluateRoll`.
+`RulesetCapabilities` lets a system decline death saves, spellcasting, levelling, temporary hit
+points or advantage.
+
+The 5e adapter implements: ability modifiers, the proficiency table, armour class from armour +
+capped Dexterity + shield with override support, full/half/pact caster slot progressions, death
+saves at three, generated builder and level-up step lists (Fighter loses Spells and gains Fighting
+Style; level 3 adds a subclass; 4/8/12/16/19 add an ability score improvement), temp-HP-first
+damage, and advantage/disadvantage that keeps the dropped die visible.
+
+### Permissions
+
+`canSee` is the single test the rest is built from. The DM retains full access; `private` means
+hidden from the *other* players, not from the owner; `dm-only` and `secret` never reach a player
+device. `visibleParticipants` filters an initiative order — the unrevealed Cragmaw Ambusher is
+absent from a player's list entirely, not greyed out.
+
+### Proof it holds
+
+`/dm/monsters` reads the library through `useRepositories()`, renders loading, error and empty
+branches, and opens each row in the shared context panel. The panel body asks the registry for
+the adapter and renders whatever labelled values it returns — that component names no D&D concept
+and would render a different system's stat block unchanged.
+
+### Tests — 21, all passing
+
+Boundary guard (no file imports the D&D adapter; the core type surface stays clean), armour class
+including caps and overrides, the proficiency table, all three caster progressions, death saves,
+generated step lists, temp-HP damage ordering and overkill flooring, advantage keeping the dropped
+die, the U+2212 minus sign the design's sample data uses, private sections, dm-only participants,
+secret rolls, and the fixture graph resolving.

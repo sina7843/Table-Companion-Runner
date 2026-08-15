@@ -10,8 +10,10 @@
  * so plainly. They live in one file on purpose — later prompts extract the screen they
  * own into its own module as it grows real content.
  */
+import { Fragment } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
+  Alert,
   Badge,
   Button,
   EmptyState,
@@ -21,9 +23,10 @@ import {
   Skeleton,
   Tabs,
 } from '../design-system';
+import { requireRuleset, useAsync, useRepositories, type Monster } from '../domain';
 import { DMPage } from '../app/DMShell';
 import { PlayerPage } from '../app/PlayerShell';
-import { useContextPanel } from '../app/panelContext';
+import { useContextPanel, type PanelContent } from '../app/panelContext';
 import { campaignTabs } from '../app/nav';
 
 /** Section header plus skeleton rows — the shape the real content will take. */
@@ -105,23 +108,60 @@ export function DMCharacters() {
 }
 
 /**
- * Stat-block placeholder shown inside the context panel. Built once at module scope:
- * React elements are immutable descriptors, so there is nothing to rebuild per click,
- * and keeping JSX out of the click handler keeps it readable as a handler.
+ * Renders whatever the ruleset says it derives for this creature.
+ *
+ * Note what is absent: this component knows nothing about armour class, speed or
+ * initiative. It asks the registry for the adapter that owns the creature's system and
+ * renders the labelled values it hands back. Swapping in a different system changes what
+ * appears here without changing a line of this file.
  */
-const MONSTER_PANEL_BODY = (
-  <div style={{ padding: 'var(--space-16)' }}>
-    <SectionHeader sub title="Stat block" />
-    <Skeleton count={6} height={20} gap={8} />
-  </div>
-);
+function MonsterPanelBody({ monster }: { monster: Monster }) {
+  const derived = requireRuleset(monster.systemId).deriveMonster(monster);
+
+  return (
+    <div style={{ padding: 'var(--space-16)' }}>
+      <SectionHeader sub title="Stat block" />
+      <dl className="tc-deflist">
+        {derived.map((value) => (
+          <Fragment key={value.key}>
+            <dt>{value.label}</dt>
+            <dd>{value.value}</dd>
+          </Fragment>
+        ))}
+      </dl>
+      <div style={{ marginTop: 'var(--space-16)' }}>
+        <SectionHeader sub title="Actions" />
+        {monster.actions.map((action) => (
+          <ListRow
+            key={action.name}
+            static
+            title={action.name}
+            meta={action.damage ?? action.description}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Builds the panel payload for a monster, at module scope so no JSX sits in a handler. */
+function monsterPanel(monster: Monster): PanelContent {
+  return {
+    eyebrow: 'Monster',
+    title: monster.name,
+    body: <MonsterPanelBody monster={monster} />,
+  };
+}
 
 /**
- * Demonstrates the reusable context panel: a row opens it, and it renders docked at
- * desktop or as a non-modal drawer below 1280px without this screen knowing which.
+ * Reads the monster library through the repository seam and opens each row in the shared
+ * context panel. This is the screen that proves the TC-03 boundaries hold end to end:
+ * generic UI, generic domain objects, ruleset behind the registry.
  */
 export function DMMonsters() {
   const { show } = useContextPanel();
+  const { monsters } = useRepositories();
+  const state = useAsync(() => monsters.list(), ['monsters']);
 
   return (
     <DMPage eyebrow="Library" title="Monsters">
@@ -130,17 +170,40 @@ export function DMMonsters() {
           <SectionHeader
             sub
             title="Monster library"
-            actions={<Badge tone="neutral">Sample</Badge>}
+            actions={
+              state.status === 'ready' ? <Badge tone="neutral">{state.data.length}</Badge> : null
+            }
           />
-          {['Bugbear Chief', 'Goblin', 'Owlbear'].map((name) => (
-            <ListRow
-              key={name}
-              leading={<Icon name="skull" />}
-              title={name}
-              meta="Opens in the context panel"
-              onClick={() => show({ eyebrow: 'Monster', title: name, body: MONSTER_PANEL_BODY })}
+
+          {state.status === 'loading' && <Skeleton count={5} height={44} gap={8} />}
+
+          {state.status === 'error' && (
+            <Alert tone="danger" title="Could not load the monster library">
+              {state.error.message} Nothing has been lost — try again.
+            </Alert>
+          )}
+
+          {state.status === 'ready' && state.data.length === 0 && (
+            <EmptyState
+              icon="skull"
+              title="No monsters yet"
+              description="Imported library content and your own homebrew both appear here."
             />
-          ))}
+          )}
+
+          {state.status === 'ready' &&
+            state.data.map((monster) => (
+              <ListRow
+                key={monster.id}
+                leading={<Icon name="skull" />}
+                title={monster.name}
+                meta={`${monster.challengeLabel} · ${monster.subtitle}`}
+                trailing={
+                  monster.origin === 'homebrew' ? <Badge tone="accent">Homebrew</Badge> : null
+                }
+                onClick={() => show(monsterPanel(monster))}
+              />
+            ))}
         </section>
       </div>
     </DMPage>

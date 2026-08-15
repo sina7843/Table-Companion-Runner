@@ -148,3 +148,55 @@ the design rules out. No disabled Phase 2/3 nav items appear anywhere.
 **`Button` and `NavItem` became polymorphic** (`as` prop) so navigation controls render as real
 links — middle-click, open-in-new-tab and the link role keep working. The design system stays
 router-agnostic; the app passes the router's `Link` in.
+
+---
+
+## TC-03 — Domain model, ruleset seam and data layer
+
+**The core model names no D&D concept.** `src/domain/types.ts` has no armour class, no ability
+scores, no spell slots, no proficiency bonus. What it does have is what the systems in scope
+share *and* what the approved design already treats as core UI: identity, ownership, a
+`HealthTrack`, initiative order, `Condition`, `Roll`, and visibility. D&D's specifics reach the UI
+as generic shapes — `Attribute`, `DerivedValue`, `ResourcePool` — plus an opaque `systemData` bag
+the core never interprets.
+
+That line was drawn from the design, not from taste: `HPBar`, `InitiativeRow` and `ConditionChip`
+are design-system components, so hit points and conditions are core. Death saves are not — the
+design names "whether death saves exist" as a ruleset decision, so they sit behind
+`RulesetCapabilities.deathSaves`.
+
+**One module imports the D&D adapter: `ruleset/registry.ts`.** Everything else calls
+`requireRuleset(systemId)` and talks to the `Ruleset` interface. This is enforced, not just
+documented — `domain.test.ts` walks every `.ts`/`.tsx` file under `src/` and fails if any of them
+imports `ruleset/dnd5e`. A second test strips comments from `types.ts` and asserts the declared
+surface names no D&D concept. Acceptance criterion three is a test, not a claim.
+
+**Capabilities rather than optional methods.** Where a method would only make sense for D&D, the
+ruleset declines it: `spellSlots()` returns null for a system without magic, `deathSaveOutcome()`
+returns null without death saves. The UI asks the capability and renders nothing rather than
+rendering something disabled — the same rule the design applies to navigation.
+
+**Repositories are async from day one**, even though today they resolve fixtures on a microtask.
+Making them synchronous now would mean rewriting every consumer the day TC-13 introduces a
+network. Library content (ingested monsters) and user campaign data are separate repositories, as
+the requirements demand ingestion stay isolated.
+
+**Fixtures are the design's own sample data** — the same party at the same hit points, the same
+fight at round 3, the same unrevealed Cragmaw Ambusher. A screen built against them can be
+compared directly with the design canvas, and it satisfies the standing rule about realistic
+tabletop content. Fixtures store no derived values: armour class is computed by the adapter at
+read time, so fixtures cannot drift out of step with the rules.
+
+**Deliberately not built.** No state-management library, no cache, no optimistic updates, no
+realtime subscription machinery. `useAsync` is ~25 lines with a three-state shape that forces
+every screen to have a loading and an error branch. TC-13 owns the transport, and building a
+client for an API that does not exist yet would be guessing.
+
+**Two shortcuts with a stated ceiling.** `hpBand()` from TC-01 now has a natural home in the
+ruleset but has not moved — the design's band thresholds are still unstated, and moving it would
+imply a precision the source does not have. And `permissions.ts` is a UI-layer guard, not a
+security boundary: the same rules must be enforced server-side in TC-13. Both are marked in the
+code.
+
+**`tsconfig` lib moved to ES2023** for `Array#toSorted`, so the fixture repositories sort without
+mutating shared arrays.

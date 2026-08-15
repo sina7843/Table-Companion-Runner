@@ -1,0 +1,677 @@
+/**
+ * Fixture data.
+ *
+ * The content is lifted from the approved design's own sample data — the same party, the
+ * same fight at the same round, the same monsters — so a screen built against these
+ * fixtures can be compared directly with the design canvas. Realistic tabletop content,
+ * never lorem ipsum.
+ *
+ * These are plain data objects. Nothing here imports the ruleset: derived values such as
+ * armour class are computed by the adapter at read time, so the fixtures cannot drift out
+ * of step with the rules.
+ */
+import {
+  id,
+  type Campaign,
+  type Character,
+  type CombatInstance,
+  type Condition,
+  type EncounterTemplate,
+  type Monster,
+  type Roll,
+  type User,
+} from '../types.ts';
+
+const SYSTEM_ID = id<'GameSystem'>('dnd5e-2024');
+
+/* ── Users ──────────────────────────────────────────────────────────────────── */
+
+export const USERS: User[] = [
+  { id: id<'User'>('u-marta'), displayName: 'Marta' },
+  { id: id<'User'>('u-priya'), displayName: 'Priya' },
+  { id: id<'User'>('u-tomas'), displayName: 'Tomás' },
+  { id: id<'User'>('u-devin'), displayName: 'Devin' },
+];
+
+export const CURRENT_USER_ID = id<'User'>('u-marta');
+
+/* ── Campaigns ──────────────────────────────────────────────────────────────── */
+
+export const CAMPAIGNS: Campaign[] = [
+  {
+    id: id<'Campaign'>('c-lmop'),
+    name: 'Lost Mine of Phandelver',
+    systemId: SYSTEM_ID,
+    dmUserId: id<'User'>('u-marta'),
+    inviteCode: 'CRAGMAW-7742',
+    createdAt: '2026-05-02T18:00:00.000Z',
+    members: [
+      { userId: id<'User'>('u-marta'), role: 'dm' },
+      {
+        userId: id<'User'>('u-priya'),
+        role: 'player',
+        characterId: id<'Character'>('ch-thessaly'),
+      },
+      { userId: id<'User'>('u-tomas'), role: 'player', characterId: id<'Character'>('ch-bram') },
+      { userId: id<'User'>('u-devin'), role: 'player', characterId: id<'Character'>('ch-quill') },
+    ],
+  },
+  {
+    id: id<'Campaign'>('c-strahd'),
+    name: 'Curse of Strahd',
+    systemId: SYSTEM_ID,
+    dmUserId: id<'User'>('u-marta'),
+    inviteCode: 'BAROVIA-1031',
+    createdAt: '2026-07-19T18:00:00.000Z',
+    members: [{ userId: id<'User'>('u-marta'), role: 'dm' }],
+  },
+];
+
+/* ── Conditions in play ─────────────────────────────────────────────────────── */
+
+function condition(
+  key: string,
+  label: string,
+  tone: Condition['tone'],
+  duration?: string,
+): Condition {
+  return { id: id<'Condition'>(`cond-${key}-${label}`), key, label, tone, duration };
+}
+
+/* ── Characters ─────────────────────────────────────────────────────────────── */
+
+const abilities = (
+  str: number,
+  dex: number,
+  con: number,
+  int: number,
+  wis: number,
+  cha: number,
+) => [
+  { key: 'str', label: 'STR', value: str },
+  { key: 'dex', label: 'DEX', value: dex },
+  { key: 'con', label: 'CON', value: con },
+  { key: 'int', label: 'INT', value: int },
+  { key: 'wis', label: 'WIS', value: wis },
+  { key: 'cha', label: 'CHA', value: cha },
+];
+
+export const CHARACTERS: Character[] = [
+  {
+    id: id<'Character'>('ch-aria'),
+    systemId: SYSTEM_ID,
+    campaignId: id<'Campaign'>('c-lmop'),
+    ownerUserId: id<'User'>('u-marta'),
+    name: 'Aria Nightfall',
+    subtitle: 'Human Fighter 6',
+    level: 6,
+    attributes: abilities(17, 14, 15, 10, 12, 13),
+    resources: [{ key: 'superiority', label: 'Superiority dice', max: 4, used: 0 }],
+    health: { current: 47, max: 58, temporary: 5 },
+    conditions: [condition('bless', 'Bless', 'buff', '8 rounds')],
+    sectionVisibility: {},
+    systemData: {
+      classKey: 'fighter',
+      className: 'Fighter',
+      subclass: 'Battle Master',
+      species: 'Human',
+      background: 'Soldier',
+      armour: 'chain-mail',
+      shield: true,
+    },
+  },
+  {
+    id: id<'Character'>('ch-thessaly'),
+    systemId: SYSTEM_ID,
+    campaignId: id<'Campaign'>('c-lmop'),
+    ownerUserId: id<'User'>('u-priya'),
+    name: 'Thessaly Vane',
+    subtitle: 'Half-elf Warlock 6',
+    level: 6,
+    attributes: abilities(8, 14, 14, 12, 11, 17),
+    resources: [],
+    health: { current: 12, max: 41, temporary: 0 },
+    conditions: [
+      condition('hex', 'Hex', 'concentration', '1 min'),
+      condition('frightened', 'Frightened', 'debuff', '1 round'),
+    ],
+    sectionVisibility: {},
+    systemData: {
+      classKey: 'warlock',
+      className: 'Warlock',
+      subclass: 'The Fiend',
+      species: 'Half-elf',
+      background: 'Charlatan',
+      armour: 'leather',
+      shield: false,
+    },
+  },
+  {
+    id: id<'Character'>('ch-bram'),
+    systemId: SYSTEM_ID,
+    campaignId: id<'Campaign'>('c-lmop'),
+    ownerUserId: id<'User'>('u-tomas'),
+    name: 'Bram Ironfoot',
+    subtitle: 'Dwarf Cleric 6',
+    level: 6,
+    attributes: abilities(14, 10, 16, 10, 17, 12),
+    resources: [],
+    health: { current: 0, max: 52, temporary: 0 },
+    conditions: [],
+    // Bram has hidden his inventory from the party. Marta, as DM, still sees it.
+    sectionVisibility: { inventory: 'private' },
+    systemData: {
+      classKey: 'cleric',
+      className: 'Cleric',
+      subclass: 'Life Domain',
+      species: 'Dwarf',
+      background: 'Acolyte',
+      armour: 'chain-mail',
+      shield: true,
+    },
+  },
+  {
+    id: id<'Character'>('ch-quill'),
+    systemId: SYSTEM_ID,
+    campaignId: id<'Campaign'>('c-lmop'),
+    ownerUserId: id<'User'>('u-devin'),
+    name: 'Quill Featherwind',
+    subtitle: 'Halfling Rogue 7',
+    level: 7,
+    attributes: abilities(10, 18, 14, 13, 12, 14),
+    resources: [],
+    health: { current: 38, max: 44, temporary: 0 },
+    conditions: [],
+    sectionVisibility: { background: 'private' },
+    systemData: {
+      classKey: 'rogue',
+      className: 'Rogue',
+      subclass: 'Assassin',
+      species: 'Halfling',
+      background: 'Criminal',
+      armour: 'studded-leather',
+      shield: false,
+    },
+  },
+  {
+    id: id<'Character'>('ch-wren'),
+    systemId: SYSTEM_ID,
+    ownerUserId: id<'User'>('u-marta'),
+    name: 'Wren of the Ninth Hollow',
+    subtitle: 'Wood Elf Druid 3',
+    level: 3,
+    attributes: abilities(10, 14, 13, 12, 16, 11),
+    resources: [],
+    health: { current: 24, max: 24, temporary: 0 },
+    conditions: [],
+    sectionVisibility: {},
+    systemData: {
+      classKey: 'druid',
+      className: 'Druid',
+      species: 'Wood Elf',
+      background: 'Hermit',
+      armour: 'leather',
+      shield: false,
+    },
+  },
+  {
+    id: id<'Character'>('ch-osric'),
+    systemId: SYSTEM_ID,
+    ownerUserId: id<'User'>('u-marta'),
+    name: 'Osric Quillsworth',
+    subtitle: 'Human Wizard 1',
+    level: 1,
+    attributes: abilities(8, 13, 12, 17, 11, 10),
+    resources: [],
+    health: { current: 8, max: 8, temporary: 0 },
+    conditions: [],
+    sectionVisibility: {},
+    draft: { step: 5, totalSteps: 10 },
+    systemData: {
+      classKey: 'wizard',
+      className: 'Wizard',
+      species: 'Human',
+      background: 'Sage',
+      armour: 'none',
+      shield: false,
+    },
+  },
+];
+
+// Quill has an unspent level up waiting, which the DM home surfaces before play.
+const quill = CHARACTERS.find((character) => character.id === id<'Character'>('ch-quill'));
+if (quill) quill.pendingLevelUp = true;
+
+/* ── Monsters ───────────────────────────────────────────────────────────────── */
+
+export const MONSTERS: Monster[] = [
+  {
+    id: id<'Monster'>('m-bugbear-chief'),
+    systemId: SYSTEM_ID,
+    name: 'Bugbear Chief',
+    subtitle: 'Medium humanoid (goblinoid), chaotic evil',
+    origin: 'library',
+    challengeLabel: 'CR 3',
+    challengeRank: 3,
+    attributes: abilities(15, 14, 13, 11, 12, 9),
+    health: { current: 33, max: 33, temporary: 0 },
+    derived: [
+      { key: 'ac', label: 'Armour class', value: 17, explanation: 'Chain shirt, shield' },
+      { key: 'speed', label: 'Speed', value: '30 ft' },
+      { key: 'initiative', label: 'Initiative', value: 2 },
+    ],
+    traits: [
+      { name: 'Brute', description: 'A melee weapon deals one extra die of damage on a hit.' },
+      {
+        name: 'Heart of Hruggek',
+        description:
+          'Advantage on saving throws against being charmed, frightened, paralysed, poisoned, stunned or knocked unconscious.',
+      },
+    ],
+    actions: [
+      {
+        name: 'Morningstar',
+        description: 'Melee weapon attack, reach 5 ft.',
+        attackBonus: '+5',
+        damage: '2d8 + 2 piercing',
+      },
+      {
+        name: 'Javelin',
+        description: 'Melee or ranged weapon attack, range 30/120 ft.',
+        attackBonus: '+5',
+        damage: '1d6 + 2 piercing',
+      },
+    ],
+    systemData: { type: 'humanoid', size: 'Medium' },
+  },
+  {
+    id: id<'Monster'>('m-goblin'),
+    systemId: SYSTEM_ID,
+    name: 'Goblin',
+    subtitle: 'Small humanoid (goblinoid), neutral evil',
+    origin: 'library',
+    challengeLabel: 'CR 1/4',
+    challengeRank: 0.25,
+    attributes: abilities(8, 14, 10, 10, 8, 8),
+    health: { current: 7, max: 7, temporary: 0 },
+    derived: [
+      { key: 'ac', label: 'Armour class', value: 15, explanation: 'Leather armour, shield' },
+      { key: 'speed', label: 'Speed', value: '30 ft' },
+      { key: 'initiative', label: 'Initiative', value: 2 },
+    ],
+    traits: [
+      {
+        name: 'Nimble Escape',
+        description: 'Takes the Disengage or Hide action as a bonus action on each of its turns.',
+      },
+    ],
+    actions: [
+      {
+        name: 'Scimitar',
+        description: 'Melee weapon attack, reach 5 ft.',
+        attackBonus: '+4',
+        damage: '1d6 + 2 slashing',
+      },
+      {
+        name: 'Shortbow',
+        description: 'Ranged weapon attack, range 80/320 ft.',
+        attackBonus: '+4',
+        damage: '1d6 + 2 piercing',
+      },
+    ],
+    systemData: { type: 'humanoid', size: 'Small' },
+  },
+  {
+    id: id<'Monster'>('m-owlbear'),
+    systemId: SYSTEM_ID,
+    name: 'Owlbear',
+    subtitle: 'Large monstrosity, unaligned',
+    origin: 'library',
+    challengeLabel: 'CR 3',
+    challengeRank: 3,
+    attributes: abilities(20, 12, 17, 3, 12, 7),
+    health: { current: 59, max: 59, temporary: 0 },
+    derived: [
+      { key: 'ac', label: 'Armour class', value: 13, explanation: 'Natural armour' },
+      { key: 'speed', label: 'Speed', value: '40 ft' },
+      { key: 'initiative', label: 'Initiative', value: 1 },
+    ],
+    traits: [
+      {
+        name: 'Keen Sight and Smell',
+        description: 'Advantage on Perception checks that rely on sight or smell.',
+      },
+    ],
+    actions: [
+      {
+        name: 'Beak',
+        description: 'Melee weapon attack, reach 5 ft.',
+        attackBonus: '+7',
+        damage: '1d10 + 5 piercing',
+      },
+      {
+        name: 'Claws',
+        description: 'Melee weapon attack, reach 5 ft.',
+        attackBonus: '+7',
+        damage: '2d8 + 5 slashing',
+      },
+    ],
+    systemData: { type: 'monstrosity', size: 'Large' },
+  },
+  {
+    id: id<'Monster'>('m-cragmaw-ambusher'),
+    systemId: SYSTEM_ID,
+    name: 'Cragmaw Ambusher',
+    subtitle: 'Medium humanoid (goblinoid), neutral evil',
+    origin: 'homebrew',
+    ownerUserId: id<'User'>('u-marta'),
+    challengeLabel: 'CR 1',
+    challengeRank: 1,
+    attributes: abilities(12, 16, 12, 10, 11, 9),
+    health: { current: 21, max: 21, temporary: 0 },
+    derived: [
+      { key: 'ac', label: 'Armour class', value: 14, explanation: 'Studded leather' },
+      { key: 'speed', label: 'Speed', value: '30 ft' },
+      { key: 'initiative', label: 'Initiative', value: 3 },
+    ],
+    traits: [
+      {
+        name: 'Ambusher',
+        description: 'Advantage on attack rolls against any creature it has surprised.',
+      },
+    ],
+    actions: [
+      {
+        name: 'Shortsword',
+        description: 'Melee weapon attack, reach 5 ft.',
+        attackBonus: '+5',
+        damage: '1d6 + 3 piercing',
+      },
+    ],
+    systemData: { type: 'humanoid', size: 'Medium' },
+  },
+  {
+    id: id<'Monster'>('m-adult-black-dragon'),
+    systemId: SYSTEM_ID,
+    name: 'Adult Black Dragon',
+    subtitle: 'Huge dragon, chaotic evil',
+    origin: 'library',
+    challengeLabel: 'CR 14',
+    challengeRank: 14,
+    attributes: abilities(23, 14, 21, 14, 13, 17),
+    health: { current: 195, max: 195, temporary: 0 },
+    derived: [
+      { key: 'ac', label: 'Armour class', value: 19, explanation: 'Natural armour' },
+      { key: 'speed', label: 'Speed', value: '40 ft, fly 80 ft, swim 40 ft' },
+      { key: 'initiative', label: 'Initiative', value: 2 },
+    ],
+    traits: [{ name: 'Amphibious', description: 'Can breathe air and water.' }],
+    actions: [
+      {
+        name: 'Bite',
+        description: 'Melee weapon attack, reach 10 ft.',
+        attackBonus: '+11',
+        damage: '2d10 + 6 piercing plus 1d8 acid',
+      },
+    ],
+    systemData: { type: 'dragon', size: 'Huge' },
+  },
+];
+
+/* ── Encounters ─────────────────────────────────────────────────────────────── */
+
+export const ENCOUNTERS: EncounterTemplate[] = [
+  {
+    id: id<'EncounterTemplate'>('e-cragmaw-castle'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'Assault on Cragmaw Castle',
+    difficultyLabel: 'deadly · 9,600 adj. XP',
+    entries: [
+      { id: 'e1', monsterId: id<'Monster'>('m-bugbear-chief'), count: 2 },
+      { id: 'e2', monsterId: id<'Monster'>('m-goblin'), count: 12 },
+      { id: 'e3', monsterId: id<'Monster'>('m-cragmaw-ambusher'), count: 2, hidden: true },
+    ],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-wave-echo'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'Wave Echo Cave — first landing',
+    difficultyLabel: 'hard · 2,900 adj. XP',
+    entries: [
+      { id: 'e1', monsterId: id<'Monster'>('m-bugbear-chief'), count: 1 },
+      { id: 'e2', monsterId: id<'Monster'>('m-goblin'), count: 6 },
+    ],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-owlbear'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'Owlbear in the ravine',
+    difficultyLabel: 'easy · 700 adj. XP',
+    entries: [{ id: 'e1', monsterId: id<'Monster'>('m-owlbear'), count: 1 }],
+  },
+  {
+    id: id<'EncounterTemplate'>('e-redbrand'),
+    campaignId: id<'Campaign'>('c-lmop'),
+    name: 'The Redbrand Hideout',
+    difficultyLabel: 'medium · 1,800 adj. XP',
+    lastRunAt: '2026-08-11T19:00:00.000Z',
+    entries: [{ id: 'e1', monsterId: id<'Monster'>('m-goblin'), count: 6 }],
+  },
+];
+
+/* ── The live combat ────────────────────────────────────────────────────────── */
+
+const LMOP = id<'Campaign'>('c-lmop');
+
+export const COMBATS: CombatInstance[] = [
+  {
+    id: id<'CombatInstance'>('cb-goblin-ambush'),
+    campaignId: LMOP,
+    name: 'Goblin Ambush',
+    location: 'Cragmaw Hideout',
+    status: 'live',
+    round: 3,
+    activeParticipantId: id<'CombatParticipant'>('p-bugbear-chief'),
+    startedAt: '2026-08-15T19:12:00.000Z',
+    participants: [
+      {
+        id: id<'CombatParticipant'>('p-quill'),
+        name: 'Quill Featherwind',
+        subtitle: 'Halfling Rogue 6 · Devin',
+        entityType: 'player',
+        initiative: 24,
+        health: { current: 38, max: 44, temporary: 0 },
+        conditions: [],
+        state: 'waiting',
+        visibility: 'party',
+        source: { kind: 'character', characterId: id<'Character'>('ch-quill') },
+      },
+      {
+        id: id<'CombatParticipant'>('p-aria'),
+        name: 'Aria Nightfall',
+        subtitle: 'Human Fighter 6 · Marta',
+        entityType: 'player',
+        initiative: 21,
+        health: { current: 47, max: 58, temporary: 5 },
+        conditions: [condition('bless', 'Bless', 'buff', '8 rounds')],
+        state: 'waiting',
+        visibility: 'party',
+        source: { kind: 'character', characterId: id<'Character'>('ch-aria') },
+      },
+      {
+        id: id<'CombatParticipant'>('p-bugbear-chief'),
+        name: 'Bugbear Chief',
+        subtitle: 'CR 3 · Cragmaw',
+        entityType: 'monster',
+        initiative: 19,
+        health: { current: 27, max: 33, temporary: 0 },
+        conditions: [],
+        state: 'active',
+        visibility: 'party',
+        source: { kind: 'monster', monsterId: id<'Monster'>('m-bugbear-chief') },
+      },
+      {
+        id: id<'CombatParticipant'>('p-goblin-2'),
+        name: 'Goblin #2',
+        subtitle: 'CR 1/4',
+        entityType: 'monster',
+        initiative: 17,
+        health: { current: 3, max: 7, temporary: 0 },
+        conditions: [condition('poisoned', 'Poisoned', 'debuff', '2 rounds')],
+        state: 'waiting',
+        visibility: 'party',
+        groupKey: 'goblin',
+        source: { kind: 'monster', monsterId: id<'Monster'>('m-goblin') },
+      },
+      {
+        id: id<'CombatParticipant'>('p-goblin-1'),
+        name: 'Goblin #1',
+        subtitle: 'CR 1/4',
+        entityType: 'monster',
+        initiative: 17,
+        health: { current: 0, max: 7, temporary: 0 },
+        conditions: [],
+        state: 'defeated',
+        visibility: 'party',
+        groupKey: 'goblin',
+        source: { kind: 'monster', monsterId: id<'Monster'>('m-goblin') },
+      },
+      {
+        id: id<'CombatParticipant'>('p-thessaly'),
+        name: 'Thessaly Vane',
+        subtitle: 'Half-elf Warlock 6 · Priya',
+        entityType: 'player',
+        initiative: 14,
+        health: { current: 12, max: 41, temporary: 0 },
+        conditions: [
+          condition('hex', 'Hex', 'concentration', '1 min'),
+          condition('frightened', 'Frightened', 'debuff', '1 round'),
+          condition('prone', 'Prone', 'debuff'),
+          condition('bless', 'Bless', 'buff', '8 rounds'),
+        ],
+        state: 'waiting',
+        visibility: 'party',
+        source: { kind: 'character', characterId: id<'Character'>('ch-thessaly') },
+      },
+      {
+        id: id<'CombatParticipant'>('p-sildar'),
+        name: 'Sildar Hallwinter',
+        subtitle: 'NPC ally · Veteran',
+        entityType: 'npc',
+        initiative: 12,
+        health: { current: 24, max: 27, temporary: 0 },
+        conditions: [],
+        state: 'waiting',
+        visibility: 'party',
+        source: { kind: 'monster', monsterId: id<'Monster'>('m-cragmaw-ambusher') },
+      },
+      {
+        id: id<'CombatParticipant'>('p-goblin-3'),
+        name: 'Goblin #3',
+        subtitle: 'CR 1/4',
+        entityType: 'monster',
+        initiative: 11,
+        health: { current: 7, max: 7, temporary: 0 },
+        conditions: [],
+        state: 'waiting',
+        visibility: 'party',
+        groupKey: 'goblin',
+        source: { kind: 'monster', monsterId: id<'Monster'>('m-goblin') },
+      },
+      {
+        id: id<'CombatParticipant'>('p-bram'),
+        name: 'Bram Ironfoot',
+        subtitle: 'Dwarf Cleric 6 · Tomás',
+        entityType: 'player',
+        initiative: 9,
+        health: { current: 0, max: 52, temporary: 0 },
+        conditions: [],
+        state: 'unconscious',
+        deathSaves: { successes: 1, failures: 2 },
+        visibility: 'party',
+        source: { kind: 'character', characterId: id<'Character'>('ch-bram') },
+      },
+      {
+        id: id<'CombatParticipant'>('p-ambusher'),
+        name: 'Cragmaw Ambusher',
+        subtitle: 'CR 1 · hidden until it acts',
+        entityType: 'monster',
+        initiative: 6,
+        health: { current: 21, max: 21, temporary: 0 },
+        conditions: [],
+        state: 'waiting',
+        // Exists in the DM's order, absent from every player device.
+        visibility: 'dm-only',
+        source: { kind: 'monster', monsterId: id<'Monster'>('m-cragmaw-ambusher') },
+      },
+    ],
+  },
+];
+
+/* ── Roll log ───────────────────────────────────────────────────────────────── */
+
+const COMBAT_ID = id<'CombatInstance'>('cb-goblin-ambush');
+
+export const ROLLS: Roll[] = [
+  {
+    id: id<'Roll'>('r-1'),
+    combatId: COMBAT_ID,
+    actor: 'Bugbear Chief',
+    title: 'Bugbear Chief — Morningstar attack',
+    expression: '1d20 + 5',
+    mode: 'normal',
+    dice: [{ sides: 20, value: 17 }],
+    modifier: 5,
+    total: 22,
+    outcome: 'normal',
+    visibility: 'party',
+    at: '2026-08-15T19:43:00.000Z',
+  },
+  {
+    id: id<'Roll'>('r-2'),
+    combatId: COMBAT_ID,
+    actor: 'Aria Nightfall',
+    title: 'Aria Nightfall — Longsword damage',
+    expression: '1d8 + 4',
+    mode: 'normal',
+    dice: [{ sides: 8, value: 9 }],
+    modifier: 4,
+    total: 13,
+    outcome: 'normal',
+    visibility: 'party',
+    at: '2026-08-15T19:42:00.000Z',
+  },
+  {
+    id: id<'Roll'>('r-3'),
+    combatId: COMBAT_ID,
+    actor: 'Quill Featherwind',
+    title: 'Quill Featherwind — Sneak Attack damage',
+    expression: '3d6 + 4',
+    mode: 'normal',
+    dice: [
+      { sides: 6, value: 6 },
+      { sides: 6, value: 5 },
+      { sides: 6, value: 9 },
+    ],
+    modifier: 4,
+    total: 24,
+    outcome: 'critical',
+    visibility: 'party',
+    at: '2026-08-15T19:41:00.000Z',
+  },
+  {
+    id: id<'Roll'>('r-4'),
+    combatId: COMBAT_ID,
+    actor: 'Cragmaw Ambusher',
+    title: 'Cragmaw Ambusher — Stealth',
+    expression: '1d20 + 6',
+    mode: 'normal',
+    dice: [{ sides: 20, value: 17 }],
+    modifier: 6,
+    total: 23,
+    outcome: 'normal',
+    // The DM chose to keep this one secret.
+    visibility: 'secret',
+    at: '2026-08-15T19:44:00.000Z',
+  },
+];

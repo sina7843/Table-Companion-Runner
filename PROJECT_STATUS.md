@@ -6,9 +6,9 @@ Sliced parents (`08`, `10`, `11`) are never executed as separate implementation 
 
 ## Phase 1 implementation
 - [x] TC-00
-- [ ] TC-01
-- [ ] TC-02
-- [ ] TC-03
+- [x] TC-01
+- [x] TC-02
+- [x] TC-03
 - [ ] TC-04
 - [ ] TC-05
 - [ ] TC-06
@@ -31,6 +31,6 @@ Sliced parents (`08`, `10`, `11`) are never executed as separate implementation 
 - [ ] TC-17
 
 ## Current work
-- Active item: `TC-01`
-- Last completed item: `TC-00`
+- Active item: `TC-04`
+- Last completed item: `TC-03`
 - Blockers: none

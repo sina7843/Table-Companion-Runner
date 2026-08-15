@@ -163,3 +163,33 @@ export function EmptyState({ icon, title, description, actions, className }: Emp
     </div>
   );
 }
+
+export interface BannerProps {
+  tone?: 'neutral' | 'info' | 'warning' | 'danger';
+  icon?: IconName;
+  actions?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}
+
+/**
+ * A full-width strip pinned under a header.
+ *
+ * Distinct from `Alert`, which sits in content and can be dismissed: a banner is a state
+ * the whole screen is in — reconnecting, read-only, a fight that has ended — and it stays
+ * until that state does.
+ */
+export function Banner({ tone = 'neutral', icon, actions, children, className }: BannerProps) {
+  return (
+    <div className={cx('tc-banner', tone !== 'neutral' && `tc-banner--${tone}`, className)}>
+      {icon && <Icon name={icon} />}
+      <span>{children}</span>
+      {actions && (
+        <>
+          <span className="tc-banner__spacer" />
+          {actions}
+        </>
+      )}
+    </div>
+  );
+}

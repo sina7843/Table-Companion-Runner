@@ -1127,3 +1127,58 @@ every hit point; and reopening a live fight changing nothing.
 
 `npm run typecheck`, `npm run lint`, `npm run test` (178 passing), `npm run format:check`,
 `npm run build`. Dev server serves the live fight and the ended fight.
+
+## TC-12 — Player mobile combat
+
+`src/screens/player/PlayerCombat.tsx` on `/play/combat`, replacing the TC-02 route skeleton.
+
+### States
+
+- **Waiting** — header with connection status, a strip carrying the round counter, who is
+  acting and `You are next`, the initiative order, and recent rolls.
+- **Your turn** — the brass command band replaces the header, stating the round, the
+  character and the turn position, with End Turn in the band. Below it: roll mode
+  (normal / advantage / disadvantage), four action buttons at 52px in a two-up grid, and
+  the current target.
+- **Low HP** — a warning when the character is at or under a quarter of their track.
+- **Unconscious** — the danger band replaces the header, death-save pips, one
+  `Death saving throw` button, what a natural 20 does, and who in the party can help.
+- **Reconnecting** — a banner saying the last roll was saved and the fight is still
+  running, plus the connection status in the header.
+- **Ended** — how the character came out of it and the rolls they can still read back.
+
+### Action flow
+
+Tapping an action rolls it and, for an attack, rolls its damage in the same pass. Both land
+in one bottom `Sheet` with the outcome and a single primary action naming the amount and the
+target. No approval step; hit points change on every device.
+
+### Shared components and boundaries
+
+`InitiativeRow`, `HPBar`, `ConditionChip`, `RollResult`, `DiceButton`, `RoundCounter`,
+`SegmentedControl` and the combat log/action transforms are all the ones the DM screen uses.
+`playerOrder` filters through `visibleParticipants`; rolls through `visibleRolls`.
+
+### Design-system additions
+
+`Banner`, `DeathSaves` and `Sheet`, each a typed adapter over CSS already vendored from the
+approved source.
+
+### Tests — 186, all passing (8 new in `screens/player/turn.test.ts`)
+
+An unrevealed creature absent from the player order while the DM sees the whole thing;
+nothing left hinting at a removed row; a player finding their own combatant and a character
+who is not in the fight finding none; low health being a quarter of the track and zero being
+down rather than low; quick actions being the character's own rollables without their damage
+rolls; an attack knowing the damage that follows it; four actions on the thumb; and a
+breakdown leaving a dropped die out of the sum.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (186 passing), `npm run format:check`,
+`npm run build`. Dev server serves `/play/combat` and compiles both new modules.
+
+### Not done
+
+The bottom-nav badge on the player's turn — the nav is in the shell and does not know about
+the fight; threading combat state through for one badge waits for TC-13's realtime channel.

@@ -176,3 +176,57 @@ export function Tooltip({ content, shortcut, children, className }: TooltipProps
     </span>
   );
 }
+
+export interface SheetProps {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  description?: ReactNode;
+  footer?: ReactNode;
+  children?: ReactNode;
+}
+
+/**
+ * The phone's overlay: a sheet that rises from the bottom edge.
+ *
+ * One sheet holds a whole outcome — the roll, what it means, and the action it offers —
+ * rather than three stacked dialogs. It is a native `<dialog>` for the same reason the
+ * modal is: the focus trap, the inert background and Escape come from the platform.
+ *
+ * Its footer is where the primary action lives, because on a phone that is where the
+ * thumb already is.
+ */
+export function Sheet({ open, onClose, title, description, footer, children }: SheetProps) {
+  const ref = useDialog(open, onClose);
+  const titleId = useId();
+  const descId = useId();
+
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby={titleId}
+      aria-describedby={description ? descId : undefined}
+      className="tc-sheet"
+      onClick={(event) => {
+        if (event.target === ref.current) onClose();
+      }}
+    >
+      <span className="tc-sheet__grab" aria-hidden="true" />
+      <div className="tc-overlay__head">
+        <div className="tc-overlay__titles">
+          <span className="tc-overlay__title" id={titleId}>
+            {title}
+          </span>
+          {description && (
+            <span className="tc-overlay__desc" id={descId}>
+              {description}
+            </span>
+          )}
+        </div>
+        <IconButton icon="x" label="Close" onClick={onClose} />
+      </div>
+      <div className="tc-overlay__body">{children}</div>
+      {footer && <div className="tc-overlay__foot">{footer}</div>}
+    </dialog>
+  );
+}

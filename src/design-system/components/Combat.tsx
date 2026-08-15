@@ -355,3 +355,83 @@ function DeathPips({ kind, filled }: { kind: 'success' | 'failure'; filled: numb
     </span>
   );
 }
+
+export interface DeathSavesProps {
+  successes: number;
+  failures: number;
+  /** How many of each the system needs. The ruleset supplies it; this only draws it. */
+  required?: number;
+  /** Stated in a word as well as a colour, per the design's rule on every state. */
+  outcome?: 'pending' | 'stable' | 'dead';
+  /** Lets the DM, or a player correcting a miscount, set a pip directly. */
+  onSet?: (kind: 'success' | 'failure', count: number) => void;
+  className?: string;
+}
+
+const DEATH_OUTCOME: Record<string, string> = {
+  pending: 'Still rolling',
+  stable: 'Stable',
+  dead: 'Dead',
+};
+
+/**
+ * The death-save tally, at a size a thumb can hit.
+ *
+ * Two labelled rows rather than a single mixed strip: at a glance a player has to know how
+ * close they are to each end, and one row of six pips does not answer that.
+ */
+export function DeathSaves({
+  successes,
+  failures,
+  required = 3,
+  outcome,
+  onSet,
+  className,
+}: DeathSavesProps) {
+  const row = (kind: 'success' | 'failure', filled: number) => (
+    <span className="tc-death__line">
+      <span className="tc-death__label">{kind === 'success' ? 'Success' : 'Failure'}</span>
+      <span className="tc-death__pips">
+        {Array.from({ length: required }, (_unused, index) => {
+          const on = index < filled;
+          const label = `${index + 1} ${kind === 'success' ? 'successes' : 'failures'}`;
+          return onSet ? (
+            <button
+              key={index}
+              type="button"
+              className="tc-death__pip"
+              data-kind={kind}
+              data-filled={on ? 'true' : undefined}
+              aria-pressed={on}
+              aria-label={label}
+              // Clicking the pip you are on clears it, so a miscount is one tap to fix.
+              onClick={() => onSet(kind, on && index + 1 === filled ? index : index + 1)}
+            >
+              {kind === 'success' ? '✓' : '✕'}
+            </button>
+          ) : (
+            <span
+              key={index}
+              className="tc-death__pip"
+              data-kind={kind}
+              data-filled={on ? 'true' : undefined}
+              role="img"
+              aria-label={label}
+            />
+          );
+        })}
+      </span>
+      <span>
+        {filled} of {required}
+      </span>
+    </span>
+  );
+
+  return (
+    <div className={cx('tc-death', className)}>
+      {row('success', successes)}
+      {row('failure', failures)}
+      {outcome && <span className="tc-death__outcome">{DEATH_OUTCOME[outcome]}</span>}
+    </div>
+  );
+}

@@ -11,6 +11,7 @@ import { MonsterPage } from '../screens/monsters/MonsterPage';
 import { MonsterEditor } from '../screens/monsters/MonsterEditor';
 import { EncounterBuilder, EncounterDetail, EncounterLibrary } from '../screens/encounters';
 import { CombatScreen } from '../screens/combat';
+import { PlayerCombat } from '../screens/player/PlayerCombat';
 import {
   CampaignCombats,
   CampaignEncounters,
@@ -27,7 +28,6 @@ import {
   NewCampaign,
   NotFound,
   PlayerCharacters,
-  PlayerCombat,
   PlayerDice,
   PlayerHome,
   PlayerParty,

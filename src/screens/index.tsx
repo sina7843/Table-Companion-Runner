@@ -6,7 +6,7 @@
  * standing in for content. Nothing here renders a disabled future feature.
  */
 import { Link } from 'react-router-dom';
-import { Button, EmptyState, SectionHeader, Skeleton } from '../design-system';
+import { Button, SectionHeader, Skeleton } from '../design-system';
 import { DMPage } from '../app/DMShell';
 import { PlayerPage } from '../app/PlayerShell';
 
@@ -79,20 +79,6 @@ export {
 } from './campaign/CampaignScreens';
 
 /* ── Player ─────────────────────────────────────────────────────────────────── */
-
-export function PlayerCombat() {
-  return (
-    <PlayerPage title="Combat">
-      <div className="tc-page">
-        <EmptyState
-          icon="sword"
-          title="No combat is running"
-          description="When your DM starts a fight, it appears here and this tab carries a badge on your turn."
-        />
-      </div>
-    </PlayerPage>
-  );
-}
 
 export function PlayerDice() {
   return (

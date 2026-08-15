@@ -946,3 +946,60 @@ control bar, which wraps but never hides.
 **The ended state is an after-action screen.** Rounds, combatants, who is standing, how long
 it took, how many rolls, then the participants with their final hit points and the full log
 with its DM-only lines marked. Plus the link back to the template, still exactly as prepared.
+
+## TC-12 — The player's combat screen
+
+**One screen, five states, and the shift in emphasis is the design.** Not the player's
+turn and it is a monitor: a strip stating the round, who is acting, and `You are next`.
+Their turn and the command band *replaces the header* rather than sitting on top of it —
+the change is impossible to miss and nothing animates. Down replaces it again with the
+danger band, because a player at zero has exactly one thing to do and the screen should say
+so before it says anything else.
+
+**The viewer's role is a property of the surface, not the session.** `/play/*` is the
+player's device, so it builds a `player` viewer whatever the fixture session says. Reading
+the signed-in fixture user's role would have shown this screen the DM's unrevealed
+creatures, because that user is the DM. TC-13's auth layer replaces the id; the role does
+not move.
+
+**Absent, not hidden.** `playerOrder` runs `visibleParticipants`, so an unrevealed creature
+is not a greyed row, not a count and not a gap. A test asserts the player sees exactly the
+order minus the DM-only rows and that nothing left behind hints at one. Rolls go through
+`visibleRolls`, the same predicate the DM's log splits on.
+
+**One sheet, not a chain of modals.** An attack rolls, the damage rolls with it, and both
+land in a single bottom sheet with the outcome and the one action that follows — `Apply 13
+damage to Bugbear Chief`, naming the amount and the target in the button. On a miss, or with
+no target, the sheet ends at the roll and offers Close. A second tap for the damage roll is
+a modal chain by another name, and it is also how damage gets rolled for an attack that
+missed.
+
+**The actions are the character's, asked of the ruleset.** `quickActions` flattens
+`Ruleset.sheetContent(character, 'actions')` into one button each and drops the damage rolls,
+which follow their attack. Four fit a thumb without the order below scrolling away.
+
+**End Turn is in the band and uses the shared transform.** In the band because it must never
+sit next to a roll button, and `nextTurn` because the round must move on a wrap exactly once
+and a defeated combatant be stepped over identically on both devices. A player ends their own
+turn by handing it on; the order itself stays the DM's.
+
+**Damage applies with no DM approval.** The design is explicit, and it is the same
+`applyHealth` the DM screen uses, so a monster's hit points are the same number on every
+device. Correction is the DM's undo, which already names its target.
+
+**Death saves only exist when the ruleset says they do.** The band, the pips and the roll all
+come from `deathSaveRequest` / `applyDeathSave` / `deathSaveOutcome`. A system without them
+simply never renders that state — the combat UI is not architected around it.
+
+**Reconnecting says what is safe.** `Reconnecting. Your last roll was saved and the fight is
+still running.` No technical detail, no panic, and recovery says so once. The same
+`useConnection` the DM shell uses.
+
+**Three new design-system adapters, all over vendored CSS.** `Banner` for a state the whole
+screen is in, `DeathSaves` for a tally at thumb size, and `Sheet` for the bottom overlay —
+a native `<dialog>` like the others, so the focus trap and Escape come from the platform.
+
+**What is not here.** The bottom-nav badge on the player's turn: the nav lives in the shell
+and does not know about the fight, and threading combat state into it for one badge is more
+plumbing than the badge is worth until TC-13's realtime channel makes it cheap. Noted rather
+than faked.

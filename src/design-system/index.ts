@@ -50,9 +50,11 @@ export {
 export {
   Modal,
   Drawer,
+  Sheet,
   Tooltip,
   type ModalProps,
   type DrawerProps,
+  type SheetProps,
   type TooltipProps,
 } from './components/Overlay';
 export {
@@ -61,11 +63,13 @@ export {
   Toast,
   ToastViewport,
   ConnectionStatus,
+  Banner,
   EmptyState,
   type AlertProps,
   type SkeletonProps,
   type ToastProps,
   type ConnectionStatusProps,
+  type BannerProps,
   type EmptyStateProps,
 } from './components/Feedback';
 export {
@@ -115,9 +119,11 @@ export {
   TurnIndicator,
   RoundCounter,
   InitiativeRow,
+  DeathSaves,
   type ConditionChipProps,
   type ConditionTone,
   type DiceButtonProps,
   type RollResultProps,
   type InitiativeRowProps,
+  type DeathSavesProps,
 } from './components/Combat';

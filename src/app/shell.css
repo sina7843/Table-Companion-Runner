@@ -276,3 +276,60 @@
     row-gap: var(--space-8);
   }
 }
+
+/* ── The player's turn band ─────────────────────────────────────────────────
+   It replaces the header rather than sitting on top of it, so the change is
+   impossible to miss without any motion. Down replaces it in turn: a player at
+   zero has exactly one thing to do, and the screen should say so before it says
+   anything else. */
+.tc-turnband {
+  background: var(--color-combat-turn-active);
+  color: var(--color-text-on-accent);
+  border-bottom-color: transparent;
+}
+.tc-turnband--down {
+  background: var(--color-danger-subtle);
+  color: var(--color-danger-text);
+  border-bottom: 1px solid var(--color-danger-border);
+}
+.tc-turnband__title {
+  font-size: var(--font-size-16);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.tc-turnband__sub {
+  font-size: var(--font-size-12);
+  font-weight: 500;
+}
+
+/* The action panel. A two-up grid because four 52px targets is what a thumb can
+   reach without the list below it scrolling away. */
+.tc-turnpanel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  background: var(--color-surface-primary);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.tc-turnpanel__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+}
+.tc-turnpanel__grid .tc-dice {
+  min-height: 52px;
+}
+
+/* Not your turn: one strip stating the round, who is acting, and whether you are
+   next. That last line is the only anticipation the screen offers. */
+.tc-turnstrip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-16);
+  background: var(--color-surface-secondary);
+  border-bottom: 1px solid var(--color-border-default);
+}

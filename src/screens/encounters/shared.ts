@@ -67,6 +67,21 @@ export function participantSummary(roster: EncounterCreature[]): string {
   return roster.map((entry) => `${entry.monster.name} ×${entry.count}`).join(' · ');
 }
 
+/** Finished characters only — a half-built draft is not something you can put in a fight. */
 export function partyOf(characters: Character[]): Character[] {
   return characters.filter((character) => character.draft === undefined);
+}
+
+/**
+ * Who is actually in this fight.
+ *
+ * Absence is stored rather than presence, so a character who joins the campaign next week
+ * is in every prepared encounter without the DM reopening each one.
+ */
+export function presentParty(
+  characters: Character[],
+  encounter: Pick<EncounterTemplate, 'absentCharacterIds'>,
+): Character[] {
+  const absent = new Set<string>(encounter.absentCharacterIds ?? []);
+  return partyOf(characters).filter((character) => !absent.has(character.id));
 }

@@ -24,9 +24,13 @@ export {
   Field,
   TextInput,
   Textarea,
+  NumberInput,
+  Switch,
   type FieldProps,
   type TextInputProps,
   type TextareaProps,
+  type NumberInputProps,
+  type SwitchProps,
 } from './components/Input';
 export {
   Tabs,
@@ -78,6 +82,9 @@ export {
   SidebarGroup,
   NavItem,
   BottomNav,
+  SegmentedControl,
+  type SegmentedControlProps,
+  type SegmentedItem,
   type SidebarProps,
   type SidebarGroupProps,
   type NavItemProps,

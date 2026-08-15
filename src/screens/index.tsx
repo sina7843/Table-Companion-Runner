@@ -86,24 +86,6 @@ export function DMCombat() {
   );
 }
 
-/**
- * The encounter builder's route, held open for TC-10.
- *
- * The library and the detail page both link here, so the path has to resolve. It renders
- * the chrome and the skeleton the builder will fill — the same treatment every route
- * skeleton in this file gets — rather than a disabled feature.
- */
-export function EncounterBuilderPending() {
-  return (
-    <DMPage eyebrow="Encounter template" title="Untitled encounter">
-      <div className="tc-page">
-        <PendingSection title="Monsters" rows={4} height={48} />
-        <PendingSection title="Party" rows={4} height={48} />
-      </div>
-    </DMPage>
-  );
-}
-
 export function DMCharacters() {
   return (
     <DMPage eyebrow="Library" title="Characters">

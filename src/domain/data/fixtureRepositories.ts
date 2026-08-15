@@ -392,6 +392,9 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
           name: `${source.name} (copy)`,
           // Entries are copied, not shared: editing the duplicate must not reach back.
           entries: source.entries.map((entry) => ({ ...entry })),
+          ...(source.absentCharacterIds
+            ? { absentCharacterIds: [...source.absentCharacterIds] }
+            : {}),
           updatedAt: new Date().toISOString(),
           // A copy has not been run, whatever the original has done.
           lastRunAt: undefined,
@@ -454,8 +457,9 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
           }
         }
 
+        const absent = new Set<string>(template.absentCharacterIds ?? []);
         for (const character of ALL_CHARACTERS.filter(
-          (entry) => entry.campaignId === template.campaignId,
+          (entry) => entry.campaignId === template.campaignId && !absent.has(entry.id),
         )) {
           participants.push({
             id: id<'CombatParticipant'>(`p-${nextId()}`),

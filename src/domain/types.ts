@@ -287,6 +287,14 @@ export interface EncounterTemplate {
   /** Where the fight happens. Carried into the combat instance's top bar. */
   location?: string;
   entries: EncounterEntry[];
+  /**
+   * Characters sitting this one out, for a split party.
+   *
+   * An exclusion list rather than a roster: the party is whoever is in the campaign, so a
+   * character who joins next week is in every prepared fight without the DM reopening
+   * twelve templates to add them.
+   */
+  absentCharacterIds?: CharacterId[];
   /** DM-only setup notes. Never sent to a player device. */
   notes?: string;
   updatedAt?: Timestamp;

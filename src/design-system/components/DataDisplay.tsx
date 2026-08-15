@@ -1,10 +1,13 @@
 import type { ElementType, ReactNode } from 'react';
-import { cx } from './types';
+import { Icon } from './Icon';
+import { cx, type IconName } from './types';
 
 export interface SectionHeaderProps {
   title: ReactNode;
   eyebrow?: ReactNode;
   actions?: ReactNode;
+  /** A glyph before the title. The design uses one where a section names a kind of thing. */
+  icon?: IconName;
   /** Sub-sections drop to the sans face and a single hairline rule. */
   sub?: boolean;
   className?: string;
@@ -15,10 +18,18 @@ export interface SectionHeaderProps {
  * card — a rule, a section head and spacing, which is what stops a dashboard reading
  * as five unrelated products.
  */
-export function SectionHeader({ title, eyebrow, actions, sub, className }: SectionHeaderProps) {
+export function SectionHeader({
+  title,
+  eyebrow,
+  actions,
+  icon,
+  sub,
+  className,
+}: SectionHeaderProps) {
   return (
     <div className={cx('tc-section', sub && 'tc-section--sub', className)}>
       <span className="tc-section__title">
+        {icon && <Icon name={icon} />}
         {eyebrow && <span className="tc-section__eyebrow">{eyebrow}</span>}
         {title}
       </span>

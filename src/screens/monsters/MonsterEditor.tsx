@@ -127,6 +127,11 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
     draft: MonsterAction;
   } | null>(null);
 
+  // The clone is held as a promise rather than fired per load: React runs this effect
+  // twice in development, and a second call would leave a stray copy in the library every
+  // time the editor opened.
+  const cloning = useRef<Promise<Monster> | null>(null);
+
   const loaded = useAsync(async () => {
     if (mode === 'create') return { monster: blankMonster(), source: null };
 
@@ -140,9 +145,10 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
 
     // Cloning writes immediately, so the copy exists before the DM types anything and a
     // half-finished variant is never lost by navigating away.
-    const me = await users.current();
-    const clone = await monsters.cloneFrom(existing.id, me.id, me.displayName);
-    return { monster: clone, source: existing };
+    cloning.current ??= users
+      .current()
+      .then((me) => monsters.cloneFrom(existing.id, me.id, me.displayName));
+    return { monster: await cloning.current, source: existing };
   }, ['monster-editor', mode, monsterId ?? '']);
 
   useEffect(() => {

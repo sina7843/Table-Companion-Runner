@@ -34,7 +34,8 @@ import {
   type EncounterTemplateId,
   type Monster,
 } from '../../domain';
-import { creatureCount, partyOf, rosterOf, startLabel, statusOf } from './shared';
+import { BalancePanel } from './BalancePanel';
+import { creatureCount, partyOf, presentParty, rosterOf, startLabel, statusOf } from './shared';
 
 export function EncounterDetail() {
   const { encounterId } = useParams();
@@ -62,15 +63,17 @@ export function EncounterDetail() {
     const byId = new Map<string, Monster>(creatures.map((monster) => [monster.id, monster]));
     const entries = rosterOf(encounter, byId);
     const party = partyOf(roster);
+    const present = presentParty(roster, encounter);
     const rules = campaign ? requireRuleset(campaign.systemId) : null;
 
     return {
       encounter,
       campaign,
       party,
+      present,
       entries,
       ...statusOf(encounter, fights),
-      difficulty: rules?.encounterDifficulty(entries, party) ?? null,
+      difficulty: rules?.encounterDifficulty(entries, present) ?? null,
     };
   }, ['encounter-detail', encounterId ?? '', version]);
 
@@ -140,7 +143,8 @@ export function EncounterDetail() {
     );
   }
 
-  const { encounter, campaign, party, entries, status, live, difficulty } = state.data;
+  const { encounter, campaign, party, present, entries, status, live, difficulty } = state.data;
+  const absent = new Set<string>(encounter.absentCharacterIds ?? []);
 
   const start = () => {
     if (live) {
@@ -282,7 +286,14 @@ export function EncounterDetail() {
           </section>
 
           <section>
-            <SectionHeader title="Party" eyebrow={`${party.length} characters`} />
+            <SectionHeader
+              title="Party"
+              eyebrow={
+                present.length === party.length
+                  ? `${party.length} characters`
+                  : `${present.length} of ${party.length} present`
+              }
+            />
             {party.length === 0 ? (
               <EmptyState
                 icon="users-three"
@@ -299,9 +310,15 @@ export function EncounterDetail() {
                   title={character.name}
                   meta={character.subtitle}
                   trailing={
-                    <span style={{ width: 96, display: 'inline-block' }}>
-                      <HPBar current={character.health.current} max={character.health.max} />
-                    </span>
+                    absent.has(character.id) ? (
+                      <Badge tone="neutral" icon="eye-slash">
+                        Sitting out
+                      </Badge>
+                    ) : (
+                      <span style={{ width: 96, display: 'inline-block' }}>
+                        <HPBar current={character.health.current} max={character.health.max} />
+                      </span>
+                    )
                   }
                 />
               ))
@@ -340,53 +357,7 @@ export function EncounterDetail() {
             gap: 'var(--space-16)',
           }}
         >
-          <section>
-            <SectionHeader sub title="Balance" />
-            {difficulty ? (
-              <>
-                <dl className="tc-deflist">
-                  {difficulty.breakdown.map((item) => (
-                    <div key={item.label} style={{ display: 'contents' }}>
-                      <dt>{item.label}</dt>
-                      <dd>{item.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <div style={{ marginTop: 'var(--space-12)' }}>
-                  <div className="tc-progress__label">
-                    <span>Difficulty · {difficulty.label.toLowerCase()}</span>
-                    <span>{difficulty.fill}%</span>
-                  </div>
-                  <div
-                    className="tc-progress"
-                    role="meter"
-                    aria-valuenow={difficulty.fill}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`Difficulty, ${difficulty.label}`}
-                  >
-                    <div className="tc-progress__fill" style={{ width: `${difficulty.fill}%` }} />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 'var(--font-size-13)',
-                  color: 'var(--color-text-tertiary)',
-                }}
-              >
-                This game system does not rate encounter difficulty.
-              </p>
-            )}
-          </section>
-
-          {difficulty?.warning && (
-            <Alert tone="warning" title="Close to deadly">
-              {difficulty.warning}
-            </Alert>
-          )}
+          <BalancePanel difficulty={difficulty} />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
             <Alert tone="info" icon="info">

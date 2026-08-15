@@ -776,3 +776,68 @@ full-health combatants with the party added; and hidden entries staying private.
 The combat runner is TC-11. `/dm/combat/:combatId` now resolves the instance and reports
 its combatant count and round instead of claiming no combat is running, but it does not
 run the fight.
+
+## TC-10 — The encounter builder
+
+`src/screens/encounters/EncounterBuilder.tsx`, one component in two modes, on
+`/dm/encounters/new` and `/dm/encounters/:encounterId/edit`. The route skeleton TC-09 held
+open is gone.
+
+### Library rail
+
+`SegmentedControl` over three sources.
+- **Monsters** — search with a `/` shortcut, rows showing CR, XP, AC and HP, an info button
+  that fills the shared context panel with the real `MonsterSheet`, and a plus button that
+  adds. The panel's own `Add to <encounter>` leaves the panel open for the next candidate.
+- **Party** — the campaign's characters, with a plus for anyone currently sitting out.
+- **Saved** — the campaign's other encounters, with a button that folds their roster in.
+
+### Composition
+
+Encounter name; location as a text field with a datalist of the campaign's known places;
+the monster roster with a quantity stepper, a hide toggle, a stat-block button and a
+remove button per group; the party with hit points and a Present switch each; and setup
+notes inside the hatched DM zone with a `DM only` privacy badge. The Monsters header
+states `N creatures · N groups · N combatants with the party`.
+
+### Summary
+
+The shared `BalancePanel` — breakdown rows, difficulty bar and the close-to-deadly warning,
+all printed as the ruleset stated them — then the instance alert, Start combat / Run again /
+Resume, and Duplicate template.
+
+### Behaviour
+
+Autosave on a 500 ms debounce with a `Saving… / Saved` indicator. Create inserts an
+"Untitled encounter" and replaces its URL with the edit route. Difficulty recomputes on
+every change against the party actually present.
+
+### Domain additions
+
+`EncounterTemplate.absentCharacterIds`, honoured by `startFromTemplate` and by the
+difficulty rating on the library, the detail page and the builder.
+
+### Design system additions
+
+`NumberInput`, `Switch`, `SegmentedControl`; `icon` on `SectionHeader`; a forwarded `ref` on
+`TextInput`. All three components wrap CSS already vendored from the approved source.
+
+### Tests — 116, all passing (10 new in `screens/encounters/composition.test.ts`)
+
+Add being idempotent into a count; the per-group cap holding against both repeated adds and
+a merge; typed quantities clamped and rounded; hiding not disturbing a count; removal
+taking exactly one group; every transform leaving its input untouched; absence recorded and
+cleared; a merged roster copying rows rather than sharing them; and search being
+case- and whitespace-forgiving but bounded.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (116 passing), `npm run format:check`,
+`npm run build`. Dev server serves `/dm/encounters/new` and `/dm/encounters/:id/edit` and
+compiles every new module.
+
+### Not done
+
+No drag-and-drop: roster order carries no meaning, so it would be a second way to do
+nothing. No "Group identical" expand toggle — per-participant names and initiative live on
+a combat instance, which is TC-11.

@@ -2,6 +2,7 @@ import {
   useId,
   type InputHTMLAttributes,
   type ReactNode,
+  type Ref,
   type TextareaHTMLAttributes,
 } from 'react';
 import { Icon } from './Icon';
@@ -73,6 +74,8 @@ export interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   suffix?: ReactNode;
   mono?: boolean;
   numeric?: boolean;
+  /** Forwarded to the input, so a screen can focus it from a keyboard shortcut. */
+  ref?: Ref<HTMLInputElement>;
 }
 
 export function TextInput({
@@ -83,11 +86,13 @@ export function TextInput({
   numeric,
   className,
   type = 'text',
+  ref,
   ...rest
 }: TextInputProps) {
   const input = (
     <input
       {...rest}
+      ref={ref}
       type={type}
       data-invalid={invalid ? 'true' : undefined}
       aria-invalid={invalid || undefined}
@@ -129,5 +134,104 @@ export function Textarea({ invalid, className, ...rest }: TextareaProps) {
       aria-invalid={invalid || undefined}
       className={cx('tc-input', 'tc-input--textarea', className)}
     />
+  );
+}
+
+export interface NumberInputProps {
+  value: number;
+  onChange: (next: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Required: the control is a bare number with no visible label of its own. */
+  ariaLabel: string;
+  /** Overrides the CSS default of 56px, which is wide for a count of goblins. */
+  width?: number;
+  disabled?: boolean;
+  className?: string;
+}
+
+/**
+ * A number with its own steppers.
+ *
+ * Typing is the fast path and the buttons are the accurate one; both are reachable by
+ * keyboard, and the value is clamped in one place so no caller has to remember the range.
+ */
+export function NumberInput({
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  ariaLabel,
+  width,
+  disabled,
+  className,
+}: NumberInputProps) {
+  const clamp = (next: number) =>
+    Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min ?? Number.NEGATIVE_INFINITY, next));
+
+  return (
+    <span className={cx('tc-number', className)}>
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        disabled={disabled || (min !== undefined && value <= min)}
+        onClick={() => onChange(clamp(value - step))}
+      >
+        <Icon name="minus" size={12} />
+      </button>
+      <input
+        type="number"
+        inputMode="numeric"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        style={width ? { width } : undefined}
+        onChange={(event) => {
+          const next = Number(event.target.value);
+          if (Number.isFinite(next)) onChange(clamp(next));
+        }}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        disabled={disabled || (max !== undefined && value >= max)}
+        onClick={() => onChange(clamp(value + step))}
+      >
+        <Icon name="plus" size={12} />
+      </button>
+    </span>
+  );
+}
+
+export interface SwitchProps {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  /** Visible text beside the track, or the accessible name when `hideLabel` is set. */
+  label: ReactNode;
+  hideLabel?: boolean;
+  disabled?: boolean;
+  className?: string;
+}
+
+/** A two-state toggle that applies immediately. Never use it for a form that submits. */
+export function Switch({ checked, onChange, label, hideLabel, disabled, className }: SwitchProps) {
+  return (
+    <label className={cx('tc-switch', className)} data-disabled={disabled ? 'true' : undefined}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span className="tc-switch__track" />
+      <span className={hideLabel ? 'tc-visually-hidden' : undefined}>{label}</span>
+    </label>
   );
 }

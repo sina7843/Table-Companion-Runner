@@ -9,7 +9,7 @@ import { LevelUp } from '../screens/character/LevelUp';
 import { MonsterLibrary } from '../screens/monsters/MonsterLibrary';
 import { MonsterPage } from '../screens/monsters/MonsterPage';
 import { MonsterEditor } from '../screens/monsters/MonsterEditor';
-import { EncounterDetail, EncounterLibrary } from '../screens/encounters';
+import { EncounterBuilder, EncounterDetail, EncounterLibrary } from '../screens/encounters';
 import {
   CampaignCombats,
   CampaignEncounters,
@@ -20,7 +20,6 @@ import {
   CampaignSettings,
   DMCharacters,
   DMCombat,
-  EncounterBuilderPending,
   DMHome,
   DMItems,
   DMSpells,
@@ -69,13 +68,10 @@ export const router = createBrowserRouter([
       { index: true, element: <DMHome /> },
       { path: 'combat', element: <DMCombat /> },
       { path: 'combat/:combatId', element: <DMCombat /> },
-      // The builder is TC-10. Its two routes exist now because the library and the detail
-      // page both link to them, and `EncounterBuilderPending` renders the page chrome the
-      // builder will fill rather than a disabled feature.
       { path: 'encounters', element: <EncounterLibrary /> },
-      { path: 'encounters/new', element: <EncounterBuilderPending /> },
+      { path: 'encounters/new', element: <EncounterBuilder mode="create" /> },
       { path: 'encounters/:encounterId', element: <EncounterDetail /> },
-      { path: 'encounters/:encounterId/edit', element: <EncounterBuilderPending /> },
+      { path: 'encounters/:encounterId/edit', element: <EncounterBuilder mode="edit" /> },
       { path: 'characters', element: <DMCharacters /> },
 
       { path: 'monsters', element: <MonsterLibrary /> },

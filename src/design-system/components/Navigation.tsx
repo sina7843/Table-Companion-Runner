@@ -155,3 +155,55 @@ export function BottomNav({
     </nav>
   );
 }
+
+export interface SegmentedItem {
+  id: string;
+  label: string;
+  icon?: IconName;
+}
+
+export interface SegmentedControlProps {
+  items: SegmentedItem[];
+  value: string;
+  onChange: (id: string) => void;
+  /** Accessible name for the group, e.g. "Source". */
+  label: string;
+  /** Stretch to the container and share its width evenly. */
+  full?: boolean;
+  className?: string;
+}
+
+/**
+ * A small exclusive choice, as a radio group rather than tabs — the segments switch what
+ * a list contains, they do not switch panels, and screen readers should say so.
+ */
+export function SegmentedControl({
+  items,
+  value,
+  onChange,
+  label,
+  full,
+  className,
+}: SegmentedControlProps) {
+  return (
+    <div
+      className={cx('tc-segmented', full && 'tc-segmented--full', className)}
+      role="radiogroup"
+      aria-label={label}
+    >
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          role="radio"
+          aria-checked={item.id === value}
+          className="tc-segmented__item"
+          onClick={() => onChange(item.id)}
+        >
+          {item.icon && <Icon name={item.icon} size={13} />}
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}

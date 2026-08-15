@@ -40,7 +40,7 @@ import {
 import {
   creatureCount,
   participantSummary,
-  partyOf,
+  presentParty,
   rosterOf,
   startLabel,
   statusOf,
@@ -109,7 +109,6 @@ export function EncounterLibrary() {
 
     const rules = requireRuleset(focus.systemId);
     const byId = new Map<string, Monster>(creatures.map((monster) => [monster.id, monster]));
-    const party = partyOf(roster);
 
     const rows: Row[] = templates.map((encounter) => {
       const entries = rosterOf(encounter, byId);
@@ -120,7 +119,7 @@ export function EncounterLibrary() {
         liveCombatId: running?.id ?? null,
         participants: participantSummary(entries),
         creatures: creatureCount(encounter),
-        difficulty: rules.encounterDifficulty(entries, party),
+        difficulty: rules.encounterDifficulty(entries, presentParty(roster, encounter)),
       };
     });
 

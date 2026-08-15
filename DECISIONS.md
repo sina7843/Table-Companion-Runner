@@ -621,3 +621,65 @@ would have been worse than an unfinished screen. The combat runner itself is sti
 adventure, rated against the actual level 6–7 party: three trivial, three easy, two
 medium, three hard, one deadly, and three carrying the close-to-deadly warning. A list
 where everything reads the same difficulty demonstrates nothing.
+
+## TC-10 — The encounter builder
+
+**Three regions, and the rail never leaves.** Library on the left, composition in the
+middle, balance on the right, as the design specifies. The whole point of the layout is
+that adding a creature is a button on a library row and the screen never navigates, so
+building a fight is search, add, adjust, repeat. All three wrap rather than shrink, so a
+tablet stacks them instead of squeezing the roster to nothing.
+
+**Explicit buttons instead of a clickable row that contains buttons.** The design's
+library row is clickable *and* carries a plus button. Our `ListRow` renders a real
+`<button>`, and a control inside a control is invalid markup whose inner control stops
+reaching the keyboard. So each row is static and carries two icon buttons — read the stat
+block, add it. The click count the design cares about is unchanged and the keyboard path
+is real rather than nominal.
+
+**The composition rules are pure functions.** `composition.ts` holds add, patch, remove,
+present and merge as transforms of a template, and the component only decides when to call
+them. Quantity is clamped there, not in the input, so a typed `999` and a held-down
+stepper land in the same place. Ten tests cover them; testing this through the component
+would have needed a DOM harness this project does not have.
+
+**Every edit goes through a ref.** The shared context panel keeps whatever JSX it was
+handed, so a handler closing over `draft` writes a stale roster the second time a DM uses
+it — add two creatures from the panel and the first one vanishes. `draftRef` is updated
+inside the same call that sets state, so the panel's Add button is always writing to the
+current roster.
+
+**Create writes immediately, then takes over its own URL.** `/dm/encounters/new` inserts an
+"Untitled encounter" and replaces itself with `/dm/encounters/:id/edit`. The design's empty
+state reads `Draft · autosaved`, and autosave needs an id. The cost is a stray template if
+a DM opens the builder and leaves at once, which is the same trade the monster clone makes.
+
+**Both immediate writes are now guarded against React's double effect.** StrictMode invokes
+the loading effect twice in development, so opening the builder created two encounters and
+opening a clone created two monsters. Both call sites now hold the in-flight promise in a
+ref — the sibling bug in `MonsterEditor` is fixed in the same change rather than left for
+the next person to find.
+
+**Absence is stored, not presence.** `EncounterTemplate.absentCharacterIds` means a
+character who joins the campaign next week is in every prepared fight without the DM
+reopening twelve templates. Difficulty rates against whoever is left, which is the only
+reason the number is trustworthy, and `startFromTemplate` skips them.
+
+**Location is a text field with a datalist, not a select.** The design shows a `Select` over
+the campaign's known places, but a DM naming a new room has to be able to type it. A native
+`<input list>` gives the same suggestions and still accepts anything, with no new component
+and no dead end.
+
+**No drag-and-drop.** The prompt allows it and forbids requiring it; the design says the
+same. Roster order carries no meaning — initiative decides turn order, not this list — so
+dragging would be a second way to do nothing. Skipped rather than built and ignored.
+
+**Three new design-system adapters.** `NumberInput`, `Switch` and `SegmentedControl`, plus
+`icon` on `SectionHeader` and a forwarded `ref` on `TextInput`. The CSS for all of them was
+already vendored from the approved source; these are the typed, accessible wrappers the
+builder needed, and nothing about the visual contract changed.
+
+**What the design shows and this does not.** The "Group identical" toggle: grouping is the
+only state with data behind it, and an expanded view would render N identical rows with
+nothing per-creature to edit. It arrives when combat instances carry per-participant names
+and initiative, which is TC-11.

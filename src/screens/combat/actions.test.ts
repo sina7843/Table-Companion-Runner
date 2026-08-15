@@ -12,7 +12,10 @@ import {
   addCondition,
   applyDeathSave,
   applyHealth,
+  overrideHealth,
+  overrideState,
   removeCondition,
+  reopenCombat,
   revertHealth,
   setTargeted,
   targetedParticipant,
@@ -256,4 +259,86 @@ test('attack, damage, target, apply — hit points move, end to end', () => {
 
   assert.equal(combat.participants[0]?.health.current, 8, 'the target took it immediately');
   assert.equal(applied.change?.name, 'Goblin', 'and the undo can name what it will put back');
+});
+
+/* ── DM overrides and recovery ──────────────────────────────────────────────── */
+
+test('an override states the number rather than applying a delta', () => {
+  const shielded = combatant('Shielded', 'monster', {
+    health: { current: 20, max: 20, temporary: 5 },
+  });
+
+  // A delta of −8 would eat the temporary hit points first; an override does not.
+  const set = overrideHealth(fight(shielded), shielded.id, 12);
+  assert.equal(set.combat.participants[0]?.health.current, 12);
+  assert.equal(set.combat.participants[0]?.health.temporary, 5, 'temporary points are untouched');
+  assert.equal(set.change?.delta, -8, 'and it is still reversible by name');
+  assert.equal(set.concentration, null, 'stating a number is not a hit');
+});
+
+test('an override is clamped to the track it is setting', () => {
+  assert.equal(
+    overrideHealth(fight(goblin), goblin.id, 999).combat.participants[0]?.health.current,
+    20,
+  );
+  assert.equal(
+    overrideHealth(fight(goblin), goblin.id, -5).combat.participants[0]?.health.current,
+    0,
+  );
+});
+
+test('an override to zero downs a character and back up clears the tally', () => {
+  const down = overrideHealth(fight(aria), aria.id, 0).combat;
+  assert.equal(down.participants[0]?.state, 'unconscious');
+  assert.deepEqual(down.participants[0]?.deathSaves, { successes: 0, failures: 0 });
+
+  const up = overrideHealth(down, aria.id, 9).combat;
+  assert.equal(up.participants[0]?.state, 'waiting');
+  assert.equal(up.participants[0]?.deathSaves, undefined);
+});
+
+test('an override can be undone like any other change', () => {
+  const before = fight(aria);
+  const { combat, change } = overrideHealth(before, aria.id, 3);
+  assert.ok(change);
+
+  assert.deepEqual(revertHealth(combat, change).participants[0], before.participants[0]);
+});
+
+test('state can be set by hand for the cases the rules do not cover', () => {
+  const surrendered = overrideState(fight(goblin), goblin.id, 'defeated');
+  assert.equal(surrendered.participants[0]?.state, 'defeated');
+  assert.equal(surrendered.participants[0]?.health.current, 20, 'hit points are not touched');
+
+  // Putting someone back in the fight clears a tally they no longer need.
+  const knocked = overrideState(fight(aria), aria.id, 'unconscious');
+  assert.deepEqual(knocked.participants[0]?.deathSaves, { successes: 0, failures: 0 });
+  assert.equal(overrideState(knocked, aria.id, 'waiting').participants[0]?.deathSaves, undefined);
+});
+
+test('reopening an ended fight keeps everything it accumulated', () => {
+  const hurt = applyHealth(fight(goblin, aria), goblin.id, -13, rules).combat;
+  const ended: CombatInstance = {
+    ...hurt,
+    status: 'ended',
+    round: 4,
+    activeParticipantId: null,
+    endedAt: '2026-08-15T21:00:00.000Z',
+  };
+
+  const back = reopenCombat(ended);
+  assert.equal(back.status, 'live');
+  assert.equal(back.round, 4, 'the fight resumes where it stopped');
+  assert.equal(back.endedAt, undefined);
+  assert.equal(back.activeParticipantId, goblin.id);
+  assert.equal(
+    back.participants[0]?.health.current,
+    7,
+    'every hit point survives — restarting from the template would not',
+  );
+});
+
+test('reopening a fight that is not ended changes nothing', () => {
+  const live = fight(goblin);
+  assert.deepEqual(reopenCombat(live), live);
 });

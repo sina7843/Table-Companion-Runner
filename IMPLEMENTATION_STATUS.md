@@ -1065,3 +1065,65 @@ of a player log; and the log handing out copies.
 
 Player-facing combat is TC-12. The dice tray's expressions are fixed rather than derived
 from the active combatant.
+
+## TC-11c — Combat log history, correction and recovery
+
+### Log history
+
+The log region is collapsible — open at ≥1280, collapsed below — bounded to 38vh (46vh on
+short screens) and scrolling inside itself. `Show recent` / `Show all` switches between the
+last ten and the whole history; the count sits in the header. Secret entries stay in their
+own hatched DM zone.
+
+### Targeted undo
+
+Each health change is stored against the log line that recorded it, and that line offers
+`Undo 12 damage to Goblin #3`. Undo restores the exact prior track, state and death saves,
+appends a correction line, and removes itself. The dice tray repeats only the newest offer.
+
+### DM overrides
+
+`overrideHealth` sets an exact number without the ruleset's delta handling and without
+forcing a concentration save; `overrideState` sets a state by hand. Both live under an
+`Override` heading in the context panel and both are reversible.
+
+### Connection
+
+`src/app/useConnection.ts` — `live` / `reconnecting` / `offline` from the browser's
+online/offline events plus the last write outcome, with a `restored` flag that clears itself
+after four seconds. The DM shell's footer now shows it instead of a hardcoded "Live". A
+failed write shows a warning that the change is held on this device with a `Try again` that
+re-sends the pending state; recovery says "Back in sync" once.
+
+### Realtime
+
+One 900ms hit-point flash on the row that changed, via `InitiativeRow`'s new `delta` prop.
+Nothing loops.
+
+### Combat ended
+
+`src/screens/combat/CombatEnded.tsx` — rounds, combatants, standing, defeated, duration and
+roll count; every participant with their final hit points and state; the full log with
+DM-only lines marked; a link back to the untouched template; and `Reopen this combat`, which
+resumes at the round it stopped on with every hit point and condition intact.
+
+### Tablet pass
+
+Row controls take a 40px minimum below 1280px, the control bar and dice tray gain row gaps
+for legible wrapping, and the log starts collapsed so the initiative list keeps its height.
+Turn advance lives in the control bar, which wraps but never hides; HP editing, conditions
+and details are all in the context panel, which is the drawer at that width — so the
+design's container query removing the row cluster on a narrow column takes nothing away.
+
+### Tests — 178, all passing (7 new in `screens/combat/actions.test.ts`)
+
+An override stating a number rather than applying a delta and leaving temporary hit points
+alone; clamping to the track; an override to zero downing a character and back up clearing
+the tally; an override being reversible like any other change; state set by hand not
+touching hit points and clearing a tally it no longer needs; reopening keeping the round and
+every hit point; and reopening a live fight changing nothing.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (178 passing), `npm run format:check`,
+`npm run build`. Dev server serves the live fight and the ended fight.

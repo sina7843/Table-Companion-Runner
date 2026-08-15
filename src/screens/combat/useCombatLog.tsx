@@ -20,6 +20,7 @@ import {
   type GameSystemId,
   type Roll,
   type RollEvaluation,
+  type RollId,
   type RollMode,
 } from '../../domain';
 
@@ -43,8 +44,11 @@ export interface CombatLog {
     mode?: RollMode;
     secret?: boolean;
   }) => RollEvaluation;
-  /** Writes a line that is not a roll: damage applied, an undo, a condition. */
-  note: (input: { actor: string; title: string; secret?: boolean }) => void;
+  /**
+   * Writes a line that is not a roll: damage applied, an undo, a condition. Returns the
+   * id it wrote, so a caller can hang a targeted undo off that exact line.
+   */
+  note: (input: { actor: string; title: string; secret?: boolean }) => RollId;
   reload: () => void;
 }
 
@@ -103,8 +107,9 @@ export function useCombatLog(combatId: CombatInstanceId, systemId: GameSystemId)
   const note = useCallback<CombatLog['note']>(
     ({ actor, title, secret }) => {
       sequence += 1;
+      const noteId = id<'Roll'>(`r-note-${sequence}`);
       append({
-        id: id<'Roll'>(`r-note-${sequence}`),
+        id: noteId,
         combatId,
         actor,
         title,
@@ -119,6 +124,7 @@ export function useCombatLog(combatId: CombatInstanceId, systemId: GameSystemId)
         visibility: secret ? 'dm-only' : 'party',
         at: new Date().toISOString(),
       });
+      return noteId;
     },
     [append, combatId],
   );

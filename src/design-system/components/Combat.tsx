@@ -197,6 +197,11 @@ export interface InitiativeRowProps {
   /** Present in the DM's order, absent from every player device. */
   dmOnly?: boolean;
   deathSaves?: { successes: number; failures: number };
+  /**
+   * Fires the design's one-pass hit-point flash. Set it for the change, clear it after —
+   * the row must notice a realtime change without animating at the DM continuously.
+   */
+  delta?: 'damage' | 'healing';
   /** `ConditionChip`s. Four fit before the row wraps. */
   conditions?: ReactNode;
   /** Row controls. Hidden by the design's own container query below 560px. */
@@ -238,6 +243,7 @@ export function InitiativeRow({
   targeted,
   dmOnly,
   deathSaves,
+  delta,
   conditions,
   actions,
   onOpen,
@@ -320,7 +326,7 @@ export function InitiativeRow({
       </span>
 
       <span className="tc-init__trail">
-        <HPBar current={current} max={max} temp={temp} />
+        <HPBar current={current} max={max} temp={temp} delta={delta} />
         {actions && (
           <span
             className="tc-init__actions"

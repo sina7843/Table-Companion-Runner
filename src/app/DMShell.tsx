@@ -13,6 +13,7 @@ import { ContextPanel } from './ContextPanel';
 import { ContextPanelProvider, useContextPanel } from './panelContext';
 import { campaignNavGroups, globalNavGroups } from './nav';
 import { BP, useMediaQuery } from './useMediaQuery';
+import { useConnection } from './useConnection';
 
 /** True when `to` is the current route, or an ancestor of it unless `end` is set. */
 function isActivePath(pathname: string, to: string, end?: boolean): boolean {
@@ -29,6 +30,7 @@ function isActivePath(pathname: string, to: string, end?: boolean): boolean {
  */
 function DMShellInner() {
   const isDesktop = useMediaQuery(BP.xl);
+  const connection = useConnection();
   const { content, close } = useContextPanel();
   const { pathname } = useLocation();
 
@@ -61,7 +63,8 @@ function DMShellInner() {
             </span>
           )
         }
-        footer={isDesktop ? <ConnectionStatus state="live" /> : undefined}
+        // Reported, not asserted: the shell used to claim Live whatever was true.
+        footer={isDesktop ? <ConnectionStatus state={connection.state} /> : undefined}
       >
         {/*
           A live combat pins itself to the top of the sidebar for its duration. That needs

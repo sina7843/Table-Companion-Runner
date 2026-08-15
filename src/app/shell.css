@@ -216,9 +216,19 @@
   flex: none;
   display: flex;
   flex-direction: column;
-  max-height: 40vh;
   border-top: 1px solid var(--color-border-default);
   background: var(--color-surface-primary);
+}
+/* Collapsed, the log is a header and a tray — a handful of pixels rather than a third of
+   the screen. Open, it takes a bounded share and scrolls inside itself, so the initiative
+   list never loses more height than the DM asked it to. */
+.tc-rolllog[data-open='true'] {
+  max-height: 38vh;
+}
+@media (max-height: 820px) {
+  .tc-rolllog[data-open='true'] {
+    max-height: 46vh;
+  }
 }
 .tc-rolllog__body {
   flex: 1;
@@ -238,4 +248,31 @@
   padding: var(--space-8) var(--space-16);
   border-top: 1px solid var(--color-border-subtle);
   background: var(--color-surface-secondary);
+}
+
+/* ── Tablet combat ──────────────────────────────────────────────────────────
+   Below the docked-panel breakpoint the workspace is narrower and the DM is
+   touching the screen. Three things follow.
+
+   1. Row controls grow to a 44px touch target. The design's container query
+      still hides them when the column is genuinely too narrow, and everything
+      they do is also in the context panel — which is the drawer at this width,
+      so nothing becomes unreachable.
+   2. The control bar's turn buttons stay full size and keep their own row when
+      the bar wraps, because Next Turn is pressed more than anything else here.
+   3. The dice tray wraps rather than scrolling sideways. */
+@media (max-width: 1279px) {
+  .tc-init__actions .tc-iconbtn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .tc-combatbar {
+    row-gap: var(--space-8);
+  }
+  .tc-combatbar .tc-btn {
+    min-height: 40px;
+  }
+  .tc-dicetray {
+    row-gap: var(--space-8);
+  }
 }

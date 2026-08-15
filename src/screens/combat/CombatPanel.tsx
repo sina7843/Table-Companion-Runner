@@ -13,6 +13,7 @@ import {
   Button,
   ConditionChip,
   HPControl,
+  NumberInput,
   SectionHeader,
   type ConditionTone,
 } from '../../design-system';
@@ -31,6 +32,9 @@ export interface CombatPanelProps {
   monster: Monster | null;
   character: Character | null;
   onApplyHealth: (delta: number) => void;
+  /** The DM stating a number, rather than a delta the rules interpret. */
+  onSetHealth: (current: number) => void;
+  onSetState: (state: CombatParticipant['state']) => void;
   onToggleCondition: (definition: ConditionDefinition) => void;
   onDeathSave: () => void;
   onRoll: (title: string, expression: string) => void;
@@ -42,6 +46,8 @@ export function CombatPanel({
   monster,
   character,
   onApplyHealth,
+  onSetHealth,
+  onSetState,
   onToggleCondition,
   onDeathSave,
   onRoll,
@@ -58,6 +64,54 @@ export function CombatPanel({
         temp={participant.health.temporary}
         onApply={onApplyHealth}
       />
+
+      {/*
+        The override, kept below the ordinary control and visibly separate from it. This is
+        the DM saying what the number is when the arithmetic went somewhere they did not
+        intend — a correction, not a rules operation.
+      */}
+      <section>
+        <SectionHeader sub title="Override" />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-8)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: 'var(--font-size-12)', color: 'var(--color-text-tertiary)' }}>
+            Set hit points to
+          </span>
+          <NumberInput
+            value={participant.health.current}
+            min={0}
+            max={participant.health.max}
+            width={56}
+            ariaLabel={`Set ${participant.name} hit points`}
+            onChange={onSetHealth}
+          />
+          {participant.state === 'defeated' || participant.state === 'unconscious' ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="arrow-counter-clockwise"
+              onClick={() => onSetState('waiting')}
+            >
+              Back in the fight
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="destructive-quiet"
+              icon="skull"
+              onClick={() => onSetState('defeated')}
+            >
+              Mark defeated
+            </Button>
+          )}
+        </div>
+      </section>
 
       {/*
         Death saves sit directly under the hit points, because that is the only place a

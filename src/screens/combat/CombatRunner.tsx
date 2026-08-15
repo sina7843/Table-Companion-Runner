@@ -12,7 +12,7 @@
  * the only carrier. `Next · Goblin #2` is spelled out so the DM can queue what they say
  * next while still resolving this turn.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Alert,
@@ -33,6 +33,7 @@ import {
   type ConditionTone,
 } from '../../design-system';
 import { DMPage } from '../../app/DMShell';
+import { BP, useMediaQuery } from '../../app/useMediaQuery';
 import { useContextPanel } from '../../app/panelContext';
 import { monsterEyebrow } from '../monsters/MonsterSheet';
 import {
@@ -51,6 +52,8 @@ import {
   addCondition,
   applyDeathSave,
   applyHealth,
+  overrideHealth,
+  overrideState,
   removeCondition,
   revertHealth,
   setTargeted,
@@ -98,7 +101,7 @@ const CHIPS_ON_A_ROW = 4;
  * through rather than removed, because it is still part of what the table may check. A
  * note is not a roll and does not pretend to have a number.
  */
-function LogLine({ roll }: { roll: Roll }) {
+function LogLine({ roll, undo }: { roll: Roll; undo?: { label: string; run: () => void } }) {
   const time = roll.at.slice(11, 16);
 
   if (roll.dice.length === 0) {
@@ -106,6 +109,7 @@ function LogLine({ roll }: { roll: Roll }) {
       <div
         style={{
           display: 'flex',
+          alignItems: 'center',
           gap: 'var(--space-8)',
           fontSize: 'var(--font-size-12)',
           color: 'var(--color-text-secondary)',
@@ -114,9 +118,18 @@ function LogLine({ roll }: { roll: Roll }) {
         <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-tertiary)' }}>
           {time}
         </span>
-        <span>
+        <span style={{ flex: 1, minWidth: 0 }}>
           <strong>{roll.actor}</strong> · {roll.title}
         </span>
+        {/*
+          The undo lives on the line it reverses and says what it will put back, so a DM
+          correcting the third-from-last change never has to guess which one fires.
+        */}
+        {undo && (
+          <Button size="sm" variant="tertiary" icon="arrow-counter-clockwise" onClick={undo.run}>
+            {undo.label}
+          </Button>
+        )}
       </div>
     );
   }
@@ -155,12 +168,43 @@ export function CombatRunner({
 }: CombatRunnerProps) {
   const { show, close } = useContextPanel();
   const log = useCombatLog(combat.id, rules.system.id);
+  const isDesktop = useMediaQuery(BP.xl);
 
   const [selected, setSelected] = useState<string | null>(null);
   const [editing, setEditing] = useState<CombatParticipant | null>(null);
   const [amount, setAmount] = useState(5);
   const [secret, setSecret] = useState(false);
-  const [undoable, setUndoable] = useState<HealthChange | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const [logOpen, setLogOpen] = useState(isDesktop);
+  /**
+   * Health changes that can still be put back, keyed by the log line that recorded them.
+   *
+   * A map rather than a single slot: the design forbids a global stack a DM fires blind,
+   * but correcting the change before last is a real thing that happens at a table. Each
+   * one is offered on its own line, by name, and disappears once it has been used.
+   */
+  const [reversible, setReversible] = useState<Record<string, HealthChange>>({});
+  /**
+   * The row that just changed, for one pass of the design's hit-point flash.
+   *
+   * A single 900ms flash rather than anything that loops: a roll happens too often to be
+   * an event, and a list that pulses all session is a list a DM stops reading.
+   */
+  const [flash, setFlash] = useState<{ id: string; kind: 'damage' | 'healing' } | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flashRow = (participantId: string, kind: 'damage' | 'healing') => {
+    setFlash({ id: participantId, kind });
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(null), 900);
+  };
+
+  useEffect(
+    () => () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    },
+    [],
+  );
 
   // The panel is shared, so a stat block must not follow the DM onto the next screen.
   useEffect(() => close, [close]);
@@ -206,13 +250,15 @@ export function CombatRunner({
     if (!outcome.change) return;
 
     onChange(outcome.combat);
-    setUndoable(outcome.change);
 
     const moved = Math.abs(delta);
-    log.note({
+    const change = outcome.change;
+    const line = log.note({
       actor,
-      title: `${delta < 0 ? `${moved} damage to` : `${moved} healing to`} ${outcome.change.name}`,
+      title: `${delta < 0 ? `${moved} damage to` : `${moved} healing to`} ${change.name}`,
     });
+    setReversible((current) => ({ ...current, [line]: change }));
+    flashRow(participantId, delta < 0 ? 'damage' : 'healing');
 
     // A hit on someone concentrating forces a save. It is rolled here rather than
     // queued behind a dialog, because a prompt the DM has to dismiss is a prompt they
@@ -253,6 +299,19 @@ export function CombatRunner({
     if (isDamage && target) {
       changeHealth(target.id, -evaluated.total, actor);
     }
+  };
+
+  /** A DM override: the number becomes what they say, and it is still reversible. */
+  const setHealthExactly = (participantId: ParticipantId, current: number, actor: string) => {
+    const outcome = overrideHealth(combat, participantId, current);
+    if (!outcome.change || outcome.change.delta === 0) return;
+
+    onChange(outcome.combat);
+    const line = log.note({
+      actor: 'Override',
+      title: `${actor} set to ${current} hit points`,
+    });
+    setReversible((held) => ({ ...held, [line]: outcome.change! }));
   };
 
   const rollDeathSave = (participant: CombatParticipant) => {
@@ -309,6 +368,11 @@ export function CombatRunner({
             monster={creature}
             character={character}
             onApplyHealth={(delta) => changeHealth(participant.id, delta, participant.name)}
+            onSetHealth={(current) => setHealthExactly(participant.id, current, participant.name)}
+            onSetState={(state) => {
+              onChange(overrideState(combat, participant.id, state));
+              log.note({ actor: 'Override', title: `${participant.name} set to ${state}` });
+            }}
             onToggleCondition={(definition) =>
               onChange(
                 participant.conditions.some((entry) => entry.key === definition.key)
@@ -337,6 +401,38 @@ export function CombatRunner({
     // `paint` closes over this render's combat, which is precisely the point.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [combat, selected]);
+
+  /**
+   * The undo offered against one log line, or nothing if it has already been used.
+   *
+   * Reversing appends a correction rather than deleting the line it corrects: the log is a
+   * history a DM may read back at the end of a session, so it only ever grows.
+   */
+  const undoFor = (entry: Roll) => {
+    const change = reversible[entry.id];
+    if (!change) return undefined;
+
+    const moved = Math.abs(change.delta);
+    const direction = change.delta < 0 ? 'damage to' : 'healing to';
+
+    return {
+      label: `Undo ${moved} ${direction} ${change.name}`,
+      run: () => {
+        onChange(revertHealth(combat, change));
+        log.note({ actor: 'Correction', title: `Undid ${moved} ${direction} ${change.name}` });
+        setReversible((current) => {
+          const next = { ...current };
+          delete next[entry.id];
+          return next;
+        });
+      },
+    };
+  };
+
+  // The newest entry that can still be put back, for the tray's own shortcut.
+  const latestUndo = [...log.party, ...log.secret]
+    .map(undoFor)
+    .find((entry) => entry !== undefined);
 
   const rowActions = (participant: CombatParticipant, position: number) => (
     <>
@@ -508,6 +604,7 @@ export function CombatRunner({
                   participant.visibility === 'dm-only' || participant.visibility === 'private'
                 }
                 deathSaves={participant.deathSaves}
+                delta={flash?.id === participant.id ? flash.kind : undefined}
                 sub={[participant.subtitle, armourOf(participant)].filter(Boolean).join(' · ')}
                 conditions={
                   <>
@@ -530,46 +627,94 @@ export function CombatRunner({
         </div>
 
         {/* ── Roll log and dice tray ───────────────────────────────────────── */}
-        <div className="tc-rolllog">
+        <div className="tc-rolllog" data-open={logOpen ? 'true' : undefined}>
           <div style={{ padding: 'var(--space-10) var(--space-16) 0' }}>
             <SectionHeader
               sub
               title="Roll log"
-              actions={<Switch checked={secret} onChange={setSecret} label="Roll secretly" />}
+              eyebrow={`${log.party.length + log.secret.length} entries`}
+              actions={
+                <>
+                  {logOpen && (
+                    <>
+                      <Switch checked={secret} onChange={setSecret} label="Roll secretly" />
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        onClick={() => setShowAll((open: boolean) => !open)}
+                      >
+                        {showAll ? 'Show recent' : 'Show all'}
+                      </Button>
+                    </>
+                  )}
+                  {/*
+                    The log is informative but secondary: on a tablet it starts collapsed so
+                    the initiative order keeps the height, and the DM opens it when they
+                    want to read back rather than having it take a third of the screen.
+                  */}
+                  <IconButton
+                    icon={logOpen ? 'caret-down' : 'caret-up'}
+                    size="sm"
+                    label={logOpen ? 'Collapse the roll log' : 'Open the roll log'}
+                    onClick={() => setLogOpen((open: boolean) => !open)}
+                  />
+                </>
+              }
             />
           </div>
 
-          <div className="tc-rolllog__body">
-            {/*
-              Secret rolls live inside a hatched DM zone with a written header, not behind
-              a small eye icon: the hatch, the violet edge and the words all say the same
-              thing, so a DM can tell from across a table whether what they are about to
-              read aloud was ever visible to the party.
-            */}
-            {log.secret.length > 0 && (
-              <div className="tc-dmzone" style={{ padding: 'var(--space-10)' }}>
-                <span className="tc-dmzone__label">
-                  <Icon name="eye-slash" size={11} />
-                  DM only — not sent to players
+          {logOpen && (
+            <div className="tc-rolllog__body">
+              {/*
+                Secret rolls live inside a hatched DM zone with a written header, not behind
+                a small eye icon: the hatch, the violet edge and the words all say the same
+                thing, so a DM can tell from across a table whether what they are about to
+                read aloud was ever visible to the party.
+              */}
+              {log.secret.length > 0 && (
+                <div className="tc-dmzone" style={{ padding: 'var(--space-10)' }}>
+                  <span className="tc-dmzone__label">
+                    <Icon name="eye-slash" size={11} />
+                    DM only — not sent to players
+                  </span>
+                  {(showAll ? log.secret : log.secret.slice(0, 4)).map((entry) => (
+                    <LogLine key={entry.id} roll={entry} undo={undoFor(entry)} />
+                  ))}
+                </div>
+              )}
+
+              {(showAll ? log.party : log.party.slice(0, 10)).map((entry) => (
+                <LogLine key={entry.id} roll={entry} undo={undoFor(entry)} />
+              ))}
+
+              {!showAll && log.party.length > 10 && (
+                <button
+                  type="button"
+                  className="tc-linkish"
+                  onClick={() => setShowAll(true)}
+                  style={{
+                    alignSelf: 'flex-start',
+                    background: 'none',
+                    border: 0,
+                    padding: 0,
+                    font: 'inherit',
+                    color: 'var(--color-text-link)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {log.party.length - 10} earlier entries
+                </button>
+              )}
+
+              {log.party.length === 0 && log.secret.length === 0 && (
+                <span
+                  style={{ fontSize: 'var(--font-size-12)', color: 'var(--color-text-tertiary)' }}
+                >
+                  Nothing rolled yet. Every roll in this fight is recorded here.
                 </span>
-                {log.secret.slice(0, 6).map((entry) => (
-                  <LogLine key={entry.id} roll={entry} />
-                ))}
-              </div>
-            )}
-
-            {log.party.slice(0, 12).map((entry) => (
-              <LogLine key={entry.id} roll={entry} />
-            ))}
-
-            {log.party.length === 0 && log.secret.length === 0 && (
-              <span
-                style={{ fontSize: 'var(--font-size-12)', color: 'var(--color-text-tertiary)' }}
-              >
-                Nothing rolled yet. Every roll in this fight is recorded here.
-              </span>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <div className="tc-dicetray">
             <span
@@ -625,28 +770,19 @@ export function CombatRunner({
             <div style={{ flex: 1 }} />
 
             {/*
-              Undo names exactly what it will reverse, and appends a correction rather than
-              deleting the line it corrects — the log is a history a DM reads back later.
+              The most recent correction is repeated here so the fastest fix — "that was
+              wrong, put it back" — is one reach from the dice that caused it. It names its
+              target exactly as the line in the log does; there is no bare arrow anywhere.
             */}
-            {undoable && (
+            {latestUndo && (
               <Button
                 size="sm"
                 variant="tertiary"
                 icon="arrow-counter-clockwise"
                 disabled={busy}
-                onClick={() => {
-                  onChange(revertHealth(combat, undoable));
-                  log.note({
-                    actor: 'Correction',
-                    title: `Undid ${Math.abs(undoable.delta)} ${
-                      undoable.delta < 0 ? 'damage to' : 'healing to'
-                    } ${undoable.name}`,
-                  });
-                  setUndoable(null);
-                }}
+                onClick={latestUndo.run}
               >
-                Undo {Math.abs(undoable.delta)} {undoable.delta < 0 ? 'damage to' : 'healing to'}{' '}
-                {undoable.name}
+                {latestUndo.label}
               </Button>
             )}
           </div>

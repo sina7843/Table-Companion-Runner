@@ -891,3 +891,58 @@ combat route to `encounters.save`. Everything TC-10c guaranteed about the templa
 the visibility rule it will rely on. The dice tray's four expressions are fixed rather than
 derived from the active combatant's actions — the actions themselves are already rollable
 from the panel, and a tray that rebuilt itself every turn would move under the DM's hand.
+
+## TC-11c — History, correction and recovery
+
+**Undo lives on the line it reverses.** Every health change writes a log line and keeps its
+`HealthChange` against that line's id, so the log offers `Undo 12 damage to Goblin #3` on
+that exact entry. Correcting the change before last is a real thing at a table, and the
+design's rule — no global stack a DM fires blind — is satisfied because nothing here is
+ambiguous: every offer names its target, and each disappears once used. The tray repeats
+only the newest one, so the fastest fix is a reach from the dice that caused it.
+
+**Corrections stay additive.** Undoing appends a correction line rather than deleting the
+entry it corrects. `RollRepository` still has no update and no delete.
+
+**Overrides are separate from the rules.** `applyHealth` is a delta a system interprets —
+temporary hit points absorb, the value clamps. `overrideHealth` is the DM stating what the
+number is, which is a different act and lives under its own `Override` heading in the
+panel, below the ordinary control. It is still reversible, and it does not force a
+concentration save: stating a number is not a hit. `overrideState` covers what the rules do
+not — a creature that surrendered, a character ruled stable.
+
+**Reopening beats restarting.** Ending a fight one click early is a common mistake and the
+alternative recovery — start again from the template — throws away every hit point and
+condition the fight accumulated. `reopenCombat` puts it back live at the round it stopped
+on, with everything intact.
+
+**Connection state is reported, not asserted.** The shell used to render
+`<ConnectionStatus state="live" />` unconditionally, which was a lie. `useConnection` reads
+two honest signals — the browser's online/offline events and whether the last write
+succeeded — and deliberately knows nothing about a transport, because there is not one yet.
+Three states, each with a word as well as a colour.
+
+**A failed write says what is still safe.** The banner answers the design's three questions
+in order: what happened, that the fight on screen is correct and nothing is lost, and that
+`Try again` re-sends exactly what did not land. It never mentions the transport. Coming back
+says so once and then stops.
+
+**One flash, not an animation.** A changed row fires the design's 900ms hit-point pass and
+nothing loops. A roll happens too often to be an event, and a list that pulses all session
+is a list a DM stops reading.
+
+**The log is informative but secondary, which on a tablet means collapsed.** It opens by
+default at ≥1280 and collapsed below, because on a 768px-tall screen a third of the height
+is the initiative order. Open, it is bounded and scrolls inside itself; `Show all` reveals
+the whole history rather than the recent ten.
+
+**The tablet pass, specifically.** Row controls take a 44px touch target below the docked
+panel breakpoint; the control bar and the dice tray gain row gaps so wrapping is legible
+rather than cramped; and the design's own container query still removes the row cluster when
+the column is genuinely too narrow — safe here because everything it does is also in the
+context panel, which is the drawer at that width. Turn advance never moves: it is in the
+control bar, which wraps but never hides.
+
+**The ended state is an after-action screen.** Rounds, combatants, who is standing, how long
+it took, how many rolls, then the participants with their final hit points and the full log
+with its DM-only lines marked. Plus the link back to the template, still exactly as prepared.

@@ -12,16 +12,9 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import {
-  Alert,
-  Badge,
-  Button,
-  EmptyState,
-  ListRow,
-  SectionHeader,
-  Skeleton,
-} from '../../design-system';
+import { Alert, Button, EmptyState, Skeleton } from '../../design-system';
 import { DMPage } from '../../app/DMShell';
+import { useConnection } from '../../app/useConnection';
 import {
   CURRENT_USER_ID,
   requireRuleset,
@@ -31,14 +24,16 @@ import {
   type CombatInstanceId,
   type Monster,
 } from '../../domain';
+import { CombatEnded } from './CombatEnded';
 import { CombatRunner } from './CombatRunner';
 import { CombatSetup } from './CombatSetup';
-import { groupParticipants } from './setup';
+import { reopenCombat } from './actions';
 
 export function CombatScreen() {
   const { combatId } = useParams();
   const { campaigns, characters, combats, encounters, monsters } = useRepositories();
 
+  const connection = useConnection();
   const [combat, setCombat] = useState<CombatInstance | null>(null);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -77,22 +72,39 @@ export function CombatScreen() {
   // Runtime edits write straight through: initiative and who is present are not a draft,
   // and a debounce here would mean a fight that started before its roster was saved.
   const inFlight = useRef(0);
-  const change = (next: CombatInstance) => {
-    setCombat(next);
+  /** The newest state, kept so a recovery re-sends what the failed write was carrying. */
+  const pending = useRef<CombatInstance | null>(null);
+
+  const write = (next: CombatInstance) => {
     setBusy(true);
     inFlight.current += 1;
+    pending.current = next;
+
     void combats.save(next).then(
       () => {
         inFlight.current -= 1;
         if (inFlight.current === 0) setBusy(false);
+        pending.current = null;
         setFailure(null);
+        connection.reportSuccess();
       },
       (error: unknown) => {
         inFlight.current -= 1;
         if (inFlight.current === 0) setBusy(false);
+        // The fight is not lost: local state still holds it, and Try again re-sends.
         setFailure(error instanceof Error ? error.message : 'That change was not saved.');
+        connection.reportFailure();
       },
     );
+  };
+
+  const change = (next: CombatInstance) => {
+    setCombat(next);
+    write(next);
+  };
+
+  const retry = () => {
+    if (pending.current) write(pending.current);
   };
 
   if (loaded.status === 'loading') {
@@ -147,16 +159,43 @@ export function CombatScreen() {
     );
   }
 
+  /**
+   * What happened, what is still safe, what to do next — in that order, and never a word
+   * about the transport. A failed write has not lost the fight: it is on screen, and Try
+   * again re-sends exactly what did not land.
+   */
+  const status = (
+    <>
+      {failure && (
+        <div className="tc-page" style={{ paddingBottom: 0 }}>
+          <Alert
+            tone="warning"
+            icon="cloud-slash"
+            title="That change is held on this device"
+            actions={
+              <Button size="sm" variant="secondary" icon="arrow-clockwise" onClick={retry}>
+                Try again
+              </Button>
+            }
+          >
+            {failure} The fight on screen is correct and nothing has been lost.
+          </Alert>
+        </div>
+      )}
+      {!failure && connection.restored && (
+        <div className="tc-page" style={{ paddingBottom: 0 }}>
+          <Alert tone="success" icon="check">
+            Back in sync. Everything you changed while it was down has been saved.
+          </Alert>
+        </div>
+      )}
+    </>
+  );
+
   if (combat.status === 'preparing') {
     return (
       <>
-        {failure && (
-          <div className="tc-page" style={{ paddingBottom: 0 }}>
-            <Alert tone="danger" title="That change was not saved">
-              {failure}
-            </Alert>
-          </div>
-        )}
+        {status}
         <CombatSetup
           combat={combat}
           systemId={loaded.data.systemId}
@@ -174,13 +213,7 @@ export function CombatScreen() {
   if (combat.status === 'live') {
     return (
       <>
-        {failure && (
-          <div className="tc-page" style={{ paddingBottom: 0 }}>
-            <Alert tone="danger" title="That change was not saved">
-              {failure}
-            </Alert>
-          </div>
-        )}
+        {status}
         <CombatRunner
           combat={combat}
           rules={requireRuleset(loaded.data.systemId)}
@@ -194,41 +227,17 @@ export function CombatScreen() {
     );
   }
 
-  // Ended. The roll log and the after-action summary are TC-11b; what is true right now
-  // is who was in it and in what order.
-  const groups = groupParticipants(combat);
-
   return (
-    <DMPage
-      eyebrow={[loaded.data.campaign?.name, combat.location].filter(Boolean).join(' · ')}
-      title={combat.name}
-      actions={<Badge tone="neutral">Ended</Badge>}
-    >
-      <div className="tc-page">
-        {loaded.data.template && (
-          <Alert tone="info" icon="info">
-            This fight came from <strong>{loaded.data.template.name}</strong>. Nothing that happened
-            here changed that template.
-          </Alert>
-        )}
-
-        <section>
-          <SectionHeader
-            title="Turn order"
-            icon="sword"
-            eyebrow={`${combat.participants.length} combatants · ${combat.round} rounds`}
-          />
-          {groups.map((group) => (
-            <ListRow
-              key={group.key}
-              static
-              title={group.name}
-              meta={group.members[0]?.subtitle}
-              trailing={<span className="tc-init__init">{group.initiative ?? '—'}</span>}
-            />
-          ))}
-        </section>
-      </div>
-    </DMPage>
+    <>
+      {status}
+      <CombatEnded
+        combat={combat}
+        campaign={loaded.data.campaign}
+        template={loaded.data.template}
+        systemId={loaded.data.systemId}
+        onReopen={() => change(reopenCombat(combat))}
+        busy={busy}
+      />
+    </>
   );
 }

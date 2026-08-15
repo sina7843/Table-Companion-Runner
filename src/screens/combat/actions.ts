@@ -115,12 +115,17 @@ export function applyHealth(
 
 /** Puts a health track back exactly as it was. Undo restores, it does not recompute. */
 export function revertHealth(combat: CombatInstance, change: HealthChange): CombatInstance {
-  return patch(combat, change.participantId, (entry) => ({
-    ...entry,
-    health: { ...change.before },
-    state: change.beforeState,
-    deathSaves: change.beforeSaves ? { ...change.beforeSaves } : undefined,
-  }));
+  return patch(combat, change.participantId, (entry) => {
+    // The key is dropped rather than set to undefined, so a reverted participant is the
+    // same shape as one that never had a tally — not one carrying an empty slot.
+    const { deathSaves: _discarded, ...rest } = entry;
+    return {
+      ...rest,
+      health: { ...change.before },
+      state: change.beforeState,
+      ...(change.beforeSaves ? { deathSaves: { ...change.beforeSaves } } : {}),
+    };
+  });
 }
 
 /**
@@ -219,4 +224,98 @@ export function applyDeathSave(
   }));
 
   return { combat: next, outcome: result.outcome, revived: result.revivedAt !== undefined };
+}
+
+/* ── DM overrides ───────────────────────────────────────────────────────────── */
+
+/**
+ * Sets hit points to an exact number.
+ *
+ * Distinct from `applyHealth` on purpose: that one is a delta a rules system interprets —
+ * temporary hit points absorb, the value clamps. This is the DM saying what the number is,
+ * which is the correction path when the arithmetic went somewhere they did not intend.
+ */
+export function overrideHealth(
+  combat: CombatInstance,
+  participantId: ParticipantId,
+  current: number,
+): HealthOutcome {
+  const participant = combat.participants.find((entry) => entry.id === participantId);
+  if (!participant) return { combat, change: null, concentration: null };
+
+  const clamped = Math.max(0, Math.min(participant.health.max, Math.round(current)));
+  const health = { ...participant.health, current: clamped };
+  const state = stateAfter(participant, health);
+
+  return {
+    combat: patch(combat, participantId, (entry) => ({
+      ...entry,
+      health,
+      state,
+      ...(clamped > 0
+        ? { deathSaves: undefined }
+        : state === 'unconscious' && !entry.deathSaves
+          ? { deathSaves: { successes: 0, failures: 0 } }
+          : {}),
+    })),
+    change: {
+      participantId,
+      name: participant.name,
+      delta: clamped - participant.health.current,
+      before: { ...participant.health },
+      beforeSaves: participant.deathSaves ? { ...participant.deathSaves } : undefined,
+      beforeState: participant.state,
+    },
+    // An override is the DM stating a number, not a hit. Nothing concentrates on that.
+    concentration: null,
+  };
+}
+
+/**
+ * Sets a combatant's state by hand.
+ *
+ * The rules decide what zero hit points means; this is for the cases they do not cover —
+ * a creature that surrendered, a character the DM has ruled stable, a mistake.
+ */
+export function overrideState(
+  combat: CombatInstance,
+  participantId: ParticipantId,
+  state: CombatParticipant['state'],
+): CombatInstance {
+  return patch(combat, participantId, (entry) => ({
+    ...entry,
+    state,
+    ...(state === 'unconscious' && !entry.deathSaves
+      ? { deathSaves: { successes: 0, failures: 0 } }
+      : state === 'waiting' || state === 'active'
+        ? { deathSaves: undefined }
+        : {}),
+  }));
+}
+
+/**
+ * Puts an ended fight back on its feet.
+ *
+ * Ending a combat by mistake is a common one, and the alternative — start again from the
+ * template — loses every hit point and condition the fight had accumulated. The round it
+ * was on is kept; the turn goes back to whoever held it or to the top.
+ */
+export function reopenCombat(combat: CombatInstance): CombatInstance {
+  if (combat.status !== 'ended') return combat;
+
+  const first =
+    combat.participants.find((entry) => entry.state !== 'defeated') ?? combat.participants[0];
+
+  return {
+    ...combat,
+    status: 'live',
+    round: Math.max(1, combat.round),
+    activeParticipantId: first?.id ?? null,
+    participants: combat.participants.map((entry) =>
+      entry.state === 'defeated' || entry.state === 'unconscious'
+        ? entry
+        : { ...entry, state: entry.id === first?.id ? 'active' : 'waiting' },
+    ),
+    endedAt: undefined,
+  };
 }

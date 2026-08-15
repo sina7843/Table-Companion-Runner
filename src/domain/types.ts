@@ -216,6 +216,14 @@ export interface Monster {
   challengeLabel: string;
   /** Sort key for difficulty, so generic list code can order without understanding CR. */
   challengeRank: number;
+  /** Where the record came from, e.g. "Monster Manual" or the owner's name. A column. */
+  source: string;
+  /**
+   * Named, multi-valued tags the active ruleset defines — creature type, size,
+   * environment. The core never interprets a key or a value; it filters and groups by
+   * them, which is what lets one library screen serve any system's taxonomy.
+   */
+  facets: Readonly<Record<string, string[]>>;
   attributes: Attribute[];
   health: HealthTrack;
   derived: DerivedValue[];

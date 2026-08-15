@@ -405,3 +405,51 @@ API TC-13 defines.
 **Confirming a level up computes the advanced character but does not save it**, for the
 same reason. `applyLevelUp()` runs and is tested; persisting its result is one call away.
 Both are marked in the code rather than left to be discovered.
+
+---
+
+## TC-08a — Monster library
+
+**A table, not a card grid.** The design says it outright and gives the reason: a DM
+comparing four candidates is comparing numbers, and numbers compare in columns. Name,
+type, size, CR, AC, HP and source in aligned columns at compact density, sorted by
+difficulty descending — a DM picking an opponent shops downward from "too hard".
+
+**Filters are generic, declared by the ruleset.** `Monster` gained `facets` — named,
+multi-valued tags the core never interprets — and `Ruleset.monsterFacets()` declares which
+are worth filtering by and which is `primary`. The filter bar renders what the ruleset
+declares, so a system with different creature taxonomy gets working filters without the
+screen changing. Values within a facet are OR-ed and facets are AND-ed: adding a second
+type widens, adding a size narrows.
+
+**Progressive, as specified.** Creature type and the difficulty range do most of the work
+and are visible; size, environment and source sit behind "More filters". Every applied
+filter becomes a dismissible chip, and the result count is stated in words above the
+table, so what is narrowing the list is never hidden.
+
+**Homebrew is badged in place, not filed apart.** The design's reasoning: a DM searching
+for a goblin should find their edited goblin next to the printed one, because the
+distinction matters for trust rather than for navigation. `source` is a column; homebrew
+carries a brass badge and names its owner rather than a book. It can still be isolated
+from "More filters" when a DM wants only their own.
+
+**The panel is the sheet.** There is no monster page to navigate to. Selecting a row fills
+the TC-02 context panel with the full stat block and its three primary actions — add,
+clone, roll hit points — so preparation never leaves the screen. Opened from combat later,
+the identical panel appears.
+
+**The library is a compact table, not fifty objects.** `monsterLibrary.ts` holds reference
+data as rows with the same eight fields repeated, expanded by `toMonsters()`. Shorter to
+read and much harder to get inconsistent than one hand-written object per creature. 50
+creatures spanning CR 1/8 to 23 and every creature type, so the filters, the sort and the
+long-list behaviour are exercised against something that looks real.
+
+**Search reaches the subtitle**, so "goblinoid" and "dragon" find what a DM means, not only
+exact-name matches.
+
+### Not in this slice
+
+Clone and create-custom are routed and linked but land in TC-08b. "Add to encounter" needs
+an encounter to add to, which is TC-10. Both are visible affordances rather than hidden
+ones, because the design shows them on this screen — but neither is wired to a mutation
+yet, and nothing pretends otherwise.

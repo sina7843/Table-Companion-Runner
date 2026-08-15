@@ -6,6 +6,7 @@ import { BuilderScreen } from '../screens/builder/BuilderScreen';
 import { CharacterSheet } from '../screens/character/CharacterSheet';
 import { CharacterEdit, CharacterPrivacy } from '../screens/character/Privacy';
 import { LevelUp } from '../screens/character/LevelUp';
+import { MonsterLibrary } from '../screens/monsters/MonsterLibrary';
 import {
   CampaignCombats,
   CampaignEncounters,
@@ -19,7 +20,6 @@ import {
   DMEncounters,
   DMHome,
   DMItems,
-  DMMonsters,
   DMSpells,
   JoinCampaign,
   NewCampaign,
@@ -70,8 +70,8 @@ export const router = createBrowserRouter([
       { path: 'encounters/:encounterId', element: <DMEncounters /> },
       { path: 'characters', element: <DMCharacters /> },
 
-      { path: 'monsters', element: <DMMonsters /> },
-      { path: 'monsters/:monsterId', element: <DMMonsters /> },
+      { path: 'monsters', element: <MonsterLibrary /> },
+      { path: 'monsters/:monsterId', element: <MonsterLibrary /> },
       { path: 'spells', element: <DMSpells /> },
       { path: 'items', element: <DMItems /> },
       { path: 'campaigns', element: <CampaignList /> },

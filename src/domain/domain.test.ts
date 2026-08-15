@@ -309,11 +309,11 @@ test('repositories resolve the fixture graph', async () => {
   const encounters = await repos.encounters.listForCampaign(id<'Campaign'>('c-lmop'));
   assert.equal(encounters.length, 4);
 
+  // A substring search reaches every goblinoid, not only the one named exactly that.
   const search = await repos.monsters.list({ search: 'gob' });
-  assert.deepEqual(
-    search.map((monster) => monster.name),
-    ['Goblin'],
-  );
+  assert.ok(search.length >= 3);
+  assert.ok(search.some((monster) => monster.name === 'Goblin'));
+  assert.ok(search.some((monster) => monster.name === 'Hobgoblin'));
 });
 
 test('every fixture character resolves against its ruleset', async () => {

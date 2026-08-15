@@ -6,6 +6,7 @@
  */
 import type {
   BuilderIssue,
+  FacetDefinition,
   BuilderStepForm,
   LevelUpChange,
   LevelUpOutcome,
@@ -925,3 +926,66 @@ export function applyLevelUp(
 }
 
 export { ABILITY_LABELS };
+
+/* ── Library facets ─────────────────────────────────────────────────────────── */
+
+const CREATURE_TYPES = [
+  'Aberration',
+  'Beast',
+  'Celestial',
+  'Construct',
+  'Dragon',
+  'Elemental',
+  'Fey',
+  'Fiend',
+  'Giant',
+  'Humanoid',
+  'Monstrosity',
+  'Ooze',
+  'Plant',
+  'Undead',
+];
+
+const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'];
+
+const ENVIRONMENTS = [
+  'Arctic',
+  'Desert',
+  'Forest',
+  'Grassland',
+  'Mountain',
+  'Swamp',
+  'Underdark',
+  'Urban',
+];
+
+/**
+ * What the library can be filtered by.
+ *
+ * Type is `primary` because it and the difficulty range do most of the work; size and
+ * environment sit behind "More filters", which is the design's progressive-filtering rule.
+ */
+const asOptions = (values: string[]) => values.map((value) => ({ value, label: value }));
+
+export function monsterFacets(): FacetDefinition[] {
+  return [
+    { key: 'type', label: 'Creature type', options: asOptions(CREATURE_TYPES), primary: true },
+    { key: 'size', label: 'Size', options: asOptions(SIZES) },
+    { key: 'environment', label: 'Environment', options: asOptions(ENVIRONMENTS) },
+  ];
+}
+
+/** The challenge-rating ladder, ascending, for a range filter. */
+export function challengeScale(): { value: number; label: string }[] {
+  const fractions = [
+    { value: 0, label: '0' },
+    { value: 0.125, label: '1/8' },
+    { value: 0.25, label: '1/4' },
+    { value: 0.5, label: '1/2' },
+  ];
+  const whole = Array.from({ length: 30 }, (_, index) => index + 1).map((value) => ({
+    value,
+    label: String(value),
+  }));
+  return [...fractions, ...whole];
+}

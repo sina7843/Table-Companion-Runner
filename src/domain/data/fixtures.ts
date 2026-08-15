@@ -10,6 +10,7 @@
  * armour class are computed by the adapter at read time, so the fixtures cannot drift out
  * of step with the rules.
  */
+import { toMonsters } from './monsterLibrary.ts';
 import {
   id,
   type Campaign,
@@ -265,120 +266,15 @@ if (quill) quill.pendingLevelUp = true;
 
 /* ── Monsters ───────────────────────────────────────────────────────────────── */
 
+/**
+ * The library, plus the DM's own homebrew.
+ *
+ * Homebrew is not filed in a separate library: the design's rule is that a DM searching
+ * for a goblin should find their edited goblin next to the printed one, because the
+ * distinction matters for trust rather than for navigation.
+ */
 export const MONSTERS: Monster[] = [
-  {
-    id: id<'Monster'>('m-bugbear-chief'),
-    systemId: SYSTEM_ID,
-    name: 'Bugbear Chief',
-    subtitle: 'Medium humanoid (goblinoid), chaotic evil',
-    origin: 'library',
-    challengeLabel: 'CR 3',
-    challengeRank: 3,
-    attributes: abilities(15, 14, 13, 11, 12, 9),
-    health: { current: 33, max: 33, temporary: 0 },
-    derived: [
-      { key: 'ac', label: 'Armour class', value: 17, explanation: 'Chain shirt, shield' },
-      { key: 'speed', label: 'Speed', value: '30 ft' },
-      { key: 'initiative', label: 'Initiative', value: 2 },
-    ],
-    traits: [
-      { name: 'Brute', description: 'A melee weapon deals one extra die of damage on a hit.' },
-      {
-        name: 'Heart of Hruggek',
-        description:
-          'Advantage on saving throws against being charmed, frightened, paralysed, poisoned, stunned or knocked unconscious.',
-      },
-    ],
-    actions: [
-      {
-        name: 'Morningstar',
-        description: 'Melee weapon attack, reach 5 ft.',
-        attackBonus: '+5',
-        damage: '2d8 + 2 piercing',
-      },
-      {
-        name: 'Javelin',
-        description: 'Melee or ranged weapon attack, range 30/120 ft.',
-        attackBonus: '+5',
-        damage: '1d6 + 2 piercing',
-      },
-    ],
-    systemData: { type: 'humanoid', size: 'Medium' },
-  },
-  {
-    id: id<'Monster'>('m-goblin'),
-    systemId: SYSTEM_ID,
-    name: 'Goblin',
-    subtitle: 'Small humanoid (goblinoid), neutral evil',
-    origin: 'library',
-    challengeLabel: 'CR 1/4',
-    challengeRank: 0.25,
-    attributes: abilities(8, 14, 10, 10, 8, 8),
-    health: { current: 7, max: 7, temporary: 0 },
-    derived: [
-      { key: 'ac', label: 'Armour class', value: 15, explanation: 'Leather armour, shield' },
-      { key: 'speed', label: 'Speed', value: '30 ft' },
-      { key: 'initiative', label: 'Initiative', value: 2 },
-    ],
-    traits: [
-      {
-        name: 'Nimble Escape',
-        description: 'Takes the Disengage or Hide action as a bonus action on each of its turns.',
-      },
-    ],
-    actions: [
-      {
-        name: 'Scimitar',
-        description: 'Melee weapon attack, reach 5 ft.',
-        attackBonus: '+4',
-        damage: '1d6 + 2 slashing',
-      },
-      {
-        name: 'Shortbow',
-        description: 'Ranged weapon attack, range 80/320 ft.',
-        attackBonus: '+4',
-        damage: '1d6 + 2 piercing',
-      },
-    ],
-    systemData: { type: 'humanoid', size: 'Small' },
-  },
-  {
-    id: id<'Monster'>('m-owlbear'),
-    systemId: SYSTEM_ID,
-    name: 'Owlbear',
-    subtitle: 'Large monstrosity, unaligned',
-    origin: 'library',
-    challengeLabel: 'CR 3',
-    challengeRank: 3,
-    attributes: abilities(20, 12, 17, 3, 12, 7),
-    health: { current: 59, max: 59, temporary: 0 },
-    derived: [
-      { key: 'ac', label: 'Armour class', value: 13, explanation: 'Natural armour' },
-      { key: 'speed', label: 'Speed', value: '40 ft' },
-      { key: 'initiative', label: 'Initiative', value: 1 },
-    ],
-    traits: [
-      {
-        name: 'Keen Sight and Smell',
-        description: 'Advantage on Perception checks that rely on sight or smell.',
-      },
-    ],
-    actions: [
-      {
-        name: 'Beak',
-        description: 'Melee weapon attack, reach 5 ft.',
-        attackBonus: '+7',
-        damage: '1d10 + 5 piercing',
-      },
-      {
-        name: 'Claws',
-        description: 'Melee weapon attack, reach 5 ft.',
-        attackBonus: '+7',
-        damage: '2d8 + 5 slashing',
-      },
-    ],
-    systemData: { type: 'monstrosity', size: 'Large' },
-  },
+  ...toMonsters(),
   {
     id: id<'Monster'>('m-cragmaw-ambusher'),
     systemId: SYSTEM_ID,
@@ -386,14 +282,16 @@ export const MONSTERS: Monster[] = [
     subtitle: 'Medium humanoid (goblinoid), neutral evil',
     origin: 'homebrew',
     ownerUserId: id<'User'>('u-marta'),
+    source: 'Marta',
     challengeLabel: 'CR 1',
     challengeRank: 1,
+    facets: { type: ['Humanoid'], size: ['Medium'], environment: ['Forest'] },
     attributes: abilities(12, 16, 12, 10, 11, 9),
     health: { current: 21, max: 21, temporary: 0 },
     derived: [
-      { key: 'ac', label: 'Armour class', value: 14, explanation: 'Studded leather' },
-      { key: 'speed', label: 'Speed', value: '30 ft' },
-      { key: 'initiative', label: 'Initiative', value: 3 },
+      { key: 'ac', label: 'Armour class', value: 14 },
+      { key: 'hp', label: 'Hit points', value: 21 },
+      { key: 'challenge', label: 'Challenge', value: 'CR 1' },
     ],
     traits: [
       {
@@ -409,33 +307,7 @@ export const MONSTERS: Monster[] = [
         damage: '1d6 + 3 piercing',
       },
     ],
-    systemData: { type: 'humanoid', size: 'Medium' },
-  },
-  {
-    id: id<'Monster'>('m-adult-black-dragon'),
-    systemId: SYSTEM_ID,
-    name: 'Adult Black Dragon',
-    subtitle: 'Huge dragon, chaotic evil',
-    origin: 'library',
-    challengeLabel: 'CR 14',
-    challengeRank: 14,
-    attributes: abilities(23, 14, 21, 14, 13, 17),
-    health: { current: 195, max: 195, temporary: 0 },
-    derived: [
-      { key: 'ac', label: 'Armour class', value: 19, explanation: 'Natural armour' },
-      { key: 'speed', label: 'Speed', value: '40 ft, fly 80 ft, swim 40 ft' },
-      { key: 'initiative', label: 'Initiative', value: 2 },
-    ],
-    traits: [{ name: 'Amphibious', description: 'Can breathe air and water.' }],
-    actions: [
-      {
-        name: 'Bite',
-        description: 'Melee weapon attack, reach 10 ft.',
-        attackBonus: '+11',
-        damage: '2d10 + 6 piercing plus 1d8 acid',
-      },
-    ],
-    systemData: { type: 'dragon', size: 'Huge' },
+    systemData: { type: 'Humanoid', size: 'Medium' },
   },
 ];
 

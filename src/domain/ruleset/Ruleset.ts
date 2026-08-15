@@ -199,6 +199,23 @@ export interface SheetContent {
   resources?: ResourcePool[];
 }
 
+/* ── Library filtering ──────────────────────────────────────────────────────── */
+
+/**
+ * A filterable facet of the monster library.
+ *
+ * The library screen renders whatever the ruleset declares, so a system with different
+ * creature taxonomy gets working filters without the screen changing. `primary` marks the
+ * one or two that do most of the work and are shown before "More filters".
+ */
+export interface FacetDefinition {
+  key: string;
+  label: string;
+  options: { value: string; label: string }[];
+  /** Shown in the filter bar by default rather than behind "More filters". */
+  primary?: boolean;
+}
+
 /* ── Level up ───────────────────────────────────────────────────────────────── */
 
 /**
@@ -327,6 +344,15 @@ export interface Ruleset {
   canOverride(key: string): boolean;
 
   /* ── The character sheet ──────────────────────────────────────────────────── */
+
+  /**
+   * Facets worth filtering the creature library by, with their options. Ordered; the
+   * `primary` ones surface before "More filters".
+   */
+  monsterFacets(): FacetDefinition[];
+
+  /** Difficulty values this system uses, ascending, for a range filter. */
+  challengeScale(): { value: number; label: string }[];
 
   /** The tabs this system's sheet has, in the order a player reaches for them. */
   sheetSections(character: Character): SheetSection[];

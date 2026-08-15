@@ -45,6 +45,8 @@ import {
 } from './builder.ts';
 import {
   applyLevelUp as sheetApplyLevelUp,
+  challengeScale as sheetChallengeScale,
+  monsterFacets as sheetMonsterFacets,
   levelUpChanges as sheetLevelUpChanges,
   levelUpStepForm as sheetLevelUpStepForm,
   sheetContent as sheetContentFor,
@@ -331,6 +333,8 @@ export const dnd5e2024: Ruleset = {
 
   /* ── The character sheet and level up ───────────────────────────────────── */
 
+  monsterFacets: sheetMonsterFacets,
+  challengeScale: sheetChallengeScale,
   sheetSections: sheetSectionsFor,
   sheetContent: sheetContentFor,
   levelUpStepForm: sheetLevelUpStepForm,

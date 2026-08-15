@@ -63,6 +63,15 @@ export interface MonsterQuery {
   search?: string;
   /** Homebrew is user-owned; library content is ingested reference data. */
   origin?: Monster['origin'];
+  /**
+   * Facet key to the values that satisfy it. Values within a facet are OR-ed, facets are
+   * AND-ed — picking Dragon and Undead widens, adding a size narrows.
+   */
+  facets?: Record<string, string[]>;
+  /** Inclusive difficulty range, using `Monster.challengeRank`. */
+  challengeMin?: number;
+  challengeMax?: number;
+  sort?: 'challenge-desc' | 'challenge-asc' | 'name';
   limit?: number;
 }
 

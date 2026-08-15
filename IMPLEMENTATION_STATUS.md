@@ -556,3 +556,49 @@ privacy states against Bram's hidden inventory; a hidden section's tab disappear
 player but not the DM; the generated level-up step list; the chosen/automatic split
 producing the design's own `+9` and `No change`; and an ability score improvement reaching
 the attributes and the derived values.
+
+---
+
+## TC-08a — Monster library
+
+`/dm/monsters` and `/dm/monsters/:id`.
+
+### The table
+
+Name (with a homebrew badge), Type, Size, CR, AC, HP, Source — seven aligned columns at
+compact density, sorted by CR descending. Wide tables scroll inside their own container.
+Selecting a row opens the docked context panel; there is no separate monster page.
+
+### Filters
+
+| Surface | What |
+| --- | --- |
+| Filter bar | Search, the first four creature types, applied-filter chips, More filters |
+| More filters | Difficulty range, source (library / homebrew), and every declared facet in full |
+| Result line | "N of M · sorted by CR, descending", plus Clear filters when any are applied |
+
+Filters come from `Ruleset.monsterFacets()` — type (primary), size, environment — and
+`Ruleset.challengeScale()`. The screen names none of them itself.
+
+### States
+
+Loading (skeleton rows), no-search-results (distinct from empty, offering Clear filters),
+empty library, error with retry, and a 50-row long list.
+
+### Fixture data
+
+`monsterLibrary.ts` — 50 Monster Manual creatures spanning CR 1/8 to 23 across all 14
+creature types, written as a compact table and expanded into domain objects. Plus Marta's
+homebrew Cragmaw Ambusher, which sits in the same list.
+
+### Domain additions
+
+`Monster.source`, `Monster.facets`, `MonsterQuery.facets` / `challengeMin` / `challengeMax`
+/ `sort`, `Ruleset.monsterFacets()`, `Ruleset.challengeScale()`, `FacetDefinition`.
+
+### Tests — 72, all passing (11 new in `library.test.ts`)
+
+Library length and difficulty spread; all three sorts; subtitle search; facet OR/AND
+semantics; inclusive range filtering; filter composition; homebrew sharing the list while
+staying isolable; every creature carrying every declared facet; exactly one primary facet;
+an ascending challenge scale with fractions; and count ignoring paging.

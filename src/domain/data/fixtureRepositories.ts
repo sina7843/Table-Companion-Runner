@@ -142,11 +142,45 @@ function makeInviteCode(name: string): string {
 function matchesMonsterQuery(monster: Monster, query?: MonsterQuery): boolean {
   if (!query) return true;
   if (query.origin && monster.origin !== query.origin) return false;
+
   if (query.search) {
     const needle = query.search.trim().toLowerCase();
-    if (needle && !monster.name.toLowerCase().includes(needle)) return false;
+    // Name and subtitle both: a DM typing "goblinoid" is searching as legitimately as one
+    // typing "goblin".
+    const haystack = `${monster.name} ${monster.subtitle}`.toLowerCase();
+    if (needle && !haystack.includes(needle)) return false;
   }
+
+  if (typeof query.challengeMin === 'number' && monster.challengeRank < query.challengeMin) {
+    return false;
+  }
+  if (typeof query.challengeMax === 'number' && monster.challengeRank > query.challengeMax) {
+    return false;
+  }
+
+  // Values within a facet are OR-ed, facets are AND-ed: picking Dragon and Undead widens
+  // the result, adding a size narrows it.
+  for (const [facet, wanted] of Object.entries(query.facets ?? {})) {
+    if (wanted.length === 0) continue;
+    const held = monster.facets[facet] ?? [];
+    if (!wanted.some((value) => held.includes(value))) return false;
+  }
+
   return true;
+}
+
+function sortMonsters(monsters: Monster[], sort: MonsterQuery['sort']): Monster[] {
+  if (sort === 'name') return monsters.toSorted((a, b) => a.name.localeCompare(b.name));
+  if (sort === 'challenge-asc') {
+    return monsters.toSorted(
+      (a, b) => a.challengeRank - b.challengeRank || a.name.localeCompare(b.name),
+    );
+  }
+  // Descending by difficulty is the design's default — a DM picking an opponent is
+  // shopping downward from "too hard".
+  return monsters.toSorted(
+    (a, b) => b.challengeRank - a.challengeRank || a.name.localeCompare(b.name),
+  );
 }
 
 export function createFixtureRepositories(options: FixtureOptions = {}): Repositories {
@@ -246,8 +280,9 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
 
     monsters: {
       list: (query?: MonsterQuery) => {
-        const matched = MONSTERS.filter((monster) => matchesMonsterQuery(monster, query)).toSorted(
-          (a, b) => a.name.localeCompare(b.name),
+        const matched = sortMonsters(
+          MONSTERS.filter((monster) => matchesMonsterQuery(monster, query)),
+          query?.sort,
         );
         return resolve(query?.limit ? matched.slice(0, query.limit) : matched);
       },

@@ -19,6 +19,7 @@ export type {
   BuilderScoreSlot,
   BuilderStep,
   BuilderStepForm,
+  FacetDefinition,
   LevelUpChange,
   LevelUpOutcome,
   ReviewGroup,

@@ -327,3 +327,70 @@ test('every fixture character resolves against its ruleset', async () => {
     );
   }
 });
+
+/* ── Fixture scenarios: the states the homes must handle ────────────────────── */
+
+test('the first-time scenario has no campaigns, characters or live combat', async () => {
+  const blank = createFixtureRepositories({ scenario: 'first-time' });
+
+  assert.deepEqual(await blank.campaigns.listForUser(CURRENT_USER_ID), []);
+  assert.deepEqual(await blank.characters.listForOwner(CURRENT_USER_ID), []);
+  assert.equal(await blank.combats.liveForUser(CURRENT_USER_ID), null);
+  assert.deepEqual(await blank.recents.listForUser(CURRENT_USER_ID), []);
+  assert.deepEqual(await blank.activity.listForUser(CURRENT_USER_ID), []);
+});
+
+test('the empty scenario keeps the campaign but strips what lives inside it', async () => {
+  const empty = createFixtureRepositories({ scenario: 'empty' });
+
+  // This is what separates it from first-time: the account exists and has campaigns,
+  // so the home renders its normal frame around empty sections rather than onboarding.
+  assert.equal((await empty.campaigns.listForUser(CURRENT_USER_ID)).length, 2);
+  assert.deepEqual(await empty.characters.listForOwner(CURRENT_USER_ID), []);
+  assert.deepEqual(await empty.monsters.list(), []);
+});
+
+test('the error scenario rejects with a recoverable, transport-free message', async () => {
+  const broken = createFixtureRepositories({ scenario: 'error' });
+
+  await assert.rejects(
+    () => broken.campaigns.listForUser(CURRENT_USER_ID),
+    (error: Error) => {
+      // The design's rule for every error: what happened, what is still safe, what next —
+      // and never a word about the transport.
+      assert.match(error.message, /Nothing has been lost/);
+      assert.ok(!/websocket|http|fetch|socket/i.test(error.message));
+      return true;
+    },
+  );
+});
+
+test('a live combat is found across every campaign the user belongs to', async () => {
+  // The homes ask this once rather than once per campaign; the fight lives in Lost Mine,
+  // and Marta is in two campaigns.
+  const live = await repos.combats.liveForUser(CURRENT_USER_ID);
+  assert.equal(live?.name, 'Goblin Ambush');
+  assert.equal(live?.status, 'live');
+
+  // A user in no campaign sees nothing, even though the fight exists.
+  const stranger = await repos.combats.liveForUser(id<'User'>('u-nobody'));
+  assert.equal(stranger, null);
+});
+
+test('recall is newest first and capped', async () => {
+  const recall = await repos.recents.listForUser(CURRENT_USER_ID, 3);
+  assert.equal(recall.length, 3);
+  assert.equal(recall[0]?.label, 'Goblin Ambush', 'the live fight was opened most recently');
+
+  const times = recall.map((entry) => entry.at);
+  assert.deepEqual(times, times.toSorted().toReversed());
+});
+
+test('party activity is scoped to the campaigns the user is in', async () => {
+  const changes = await repos.activity.listForUser(CURRENT_USER_ID);
+  assert.ok(changes.length > 0);
+  assert.ok(changes.every((entry) => entry.campaignId === id<'Campaign'>('c-lmop')));
+
+  const stranger = await repos.activity.listForUser(id<'User'>('u-nobody'));
+  assert.deepEqual(stranger, []);
+});

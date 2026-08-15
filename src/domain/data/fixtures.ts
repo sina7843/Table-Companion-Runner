@@ -13,11 +13,13 @@
 import {
   id,
   type Campaign,
+  type CampaignActivity,
   type Character,
   type CombatInstance,
   type Condition,
   type EncounterTemplate,
   type Monster,
+  type RecentItem,
   type Roll,
   type User,
 } from '../types.ts';
@@ -673,5 +675,106 @@ export const ROLLS: Roll[] = [
     // The DM chose to keep this one secret.
     visibility: 'secret',
     at: '2026-08-15T19:44:00.000Z',
+  },
+];
+
+/* ── Recall and activity ────────────────────────────────────────────────────── */
+
+/**
+ * "Recently opened". A mixed list, most recent first — the design's point is that a DM
+ * preparing a session returns to the same handful of things rather than searching afresh.
+ */
+export const RECENTS: RecentItem[] = [
+  {
+    id: 'rc-1',
+    kind: 'monster',
+    label: 'Adult Black Dragon',
+    href: '/dm/monsters/m-adult-black-dragon',
+    at: '2026-08-15T18:58:00.000Z',
+  },
+  {
+    id: 'rc-2',
+    kind: 'monster',
+    label: 'Bugbear Chief',
+    href: '/dm/monsters/m-bugbear-chief',
+    at: '2026-08-15T18:44:00.000Z',
+  },
+  {
+    id: 'rc-3',
+    kind: 'combat',
+    label: 'Goblin Ambush',
+    href: '/dm/combat/cb-goblin-ambush',
+    at: '2026-08-15T19:12:00.000Z',
+  },
+  {
+    id: 'rc-4',
+    kind: 'character',
+    label: 'Aria Nightfall',
+    href: '/dm/characters/ch-aria',
+    at: '2026-08-15T17:20:00.000Z',
+  },
+  {
+    id: 'rc-5',
+    kind: 'monster',
+    label: 'Cragmaw Ambusher',
+    href: '/dm/monsters/m-cragmaw-ambusher',
+    at: '2026-08-14T21:05:00.000Z',
+  },
+  {
+    id: 'rc-6',
+    kind: 'spell',
+    label: 'Fireball',
+    href: '/dm/spells',
+    at: '2026-08-14T20:31:00.000Z',
+  },
+  {
+    id: 'rc-7',
+    kind: 'encounter',
+    label: 'Assault on Cragmaw Castle',
+    href: '/dm/encounters/e-cragmaw-castle',
+    at: '2026-08-13T19:47:00.000Z',
+  },
+];
+
+/**
+ * What the party changed since the DM last looked. A work queue, not analytics — every
+ * row is something a DM genuinely needs to know before play starts.
+ */
+export const ACTIVITY: CampaignActivity[] = [
+  {
+    id: 'ac-1',
+    campaignId: id<'Campaign'>('c-lmop'),
+    kind: 'levelled',
+    summary: 'Quill Featherwind reached level 7',
+    detail: 'Devin · 2 hours ago · Assassinate added',
+    characterId: id<'Character'>('ch-quill'),
+    at: '2026-08-15T17:10:00.000Z',
+  },
+  {
+    id: 'ac-2',
+    campaignId: id<'Campaign'>('c-lmop'),
+    kind: 'level-up-pending',
+    summary: 'Thessaly Vane has an unspent level up',
+    detail: 'Priya · waiting since last session',
+    characterId: id<'Character'>('ch-thessaly'),
+    at: '2026-08-14T22:00:00.000Z',
+  },
+  {
+    id: 'ac-3',
+    campaignId: id<'Campaign'>('c-lmop'),
+    kind: 'privacy-changed',
+    summary: 'Bram Ironfoot hid his inventory from the party',
+    detail: 'Tomás · yesterday · still visible to you',
+    characterId: id<'Character'>('ch-bram'),
+    at: '2026-08-14T19:30:00.000Z',
+  },
+  {
+    id: 'ac-4',
+    campaignId: id<'Campaign'>('c-lmop'),
+    kind: 'character-edited',
+    summary: 'Aria Nightfall edited her backstory',
+    detail: 'Marta · 3 days ago',
+    characterId: id<'Character'>('ch-aria'),
+    at: '2026-08-12T11:15:00.000Z',
   },
 ];

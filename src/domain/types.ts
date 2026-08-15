@@ -312,3 +312,46 @@ export interface Roll {
   visibility: Visibility;
   at: Timestamp;
 }
+
+/* ── Recall and activity ────────────────────────────────────────────────────── */
+
+/** What an entry in the recall list or the activity feed points at. */
+export type EntityKind = 'campaign' | 'character' | 'monster' | 'encounter' | 'combat' | 'spell';
+
+/**
+ * One entry in "Recently opened".
+ *
+ * The design's reasoning: a DM preparing a session returns to the same six things
+ * repeatedly, and recall is cheaper than making them search each time. It is a flat,
+ * mixed list — monsters, encounters and characters together, most recent first.
+ */
+export interface RecentItem {
+  id: string;
+  kind: EntityKind;
+  label: string;
+  /** Where opening it goes. Built when the entry is recorded, not derived by the UI. */
+  href: string;
+  at: Timestamp;
+}
+
+/**
+ * Something a player did that the DM needs to know before play — a levelled character,
+ * an unspent level-up, a section hidden from the party.
+ *
+ * Not analytics. The design is explicit that the DM's home carries no session counts, no
+ * XP graphs and no "campaign health"; this is a work queue, and every entry is actionable.
+ */
+export type CampaignActivityKind =
+  'levelled' | 'level-up-pending' | 'privacy-changed' | 'character-edited' | 'character-created';
+
+export interface CampaignActivity {
+  id: string;
+  campaignId: CampaignId;
+  kind: CampaignActivityKind;
+  /** Headline, e.g. "Quill Featherwind reached level 7". */
+  summary: string;
+  /** Supporting line, e.g. "Devin · 2 hours ago · Assassinate added". */
+  detail: string;
+  characterId?: CharacterId;
+  at: Timestamp;
+}

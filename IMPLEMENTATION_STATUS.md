@@ -327,3 +327,62 @@ including caps and overrides, the proficiency table, all three caster progressio
 generated step lists, temp-HP damage ordering and overkill flooring, advantage keeping the dropped
 die, the U+2212 minus sign the design's sample data uses, private sections, dm-only participants,
 secret rolls, and the fixture graph resolving.
+
+---
+
+## TC-04 — Entry, DM Home and Player Home
+
+### Screens
+
+| Screen | File | Design source |
+| --- | --- | --- |
+| Sign in | `screens/entry.tsx` | Screen 25 |
+| Join with an invite code | `screens/entry.tsx` | Screen 25 (second door) |
+| New campaign — choose a system | `screens/entry.tsx` | Screen 26 |
+| DM Home | `screens/DMHome.tsx` | Screen 27 |
+| Player Home | `screens/PlayerHome.tsx` | Screen 06 |
+
+### DM Home
+
+Live-combat band (the only loud element on the page): `Live now` badge, round/turn/connected
+line, the fight's name at display size, campaign · location · start time, an `AvatarGroup` of
+connected players, and one `Return to combat` action. Absent entirely when nothing is running.
+
+Below it, two columns of actual work — `Prepared for tonight` and `Party changes since last
+session` — then a single row of recall chips. No analytics anywhere: no session counts, no XP
+graphs, no "campaign health". Structure comes from rules and section heads; nothing is a rounded
+floating card.
+
+### Player Home
+
+Four things, ranked: the fight that is happening, the character in it, that character's health,
+and one advancement offer. The live block carries a `Your turn` badge only when it genuinely is,
+and the primary action reads `Take your turn` or `Open combat` accordingly. Armour class comes
+from the ruleset, and the level-up offer is gated on `capabilities.levelling` with its decision
+count generated from `levelUpSteps()`.
+
+### States, and how to see them
+
+Append `?scenario=` to any route:
+
+| Scenario | What it shows |
+| --- | --- |
+| *(none)* | The design's world: live fight, four characters, two campaigns |
+| `first-time` | No campaigns, no characters — onboarding on both homes |
+| `empty` | Campaigns exist, contents stripped — empty sections in the normal frame |
+| `loading` | Reads never resolve; the skeleton state stays up |
+| `error` | Every read rejects; the recoverable error path renders |
+
+Each home also has per-section empty states (nothing prepared, nothing to catch up on) that show
+independently of the account-level ones.
+
+### Domain additions
+
+`RecentItem` and `CampaignActivity` with their repositories and fixtures, plus
+`combats.liveForUser()` so "Continue active combat" is one call rather than one per campaign.
+`Avatar` / `AvatarGroup` adapters, and `Chip` gained the polymorphic `as` prop.
+
+### Tests — 27, all passing
+
+Six new: the first-time and empty scenarios, the error message staying transport-free,
+cross-campaign live-combat lookup, recall ordering and capping, and activity scoping.

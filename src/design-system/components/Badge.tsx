@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ElementType, ReactNode } from 'react';
 import { Icon } from './Icon';
 import { cx, type IconName, type Tone } from './types';
 
@@ -53,8 +53,12 @@ export interface ChipProps {
   onDismiss?: () => void;
   /** Non-interactive chip — renders as a span, not a button. */
   static?: boolean;
+  /** Element to render. Pass a router link when the chip navigates. */
+  as?: ElementType;
   children?: ReactNode;
   className?: string;
+  /** Forwarded to the rendered element (`to`, `href`, …) when `as` is set. */
+  [key: string]: unknown;
 }
 
 export function Chip({
@@ -63,8 +67,10 @@ export function Chip({
   onClick,
   onDismiss,
   static: isStatic,
+  as: Component = 'button',
   children,
   className,
+  ...rest
 }: ChipProps) {
   const content = (
     <>
@@ -97,13 +103,14 @@ export function Chip({
   // A clickable chip without a dismiss affordance needs the padding but not the cursor,
   // so adapters.css restores the pointer for `button.tc-chip--static`.
   return (
-    <button
-      type="button"
+    <Component
+      {...rest}
+      {...(Component === 'button' ? { type: 'button' } : {})}
       className={cx('tc-chip', !onDismiss && 'tc-chip--static', className)}
       aria-pressed={pressed}
       onClick={onClick}
     >
       {content}
-    </button>
+    </Component>
   );
 }

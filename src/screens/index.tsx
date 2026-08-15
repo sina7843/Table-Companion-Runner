@@ -47,26 +47,13 @@ function PendingSection({
   );
 }
 
-/* ── DM ─────────────────────────────────────────────────────────────────────── */
+/* ── Screens built against real data. Re-exported so routes.tsx stays one import. ── */
 
-export function DMHome() {
-  return (
-    <DMPage
-      title="Home"
-      actions={
-        <Button variant="primary" size="sm" icon="plus" as={Link} to="/campaigns/new">
-          New campaign
-        </Button>
-      }
-    >
-      <div className="tc-page">
-        <PendingSection title="Prepared for tonight" />
-        <PendingSection title="Party changes since last session" />
-        <PendingSection title="Recently opened" rows={2} height={26} />
-      </div>
-    </DMPage>
-  );
-}
+export { DMHome } from './DMHome';
+export { PlayerHome } from './PlayerHome';
+export { SignIn, JoinCampaign, NewCampaign, NotFound } from './entry';
+
+/* ── DM ─────────────────────────────────────────────────────────────────────── */
 
 export function DMCombat() {
   return (
@@ -312,16 +299,6 @@ export function CampaignSettings() {
 
 /* ── Player ─────────────────────────────────────────────────────────────────── */
 
-export function PlayerHome() {
-  return (
-    <PlayerPage eyebrow="Marta" title="Home">
-      <div className="tc-page">
-        <PendingSection title="Your character" rows={3} height={52} />
-      </div>
-    </PlayerPage>
-  );
-}
-
 export function PlayerSheet() {
   return (
     <PlayerPage title="Aria Nightfall">
@@ -390,89 +367,5 @@ export function PlayerBuilder() {
         <PendingSection title="Choose a ruleset" rows={3} height={52} />
       </div>
     </PlayerPage>
-  );
-}
-
-/* ── Entry, outside both shells ─────────────────────────────────────────────── */
-
-function EntryFrame({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div
-      className="tc-appsurface"
-      data-density="comfortable"
-      style={{
-        minHeight: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 'var(--space-32)',
-      }}
-    >
-      <main
-        id="main"
-        style={{ width: 340, display: 'flex', flexDirection: 'column', gap: 'var(--space-16)' }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="tc-sidebar__mark" style={{ fontSize: 19 }}>
-            Table<span>·</span>Companion
-          </span>
-          <span style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>{title}</span>
-        </div>
-        {children}
-      </main>
-    </div>
-  );
-}
-
-export function SignIn() {
-  return (
-    <EntryFrame title="The operating system for your tabletop campaign.">
-      <Skeleton count={3} height={40} gap={16} />
-      <Button variant="primary" block as={Link} to="/dm">
-        Continue as DM
-      </Button>
-      <Button variant="secondary" block icon="link" as={Link} to="/play">
-        Continue as Player
-      </Button>
-    </EntryFrame>
-  );
-}
-
-export function JoinCampaign() {
-  return (
-    <EntryFrame title="Join with an invite code.">
-      <Skeleton count={2} height={40} gap={16} />
-      <Button variant="primary" block as={Link} to="/play">
-        Join
-      </Button>
-    </EntryFrame>
-  );
-}
-
-export function NewCampaign() {
-  return (
-    <EntryFrame title="New campaign · step 1 of 2">
-      <Skeleton count={3} height={56} gap={12} />
-      <Button variant="primary" block iconRight="arrow-right" as={Link} to="/dm">
-        Name the campaign
-      </Button>
-    </EntryFrame>
-  );
-}
-
-export function NotFound() {
-  return (
-    <EntryFrame title="That page does not exist.">
-      <EmptyState
-        icon="compass"
-        title="Nothing here"
-        description="The link may be stale, or the campaign may have been removed."
-        actions={
-          <Button variant="secondary" as={Link} to="/">
-            Back to the start
-          </Button>
-        }
-      />
-    </EntryFrame>
   );
 }

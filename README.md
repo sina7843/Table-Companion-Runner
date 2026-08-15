@@ -146,6 +146,22 @@ Data comes from fixtures today ([src/domain/data/fixtures.ts](src/domain/data/fi
 the design's own party, fight and monsters. Every repository method is already async, so TC-13
 can swap in a real API without changing a caller.
 
+### Seeing the empty, loading and error states
+
+The screens have to handle a first-time user, an empty account, a slow read and a failed one. A
+branch nobody can reach is a branch nobody has checked, so append `?scenario=` to any route:
+
+| Scenario | What it shows |
+| --- | --- |
+| *(none)* | The design's world — live fight, four characters, two campaigns |
+| `?scenario=first-time` | No campaigns, no characters. Onboarding on both homes |
+| `?scenario=empty` | Campaigns exist, contents stripped |
+| `?scenario=loading` | Reads never resolve; skeletons stay up |
+| `?scenario=error` | Every read rejects; the recoverable error path renders |
+
+For example: http://localhost:5173/dm?scenario=first-time. These are the real code paths, not
+mock screens.
+
 ## Environment
 
 No environment variables are needed yet. `.env.example` documents the names as they are
@@ -190,7 +206,11 @@ src/
     nav.ts              Navigation model from the design's IA
     useMediaQuery.ts    Drives the density and sidebar-collapse attributes
     shell.css           Shell layout; tokens only, no new visual values
-  screens/index.tsx     Route skeletons for the Phase 1 screens
+  screens/
+    DMHome.tsx          DM home — live combat band, work columns, recall
+    PlayerHome.tsx      Player home — the fight, the character, one offer
+    entry.tsx           Sign in, join by invite, choose a game system
+    index.tsx           Route skeletons for the screens not yet built
   domain/
     types.ts            Core entities — names no D&D concept
     permissions.ts      Visibility rules (a UI guard, not a security boundary)

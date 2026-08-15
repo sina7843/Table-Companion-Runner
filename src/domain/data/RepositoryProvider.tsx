@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { createFixtureRepositories } from './fixtureRepositories';
+import { createFixtureRepositories, type FixtureScenario } from './fixtureRepositories';
 import type { Repositories } from './repositories';
 
 const RepositoryCtx = createContext<Repositories | null>(null);
@@ -8,6 +8,27 @@ const RepositoryCtx = createContext<Repositories | null>(null);
  * Injects the data layer. Screens call `useRepositories()` and never construct a
  * repository themselves, so swapping fixtures for a real API in TC-13 is one change here.
  */
+const SCENARIOS = new Set<FixtureScenario>([
+  'populated',
+  'first-time',
+  'empty',
+  'loading',
+  'error',
+]);
+
+/**
+ * Reads `?scenario=` from the URL so the states the screens must handle — a first-time
+ * user, an empty account, a slow read, a failed read — can each be looked at. Anything
+ * unrecognised falls back to the populated world.
+ */
+function scenarioFromUrl(): FixtureScenario {
+  if (typeof window === 'undefined') return 'populated';
+  const value = new URLSearchParams(window.location.search).get('scenario');
+  return value && SCENARIOS.has(value as FixtureScenario)
+    ? (value as FixtureScenario)
+    : 'populated';
+}
+
 export function RepositoryProvider({
   repositories,
   children,
@@ -16,7 +37,7 @@ export function RepositoryProvider({
   repositories?: Repositories;
   children: ReactNode;
 }) {
-  const fallback = useMemo(() => createFixtureRepositories(), []);
+  const fallback = useMemo(() => createFixtureRepositories({ scenario: scenarioFromUrl() }), []);
   return (
     <RepositoryCtx.Provider value={repositories ?? fallback}>{children}</RepositoryCtx.Provider>
   );

@@ -11,6 +11,7 @@
  */
 import type {
   Campaign,
+  CampaignActivity,
   CampaignId,
   Character,
   CharacterId,
@@ -21,6 +22,7 @@ import type {
   GameSystem,
   Monster,
   MonsterId,
+  RecentItem,
   Roll,
   User,
   UserId,
@@ -58,6 +60,14 @@ export interface EncounterRepository {
 export interface CombatRepository {
   /** The fight currently running in this campaign, if any. */
   liveForCampaign(campaignId: CampaignId): Promise<CombatInstance | null>;
+  /**
+   * The fight this user can resume, across every campaign they are in.
+   *
+   * A single call rather than one per campaign: "Continue active combat" is the first
+   * thing both homes ask for, and a DM with six campaigns should not pay six round trips
+   * to find out there is nothing running.
+   */
+  liveForUser(userId: UserId): Promise<CombatInstance | null>;
   listForCampaign(campaignId: CampaignId): Promise<CombatInstance[]>;
   byId(combatId: CombatInstanceId): Promise<CombatInstance | null>;
 }
@@ -75,6 +85,16 @@ export interface GameSystemRepository {
   list(): Promise<readonly GameSystem[]>;
 }
 
+export interface RecentsRepository {
+  /** Most recent first. The DM home shows one row of these. */
+  listForUser(userId: UserId, limit?: number): Promise<RecentItem[]>;
+}
+
+export interface ActivityRepository {
+  /** What the party changed since the DM last looked, most recent first. */
+  listForUser(userId: UserId, limit?: number): Promise<CampaignActivity[]>;
+}
+
 /** The full data surface, injected as one object so screens take what they need. */
 export interface Repositories {
   users: UserRepository;
@@ -85,4 +105,6 @@ export interface Repositories {
   encounters: EncounterRepository;
   combats: CombatRepository;
   rolls: RollRepository;
+  recents: RecentsRepository;
+  activity: ActivityRepository;
 }

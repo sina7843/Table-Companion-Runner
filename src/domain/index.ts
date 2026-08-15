@@ -22,6 +22,7 @@ export type {
 export { findRuleset, listGameSystems, requireRuleset } from './ruleset/registry.ts';
 
 export type {
+  ActivityRepository,
   CampaignRepository,
   CharacterRepository,
   CombatRepository,
@@ -29,11 +30,16 @@ export type {
   GameSystemRepository,
   MonsterQuery,
   MonsterRepository,
+  RecentsRepository,
   Repositories,
   RollRepository,
   UserRepository,
 } from './data/repositories.ts';
-export { createFixtureRepositories } from './data/fixtureRepositories.ts';
+export {
+  createFixtureRepositories,
+  type FixtureOptions,
+  type FixtureScenario,
+} from './data/fixtureRepositories.ts';
 export {
   RepositoryProvider,
   useAsync,

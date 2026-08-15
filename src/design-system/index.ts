@@ -85,6 +85,13 @@ export {
   type BottomNavItemSpec,
 } from './components/Navigation';
 export { SidePanel, Panel, type SidePanelProps, type PanelProps } from './components/Panel';
+export {
+  Avatar,
+  AvatarGroup,
+  type AvatarProps,
+  type AvatarGroupProps,
+  type AvatarSize,
+} from './components/Avatar';
 export { Stat, StatGrid, type StatProps, type StatGridProps } from './components/Stat';
 export {
   HPBar,

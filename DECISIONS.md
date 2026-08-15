@@ -200,3 +200,44 @@ code.
 
 **`tsconfig` lib moved to ES2023** for `Array#toSorted`, so the fixture repositories sort without
 mutating shared arrays.
+
+---
+
+## TC-04 — Entry, DM Home and Player Home
+
+**States are reachable, not just implemented.** The prompt names six states the homes must
+handle. A branch nobody can reach is a branch nobody has checked, so `createFixtureRepositories`
+takes a scenario — `populated`, `first-time`, `empty`, `loading`, `error` — and
+`RepositoryProvider` reads `?scenario=` from the URL. `/dm?scenario=error` renders the real error
+path, not a mock of it. Six tests pin the scenarios, including one asserting the error message
+never mentions the transport.
+
+`first-time` and `empty` are deliberately different: a first-time user has no campaigns at all and
+gets onboarding, while `empty` keeps the campaigns and strips their contents, so the home renders
+its normal frame around empty sections.
+
+**Two new domain entities, both demanded by the approved screen.** `RecentItem` powers "Recently
+opened" — the design's "recall over navigation" argument, that a DM returns to the same six things
+rather than searching. `CampaignActivity` powers "Party changes since last session". Neither is
+analytics: the design is explicit that the DM home carries no session counts, no XP graphs and no
+"campaign health", and every activity row is actionable.
+
+**`combats.liveForUser()` rather than a loop.** "Continue active combat" is the first thing both
+homes ask, and a DM with six campaigns should not pay six round trips to learn nothing is running.
+
+**The live band is absent, not empty, when nothing is running.** The design states this for the
+player — "the character becomes the first thing on the screen" — and the same reasoning applies to
+the DM. It is also the only element allowed to be visually loud on either home, because it is the
+only thing that is time-critical.
+
+**Level-up copy is generated, not hardcoded.** The design's player home reads "Six decisions,
+about two minutes". That count comes from `ruleset.levelUpSteps().length`, so it stays true when
+the rules change and would be a different number under a different system. The whole block is
+gated on `ruleset.capabilities.levelling`.
+
+**No authentication.** Sign-in validates shape only and navigates onward; TC-13 owns sessions and
+credentials. Marked in the code so nothing mistakes it for a security control. The player home
+picks the signed-in user's first character because there is no session identity yet to pick by —
+threading a fake one through the app to avoid that line would be worse.
+
+**`Chip` joined `Button` and `NavItem` as polymorphic**, so recall chips are real links.

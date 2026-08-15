@@ -23,7 +23,6 @@ import {
   HPBar,
   HPControl,
   IconButton,
-  RollResult,
   SectionHeader,
   Skeleton,
   Stat,
@@ -32,9 +31,11 @@ import {
   type ConditionTone,
 } from '../../design-system';
 import { BP, useMediaQuery } from '../../app/useMediaQuery';
+import { RollReadout, useRoller } from '../../app/useRoller';
 import {
   canSeeCharacterSection,
   CURRENT_USER_ID,
+  id,
   requireRuleset,
   useAsync,
   useRepositories,
@@ -149,20 +150,15 @@ function ValueList({
 
 /* ── The sheet ──────────────────────────────────────────────────────────────── */
 
-interface RolledResult {
-  title: string;
-  total: number;
-  breakdown: string;
-  outcome: 'normal' | 'critical' | 'fumble';
-}
-
 export function CharacterSheet() {
   const { characterId } = useParams();
   const { characters, campaigns } = useRepositories();
   const isDesktop = useMediaQuery(BP.lg);
 
   const [tab, setTab] = useState('actions');
-  const [rolled, setRolled] = useState<RolledResult | null>(null);
+  // The shared roll primitive: one implementation of the arithmetic and the readout,
+  // so this screen and the monster sheet cannot disagree about what a critical is.
+  const roller = useRoller(id<'GameSystem'>('dnd5e-2024'));
 
   const state = useAsync(async () => {
     const character = characterId ? await characters.byId(characterId as CharacterId) : null;
@@ -241,20 +237,6 @@ export function CharacterSheet() {
   const activeId = sections.some((section) => section.id === tab) ? tab : (sections[0]?.id ?? '');
   const content = ruleset.sheetContent(character, activeId);
 
-  function roll(title: string, expression: string) {
-    // A local, honest roll: the shared dice service arrives with TC-11's combat log.
-    const evaluated = ruleset.evaluateRoll({ expression, mode: 'normal', title }, 0, Math.random);
-    setRolled({
-      title,
-      total: evaluated.total,
-      breakdown: `${expression} · ${evaluated.dice
-        .filter((die) => !die.dropped)
-        .map((die) => die.value)
-        .join(' + ')}`,
-      outcome: evaluated.outcome,
-    });
-  }
-
   const identity = (
     <IdentityBlock character={character} ruleset={ruleset} viewer={viewer} inline={isDesktop} />
   );
@@ -273,22 +255,9 @@ export function CharacterSheet() {
       />
 
       <div style={{ paddingTop: 'var(--space-12)' }}>
-        {rolled && (
+        {roller.last && (
           <div style={{ marginBottom: 'var(--space-12)' }}>
-            <RollResult
-              total={rolled.total}
-              title={rolled.title}
-              breakdown={rolled.breakdown}
-              outcome={rolled.outcome}
-              flags={
-                <IconButton
-                  icon="x"
-                  label="Dismiss roll"
-                  size="sm"
-                  onClick={() => setRolled(null)}
-                />
-              }
-            />
+            <RollReadout roller={roller} />
           </div>
         )}
 
@@ -315,10 +284,10 @@ export function CharacterSheet() {
         )}
 
         {content.rollables?.map((entry) => (
-          <ActionRow key={entry.key} entry={entry} onRoll={roll} />
+          <ActionRow key={entry.key} entry={entry} onRoll={roller.roll} />
         ))}
 
-        {content.values && <ValueList values={content.values} onRoll={roll} />}
+        {content.values && <ValueList values={content.values} onRoll={roller.roll} />}
 
         {content.prose?.map((item) => (
           <div

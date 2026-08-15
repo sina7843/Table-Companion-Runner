@@ -602,3 +602,55 @@ Library length and difficulty spread; all three sorts; subtitle search; facet OR
 semantics; inclusive range filtering; filter composition; homebrew sharing the list while
 staying isolable; every creature carrying every declared facet; exactly one primary facet;
 an ascending challenge scale with fractions; and count ignoring paging.
+
+---
+
+## TC-08b — Monster sheet
+
+`MonsterSheet` is one component with three containers:
+
+| Container | Where |
+| --- | --- |
+| Docked context panel | The library, on row select |
+| Full page | `/dm/monsters/:id` — deep links and narrow viewports |
+| Drawer | From an encounter or combat (TC-10 / TC-11 wire the caller) |
+
+### Content order
+
+Primary actions, hit-point control, conditions, last roll, stat block (challenge, speed,
+saves, skills, resistances, immunities, senses, languages), ability grid, action groups,
+traits. Combat data first, prose last.
+
+### Actions
+
+`Monster.actionGroups` carries actions, reactions, legendary actions and spells as separate
+groups with an optional qualifier. Every entry has roll controls;
+`Ruleset.monsterActionGroups()` builds `1d20 +11` from a stored `+11` and takes the
+rollable half out of `2d10 + 6 piercing` while the row keeps the full string. Recharge and
+per-day state are tags on the entry. Abilities roll too.
+
+### The shared roll primitive
+
+`src/app/useRoller.tsx` — `useRoller(systemId)` plus `RollReadout`. The character sheet's
+private roller from TC-07 was removed and both sheets now share this one. Dropped dice are
+struck through rather than removed, so the arithmetic stays checkable.
+
+### Fixture depth
+
+`monsterDetails.ts` gives six creatures full write-ups: Adult Black Dragon and Ancient Blue
+Dragon (legendary actions and reactions), Beholder (ten eye rays), Mind Flayer (innate
+spells), Succubus, Troll. Every other creature gets a speed and a sense line so it can
+still be run.
+
+### Domain additions
+
+`MonsterAction.rolls` / `.tags` / `.tier`, `MonsterActionGroup`, `Monster.actionGroups`
+replacing `Monster.actions`, `Ruleset.monsterActionGroups()`.
+
+### Tests — 83, all passing (11 new in `monsterSheet.test.ts`)
+
+Every creature runnable; high-CR creatures carrying reactions and legendary actions with
+their count qualifier; minor creatures not being given legendary actions they lack; attack
+and damage expressions; actions with no roll not inventing one; pre-built rolls left alone;
+resource tags; spells as a tiered group; the Beholder volume case; homebrew reaching the
+sheet with the same shape; and the instance-versus-template boundary.

@@ -9,7 +9,8 @@
  * every creature type, so the library's filters, its sort and its long-list behaviour can
  * all be exercised against something that looks like the real thing.
  */
-import { id, type Monster, type MonsterAction } from '../types.ts';
+import { MONSTER_DETAILS } from './monsterDetails.ts';
+import { id, type Monster, type MonsterAction, type MonsterActionGroup } from '../types.ts';
 
 const SYSTEM_ID = id<'GameSystem'>('dnd5e-2024');
 
@@ -764,16 +765,30 @@ export function toMonsters(): Monster[] {
     const [name, type, size, rank, ac, hp, abilities, environments, alignment, trait, action] = row;
     const [str, dex, con, int, wis, cha] = abilities;
 
-    const traits: MonsterAction[] =
+    const baseTraits: MonsterAction[] =
       trait[0] === '—' ? [] : [{ name: trait[0], description: trait[1] }];
-    const actions: MonsterAction[] = [
+
+    const baseGroups: MonsterActionGroup[] = [
       {
-        name: action[0],
-        description: action[3],
-        ...(action[1] === '—' ? {} : { attackBonus: action[1] }),
-        ...(action[2] === '—' ? {} : { damage: action[2] }),
+        key: 'actions',
+        label: 'Actions',
+        entries: [
+          {
+            name: action[0],
+            description: action[3],
+            ...(action[1] === '—' ? {} : { attackBonus: action[1] }),
+            ...(action[2] === '—' ? {} : { damage: action[2] }),
+          },
+        ],
       },
     ];
+
+    // Creatures a DM actually runs at the top of the range carry full detail; the rest
+    // keep the usable stat line the table gives them. Inventing legendary actions for a
+    // goblin so the data looks uniform would be worse than leaving it honest.
+    const extra = MONSTER_DETAILS[name];
+    const traits = [...baseTraits, ...(extra?.traits ?? [])];
+    const actionGroups = extra?.groups ?? baseGroups;
 
     return {
       id: id<'Monster'>(`m-${name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`),
@@ -798,9 +813,15 @@ export function toMonsters(): Monster[] {
         { key: 'ac', label: 'Armour class', value: ac },
         { key: 'hp', label: 'Hit points', value: hp },
         { key: 'challenge', label: 'Challenge', value: challengeLabel(rank) },
+        // Every creature gets a speed and a sense line, because a DM needs both to run it
+        // even when the creature is not worth a full write-up.
+        ...(extra?.derived ?? [
+          { key: 'speed', label: 'Speed', value: '30 ft' },
+          { key: 'senses', label: 'Senses', value: 'Passive Perception 10' },
+        ]),
       ],
       traits,
-      actions,
+      actionGroups,
       systemData: { type, size, alignment },
     } satisfies Monster;
   });

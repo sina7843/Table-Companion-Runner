@@ -292,6 +292,11 @@ export const MONSTERS: Monster[] = [
       { key: 'ac', label: 'Armour class', value: 14 },
       { key: 'hp', label: 'Hit points', value: 21 },
       { key: 'challenge', label: 'Challenge', value: 'CR 1' },
+      // Homebrew has to be runnable too: a creature without a speed or a sense line
+      // cannot actually be used at the table.
+      { key: 'speed', label: 'Speed', value: '30 ft' },
+      { key: 'senses', label: 'Senses', value: 'Darkvision 60 ft, passive Perception 11' },
+      { key: 'languages', label: 'Languages', value: 'Common, Goblin' },
     ],
     traits: [
       {
@@ -299,12 +304,18 @@ export const MONSTERS: Monster[] = [
         description: 'Advantage on attack rolls against any creature it has surprised.',
       },
     ],
-    actions: [
+    actionGroups: [
       {
-        name: 'Shortsword',
-        description: 'Melee weapon attack, reach 5 ft.',
-        attackBonus: '+5',
-        damage: '1d6 + 3 piercing',
+        key: 'actions',
+        label: 'Actions',
+        entries: [
+          {
+            name: 'Shortsword',
+            description: 'Melee weapon attack, reach 5 ft.',
+            attackBonus: '+5',
+            damage: '1d6 + 3 piercing',
+          },
+        ],
       },
     ],
     systemData: { type: 'Humanoid', size: 'Medium' },

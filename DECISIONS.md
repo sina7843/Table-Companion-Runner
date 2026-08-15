@@ -453,3 +453,56 @@ Clone and create-custom are routed and linked but land in TC-08b. "Add to encoun
 an encounter to add to, which is TC-10. Both are visible affordances rather than hidden
 ones, because the design shows them on this screen — but neither is wired to a mutation
 yet, and nothing pretends otherwise.
+
+---
+
+## TC-08b — Monster sheet
+
+**One component, three containers.** `MonsterSheet` renders identically in the library's
+docked panel, on a full page, and in a drawer opened from an encounter or combat. The
+design's rule is that the panel opened from combat is the same panel opened from the
+library, so building a second variant would guarantee they drift.
+
+The full page exists for the two cases a 440px panel cannot serve — a deep link someone
+was sent, and a viewport too narrow to put a column beside a table. It is not the primary
+path; the design is explicit that there is no monster page to navigate to.
+
+**Combat data first, prose last.** Hit points, conditions, the stat line and the actions
+come before traits and long-form text, because everything a DM needs while a creature's
+turn is running has to be in the first screen without scrolling.
+
+**Actions are grouped, not flat.** `Monster.actionGroups` replaces `Monster.actions`:
+actions, bonus actions, reactions, legendary actions and spells are separate groups with
+an optional qualifier ("3 per round"). Groups are how a DM reads a creature mid-turn, and
+the design flags that most published creatures above the mid ranks have at least one group
+beyond plain actions.
+
+**Every action rolls, through one shared primitive.** TC-07 gave the character sheet its
+own roll implementation; this slice extracts `useRoller` + `RollReadout` and moves both
+sheets onto it. Two screens with their own copies is exactly how they end up disagreeing
+about what a critical is. The ruleset still owns the evaluation; the hook owns the plumbing
+and the last result.
+
+`Ruleset.monsterActionGroups()` builds the expressions: `+11` becomes `1d20 +11`, and
+`2d10 + 6 piercing` yields a `2d10 + 6` roll while the row keeps the damage type for
+reading. A pre-built roll — a legendary Detect that rolls Perception — is left alone rather
+than recomputed from an attack bonus it does not have.
+
+**Resource state travels with the action.** `Recharge 5-6`, `1 per day`, `3 per round`,
+`2 left` are tags on the entry. The design's reason is direct: a DM tracking Legendary
+Resistance on paper is what this product exists to remove.
+
+**Instance, not template.** The sheet takes live hit points and conditions as an `instance`
+prop rather than reading them off the `Monster`. Editing a creature in a fight must never
+touch the library record, and the eyebrow says which it is.
+
+**Not a printed stat block.** The prompt asks for the approved modern design rather than a
+paper reproduction, so the sheet is the design system's own structure: a header rule, a
+definition list, an interactive ability grid whose stats roll, and action rows. No
+two-column justified serif page.
+
+**Detail is honest, not uniform.** Six creatures carry full write-ups. The rest keep the
+usable stat line the base table gives them, and every creature gets a speed and a sense
+line because without those it cannot be run at all. Inventing legendary actions for a
+goblin so the data looked consistent would be worse than leaving it honest. A test enforces
+the floor, and it caught the homebrew creature missing both.

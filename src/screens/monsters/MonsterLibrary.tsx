@@ -27,6 +27,7 @@ import {
   type TableColumn,
 } from '../../design-system';
 import { DMPage } from '../../app/DMShell';
+import { MonsterSheet, monsterEyebrow } from './MonsterSheet';
 import { useContextPanel, type PanelContent } from '../../app/panelContext';
 import {
   requireRuleset,
@@ -46,99 +47,39 @@ interface MonsterRow extends Record<string, unknown> {
 
 /* ── The panel is the sheet ─────────────────────────────────────────────────── */
 
-function StatBlock({ monster }: { monster: Monster }) {
-  const ruleset = requireRuleset(monster.systemId);
-  const derived = ruleset.deriveMonster(monster);
-
-  return (
-    <div
-      style={{
-        padding: 'var(--space-12) var(--space-16)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'var(--space-16)',
-      }}
-    >
-      {/* The three primary actions, above the block: in preparation a DM adds far more
-          often than they read. */}
-      <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
-        <Button variant="primary" size="sm" icon="plus">
-          Add to encounter
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          icon="copy"
-          as={Link}
-          to={`/dm/monsters/${monster.id}/clone`}
-        >
-          Clone
-        </Button>
-        <Button variant="tertiary" size="sm" icon="dice-six">
-          Roll HP
-        </Button>
-      </div>
-
-      <div className="tc-statblock">
-        <div className="tc-statblock__head">
-          <span className="tc-statblock__name">{monster.name}</span>
-          <span className="tc-statblock__sub">{monster.subtitle}</span>
-        </div>
-
-        <div className="tc-statblock__section">
-          <dl className="tc-deflist">
-            {derived.map((value) => (
-              <span key={value.key} style={{ display: 'contents' }}>
-                <dt>{value.label}</dt>
-                <dd>{value.value}</dd>
-              </span>
-            ))}
-          </dl>
-        </div>
-
-        <div className="tc-statblock__section">
-          <div className="tc-statblock__sectitle">Abilities</div>
-          <div className="tc-statblock__abilities">
-            {monster.attributes.map((attribute) => (
-              <div className="tc-stat" key={attribute.key}>
-                <span className="tc-stat__label">{attribute.label}</span>
-                <span className="tc-stat__value">{attribute.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {monster.traits.length > 0 && (
-          <div className="tc-statblock__section">
-            <div className="tc-statblock__sectitle">Traits</div>
-            {monster.traits.map((trait) => (
-              <p className="tc-statblock__trait" key={trait.name}>
-                <b>{trait.name}.</b> {trait.description}
-              </p>
-            ))}
-          </div>
-        )}
-
-        <div className="tc-statblock__section">
-          <div className="tc-statblock__sectitle">Actions</div>
-          {monster.actions.map((action) => (
-            <p className="tc-statblock__trait" key={action.name}>
-              <b>{action.name}.</b> {action.attackBonus ? `${action.attackBonus} to hit. ` : ''}
-              {action.damage ? `${action.damage}. ` : ''}
-              {action.description}
-            </p>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
+/**
+ * Selecting a row fills the docked context panel with the same sheet the full page and
+ * the combat drawer render — preparation never leaves this screen, and a creature opened
+ * from combat later looks identical.
+ */
 function monsterPanel(monster: Monster): PanelContent {
   return {
-    eyebrow: `Monster · ${monster.source}`,
+    eyebrow: monsterEyebrow(monster),
     title: monster.name,
-    body: <StatBlock monster={monster} />,
+    body: (
+      <MonsterSheet
+        monster={monster}
+        actions={
+          <>
+            <Button variant="primary" size="sm" icon="plus">
+              Add to encounter
+            </Button>
+            <Button variant="secondary" size="sm" icon="copy">
+              Clone
+            </Button>
+            <Button
+              variant="tertiary"
+              size="sm"
+              icon="arrow-square-out"
+              as={Link}
+              to={`/dm/monsters/${monster.id}`}
+            >
+              Open full page
+            </Button>
+          </>
+        }
+      />
+    ),
   };
 }
 

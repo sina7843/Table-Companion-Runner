@@ -199,6 +199,33 @@ export interface MonsterAction {
   description: string;
   attackBonus?: string;
   damage?: string;
+  /**
+   * Ready-to-roll expressions with modifiers already applied, built by the ruleset.
+   * Every action a creature has is rollable from wherever it is shown.
+   */
+  rolls?: { label: string; expression: string }[];
+  /**
+   * Resource and timing state: "Recharge 5–6", "3 per round", "2 left". A DM tracking
+   * Legendary Resistance on paper is exactly what this product exists to remove, so the
+   * remaining count travels with the action rather than living in someone's memory.
+   */
+  tags?: string[];
+  /** Grouping marker within a group — a spell's level, an action's cost. */
+  tier?: string;
+}
+
+/**
+ * A named set of things a creature can do: actions, bonus actions, reactions, legendary
+ * actions, spells. Grouped rather than flat because the groups are how a DM reads a
+ * creature mid-turn, and because a majority of published creatures above the mid ranks
+ * have at least one group beyond plain actions.
+ */
+export interface MonsterActionGroup {
+  key: string;
+  label: string;
+  /** Qualifier shown beside the heading, e.g. "3 per round". */
+  note?: string;
+  entries: MonsterAction[];
 }
 
 export interface Monster {
@@ -228,7 +255,8 @@ export interface Monster {
   health: HealthTrack;
   derived: DerivedValue[];
   traits: MonsterAction[];
-  actions: MonsterAction[];
+  /** Actions, reactions, legendary actions and spells, in the order a DM reads them. */
+  actionGroups: MonsterActionGroup[];
   systemData: Readonly<Record<string, unknown>>;
 }
 

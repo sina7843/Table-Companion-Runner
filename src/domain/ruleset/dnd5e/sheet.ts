@@ -15,7 +15,7 @@ import type {
   SheetSection,
   ValueEntry,
 } from '../Ruleset.ts';
-import type { Character, ResourcePool } from '../../types.ts';
+import type { Character, Monster, MonsterActionGroup, ResourcePool } from '../../types.ts';
 import { ABILITY_LABELS, ABILITY_NAMES, abilityModifier, proficiencyBonus } from './constants.ts';
 import { CLASSES, FIGHTING_STYLES, SPELLS, type ClassDefinition } from './builder.ts';
 
@@ -988,4 +988,32 @@ export function challengeScale(): { value: number; label: string }[] {
     label: String(value),
   }));
   return [...fractions, ...whole];
+}
+
+/* ── Creature action groups ─────────────────────────────────────────────────── */
+
+/**
+ * A creature's action groups with roll expressions filled in.
+ *
+ * Building `1d20 +11` from a stored `+11` lives here rather than in the sheet, so another
+ * system can format its own rolls without the screen knowing.
+ */
+export function monsterActionGroups(monster: Monster): MonsterActionGroup[] {
+  return monster.actionGroups.map((group) => ({
+    ...group,
+    entries: group.entries.map((entry) => {
+      if (entry.rolls) return entry;
+
+      const rolls: { label: string; expression: string }[] = [];
+      if (entry.attackBonus)
+        rolls.push({ label: 'Attack', expression: `1d20 ${entry.attackBonus}` });
+      if (entry.damage) {
+        // The damage string carries its type — "2d10 + 6 piercing" — and only the dice
+        // and modifier are rollable.
+        const dice = /^[\d\s+d]+/.exec(entry.damage)?.[0]?.trim();
+        if (dice) rolls.push({ label: 'Damage', expression: dice });
+      }
+      return rolls.length > 0 ? { ...entry, rolls } : entry;
+    }),
+  }));
 }

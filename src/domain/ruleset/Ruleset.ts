@@ -22,6 +22,7 @@ import type {
   GameSystem,
   HealthTrack,
   Monster,
+  MonsterActionGroup,
   ResourcePool,
   RollMode,
   RolledDie,
@@ -350,6 +351,12 @@ export interface Ruleset {
    * `primary` ones surface before "More filters".
    */
   monsterFacets(): FacetDefinition[];
+
+  /**
+   * A creature's action groups with roll expressions filled in, so every action is
+   * rollable from wherever it is shown.
+   */
+  monsterActionGroups(monster: Monster): MonsterActionGroup[];
 
   /** Difficulty values this system uses, ascending, for a range filter. */
   challengeScale(): { value: number; label: string }[];

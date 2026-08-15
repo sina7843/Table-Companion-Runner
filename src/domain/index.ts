@@ -36,6 +36,7 @@ export type {
 } from './ruleset/Ruleset.ts';
 export { findRuleset, listGameSystems, requireRuleset } from './ruleset/registry.ts';
 
+export type { RollMode } from './types.ts';
 export type {
   ActivityRepository,
   CreateCampaignInput,

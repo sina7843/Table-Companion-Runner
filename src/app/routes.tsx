@@ -7,6 +7,7 @@ import { CharacterSheet } from '../screens/character/CharacterSheet';
 import { CharacterEdit, CharacterPrivacy } from '../screens/character/Privacy';
 import { LevelUp } from '../screens/character/LevelUp';
 import { MonsterLibrary } from '../screens/monsters/MonsterLibrary';
+import { MonsterPage } from '../screens/monsters/MonsterPage';
 import {
   CampaignCombats,
   CampaignEncounters,
@@ -71,7 +72,7 @@ export const router = createBrowserRouter([
       { path: 'characters', element: <DMCharacters /> },
 
       { path: 'monsters', element: <MonsterLibrary /> },
-      { path: 'monsters/:monsterId', element: <MonsterLibrary /> },
+      { path: 'monsters/:monsterId', element: <MonsterPage /> },
       { path: 'spells', element: <DMSpells /> },
       { path: 'items', element: <DMItems /> },
       { path: 'campaigns', element: <CampaignList /> },

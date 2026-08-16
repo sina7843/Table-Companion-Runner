@@ -47,91 +47,57 @@ not modify the `prompts/` sequence above.
 - [x] TC-P09 — CI/CD, observability and production infrastructure
 - [x] TC-P10 — final production readiness and Golden Path
 
-The gap map, the target architecture, the production checklist and the Golden Path are in
-`IMPLEMENTATION_STATUS.md`; the architecture decisions behind them are in `DECISIONS.md` (TC-P00).
+The gap map, target architecture, production checklist and Golden Path evidence are in
+`IMPLEMENTATION_STATUS.md`; architecture decisions are in `DECISIONS.md`.
 
-**Persistence, authorization, the API boundary and combat authority are real; multiplayer
-delivery is not.** Since `TC-P01` every §6 entity has a PostgreSQL table behind it. Since
-`TC-P02` sessions are real cookies, every rule in `permissions.ts` is enforced server-side, and
-private data is filtered before it is sent rather than hidden on arrival. Since `TC-P03` every
-request and response is validated at runtime, errors carry stable codes, requests carry
-correlation ids, and the boundary is rate limited and paged. Since `TC-P04` a fight changes only
-by command: the server computes hit points, turn order, initiative and death saves from the
-state it holds, refuses a stale writer rather than merging, recognises a retry, and records every
-accepted change as an auditable event that undo reads.
+## Current product state
 
-Since `TC-P05` a deployment broadcasts after it commits: two devices at one table see each
-other's changes over an authenticated event stream scoped to the campaigns each account is in,
-a secret roll is not announced to a player at all, and a client that missed a window is told to
-re-read rather than handed a reconstruction.
+The old TC-17 gaps are closed and must not be read as current limitations:
 
-Since `TC-P06` rules content is imported from an approved source rather than hand-maintained
-in TypeScript: the catalogue is bundles under `content/`, the importer refuses a source whose
-licence does not permit redistribution, and every record is traceable to a source and a licence.
+- **Authentication is real.** TC-P02 added scrypt credentials, HttpOnly session cookies and server-side authorization. TC-P07 added account creation, rename, sign-out and session-expiry recovery.
+- **Realtime is real.** TC-P05 added an authenticated server-sent event stream scoped by campaign membership and filtered per viewer. The local `BroadcastChannel` remains only as the explicit development adapter.
+- **Rules content has a real ingest pipeline.** TC-P06 imports redistributable SRD 5.1 content into PostgreSQL and blocks sources whose licences do not permit redistribution. The original 5e.tools requirement is met differently for legal reasons and traced in `REQUIREMENTS_TRACEABILITY.md`.
+- **Combat is server-authoritative.** TC-P04 replaced whole-record saves with commands, version checks, idempotent retries, audit history and targeted undo.
+- **The production path is tested end to end.** TC-P08/P10 drive independent DM and Player browser contexts against the real backend, PostgreSQL and realtime stream.
 
-Since `TC-P07` the screens behave the way a server-backed product has to. An account can be
-created and renamed and signed out of; a session that ends says so and returns the person to
-where they were; a failed autosave keeps the work, says so and offers a retry rather than
-reporting `Saved`; and two things the app could not actually know — a player's presence and a
-connection state — stopped being asserted.
+`TC-P10` audited a production-shaped container built from an empty database: **35 Golden Path checks passed, 2 deployment-owned restart checks were skipped by name in the external-target run, and the restart was verified separately.** No blocker was found.
 
-Since `TC-P08` the Golden Path is driven end to end by two independent browsers against the
-real backend, database and event stream, with privacy asserted in the payload, the DOM, the
-stream and the logs; the server has adversarial coverage over HTTP for id tampering, privilege
-escalation, replay, stale commands, unauthorized subscription and concurrent writes; and a
-backend restart, a dropped stream and two clients on one version all recover without losing
-anything. It found four real defects — most importantly that the browser had been sending
-`expectedVersion: 0` on every combat command since TC-P04, because the response schema dropped
-the field.
+## Release decision
 
-Since `TC-P09` there is a way to ship it. Every commit is validated by four CI jobs — checks,
-tests against PostgreSQL, the browser suite, and an image that is built, migrated, run and
-probed. One container serves the bundle and the API same-origin, drains on `SIGTERM`, answers
-liveness and readiness separately and exposes Prometheus counts. The redaction rule that used to
-be a comment is enforced on every log line, `DEPLOYMENT.md` documents secrets, startup order,
-migrations, backup and rollback, and the Golden Path was run against a clean staging container
-rather than described — which found the last defect: imported creatures never reached the table
-the app serves.
+**READY WITH NON-BLOCKING FOLLOW-UPS**, subject to a green CI run on the branch being merged.
 
-`TC-P10` audited the result against a container built from this commit, an empty database, and
-two independent browsers: **35 of 35 Golden Path steps passed, a restart returned the same
-version and hit points, and no secret reached an unauthorized response, the DOM, the stream, the
-logs or `/metrics`.** It found and fixed two configuration defects — staging cookies laxer than
-documented, and migrate-on-boot defaulting to on in production.
+Follow-ups after the post-audit cleanup:
 
-**Release decision: READY WITH NON-BLOCKING FOLLOW-UPS.** Four follow-ups, each with an owner
-action: exercise `Secure` cookies against a TLS host, close the client-evaluated attack roll,
-stop shipping fixture bytes (and fail loudly rather than falling back to them), and drop
-`/dev/showcase` from a production build. The full evidence is in `IMPLEMENTATION_STATUS.md`.
-
-What remains beyond those: the realtime hub is per-process, so only one instance is supported.
-That is a scope statement, not a defect in what was built.
-
-Local setup: `docker compose up -d`, `npm run db:migrate`, `npm run db:seed`, `npm run server`.
-Sign in as `marta@example.test` / `table-companion-dev`. See the Backend section of `README.md`.
+| Follow-up | State | Owner action |
+| --- | --- | --- |
+| Secure cookies over real TLS | Open | Run the E2E suite once against an HTTPS staging host with no `TC_COOKIE_SECURE=false` override before first public release. |
+| Server-side end-to-end attack/action resolution | Open | Extend the `Ruleset` seam so the server resolves attack roll, hit/miss, damage and effects rather than accepting a client-chosen damage amount. |
+| Fixture bytes in production bundle | Partially closed | Production now **refuses to fall back to fixtures** when `VITE_API_BASE_URL` is absent. The remaining optimisation is to code-split/remove fixture bytes from the production bundle. |
+| `/dev/showcase` in production | Closed | The route is now gated by `import.meta.env.DEV` and is absent from the production route graph. |
+| Horizontal scaling | Open when needed | The realtime hub and limiter are per-process. Add a shared bus (PostgreSQL `LISTEN/NOTIFY` is the documented option) before running multiple app instances. |
 
 ## Current work
-- Active item: none — the production sequence is complete through `TC-P10`.
-- Last completed item: `TC-P10` (Phase 1 sequence completed at `TC-17`)
-- Blockers: none. The TC-P10 audit returned READY WITH NON-BLOCKING FOLLOW-UPS; the four
-  follow-ups are the backlog and each has an owner action.
 
-## Phase 1 scope gaps
+- Active item: post-audit release cleanup on `tc-p04-server-authoritative-combat`.
+- Last completed production item: `TC-P10`.
+- Merge blocker: CI must be green. The previous run failed only because the secret guardrail matched explicit fake credentials inside security tests; the guardrail now allows only those exact path-and-value fixtures and still scans every test file.
 
-Every prompt was executed, but three items in `Requirements.md` §6 are not fully built. They are
-recorded here rather than buried, and traced in `REQUIREMENTS_TRACEABILITY.md`.
+## Deliberate Phase 1 boundaries
 
-| Gap | State | Why |
-| --- | --- | --- |
-| Authentication (§6.1) | Partial | Session identity, `SessionGate` and the sign-in surface exist. No credential check, no token, no server to check against. No prompt in the sequence introduced one. |
-| Realtime multiplayer (§6.19) | Partial | The channel seam, the same-device `BroadcastChannel` transport and the reconnecting WebSocket client are built and tested. There is no server. TC-13 explicitly forbade choosing a provider requiring credentials. |
-| 5e.tools data (§6.35) | Blocked | The monster library reads real SRD stat blocks from `src/domain/data/monsterLibrary.ts` in the ingest shape. No ingest pipeline exists, and none was prompted. |
+These are product-scope choices, not missing infrastructure:
 
-Two design surfaces were deliberately not built: the DM sidebar's **Spells** and **Items**
-sections. `Requirements.md` §18.1 does not place them in the Phase 1 information architecture and
-no content exists to fill them. See `DECISIONS.md` (TC-17).
+- No password change, email change or account deletion flow yet.
+- No per-member presence indicator.
+- No offline mutation queue; stale writes are refused rather than silently merged.
+- DM **Spells** and **Items** library screens are not in Phase 1 because the approved Phase 1 information architecture and imported content do not support them yet.
+- One application instance is supported until the shared realtime/rate-limit bus is built.
 
-## Awaiting visual confirmation
+## Local setup
 
-Design-intent and responsive-layout acceptance criteria need a person to look at the running app.
-`npm run dev`, then `/dev/showcase` for primitives and `?scenario=` for state coverage.
+`docker compose up -d`, `npm run db:migrate`, `npm run db:seed`, `npm run server`.
+Sign in as `marta@example.test` / `table-companion-dev`. See the Backend section of `README.md`.
+
+## Visual confirmation
+
+Design-intent and responsive-layout acceptance still benefit from a person looking at the running app.
+In development, run `npm run dev` and use `/dev/showcase` for primitives and `?scenario=` for state coverage. The showcase is deliberately unavailable in production.

@@ -1,7 +1,38 @@
 {
-  "sequence": "table-companion-production",
-  "version": 1,
+  "sequence": "table-companion-production-and-feature-completion",
+  "version": 2,
   "independentFrom": "prompts/prompt-manifest.json",
+  "tracks": {
+    "productionFoundation": [
+      "00-production-baseline-and-gap-audit.md",
+      "01-backend-postgres-foundation.md",
+      "02-authentication-and-server-authorization.md",
+      "03-api-contract-runtime-validation-and-hardening.md",
+      "04-server-authoritative-combat-and-concurrency.md",
+      "05-realtime-websocket-sync-and-recovery.md",
+      "06-rules-content-pipeline-and-legal-boundary.md",
+      "07-product-account-offline-and-operational-states.md",
+      "08-e2e-multiplayer-security-and-resilience.md",
+      "09-ci-cd-observability-and-production-infrastructure.md",
+      "10-final-production-readiness-and-golden-path.md"
+    ],
+    "featureCompletionBeforeHttps": [
+      "11-character-write-model-and-versioned-persistence.md",
+      "12-persistent-guided-level-up.md",
+      "13-real-character-editing-and-dm-override.md",
+      "14-persisted-character-privacy.md",
+      "15-character-avatar-and-portrait-media.md",
+      "16-out-of-combat-hp-and-resource-tracking.md",
+      "17-ruleset-driven-short-and-long-rest.md",
+      "18-inventory-and-equipment-management.md",
+      "19-spellbook-preparation-and-casting-state.md",
+      "20-character-lifecycle-duplicate-detach-archive-delete.md",
+      "21-campaign-management-and-membership-controls.md",
+      "22-dead-cta-and-incomplete-flow-audit.md",
+      "23-dnd-content-coverage-and-rules-version-completion.md",
+      "24-pre-https-feature-completion-audit-and-freeze.md"
+    ]
+  },
   "prompts": [
     "00-production-baseline-and-gap-audit.md",
     "01-backend-postgres-foundation.md",
@@ -13,6 +44,20 @@
     "07-product-account-offline-and-operational-states.md",
     "08-e2e-multiplayer-security-and-resilience.md",
     "09-ci-cd-observability-and-production-infrastructure.md",
-    "10-final-production-readiness-and-golden-path.md"
+    "10-final-production-readiness-and-golden-path.md",
+    "11-character-write-model-and-versioned-persistence.md",
+    "12-persistent-guided-level-up.md",
+    "13-real-character-editing-and-dm-override.md",
+    "14-persisted-character-privacy.md",
+    "15-character-avatar-and-portrait-media.md",
+    "16-out-of-combat-hp-and-resource-tracking.md",
+    "17-ruleset-driven-short-and-long-rest.md",
+    "18-inventory-and-equipment-management.md",
+    "19-spellbook-preparation-and-casting-state.md",
+    "20-character-lifecycle-duplicate-detach-archive-delete.md",
+    "21-campaign-management-and-membership-controls.md",
+    "22-dead-cta-and-incomplete-flow-audit.md",
+    "23-dnd-content-coverage-and-rules-version-completion.md",
+    "24-pre-https-feature-completion-audit-and-freeze.md"
   ]
 }

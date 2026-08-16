@@ -40,8 +40,13 @@ import {
 import { PlayerPage } from '../../app/PlayerShell';
 import { useConnection } from '../../app/useConnection';
 import { useCombatLog } from '../combat/useCombatLog';
-import { applyDeathSave, applyHealth, setTargeted, targetedParticipant } from '../combat/actions';
-import { activeParticipant, nextParticipant, nextTurn, turnIndex } from '../combat/turns';
+// One read is all that is left of the transforms this screen used to apply. Everything that
+// changed a fight moved behind `send` at TC-P04.
+import { targetedParticipant } from '../../domain/combat/actions';
+import { activeParticipant, nextParticipant, turnIndex } from '../../domain/combat/turns';
+import type { CombatCommand } from '../../domain/combat/commands';
+import type { CombatCommandOutcome } from '../../domain/data/repositories';
+import { ApiError } from '../../domain/data/apiContract';
 import {
   ACTIONS_ON_THE_THUMB,
   breakdownOf,
@@ -57,6 +62,7 @@ import {
   useAsync,
   useRealtime,
   useRepositories,
+  useTelemetry,
   visibleRolls,
   type Character,
   type CombatInstance,
@@ -88,6 +94,7 @@ const ROLL_MODES = [
 export function PlayerCombat() {
   const { campaigns, characters, combats } = useRepositories();
   const connection = useConnection();
+  const telemetry = useTelemetry();
   const userId = useUserId();
 
   const [combat, setCombat] = useState<CombatInstance | null>(null);
@@ -106,10 +113,12 @@ export function PlayerCombat() {
     ]);
     if (!campaign) return null;
 
-    // This route IS the player's device, so the viewer is a player whatever the fixture
-    // session says — the signed-in fixture user happens to be the DM, and reading their
-    // role here would show this screen the unrevealed creatures a player must never see.
-    // TC-13's auth layer replaces the id; the role is a property of the surface.
+    // This route IS the player's device, so the viewer is a player whatever role the account
+    // holds elsewhere — one account is a DM in one campaign and a player in another, and
+    // reading the wrong one here would show this screen the unrevealed creatures a player
+    // must never see. The id is the session's; the role is a property of the surface. The
+    // server filters on its own answer to the same question, so this is the honest label on
+    // a screen rather than the thing keeping a secret.
     const viewer: Viewer = { userId, role: 'player' };
     const mine = roster.find((entry) => entry.ownerUserId === userId) ?? roster[0] ?? null;
 
@@ -124,18 +133,41 @@ export function PlayerCombat() {
   // view of the fight, never a second copy of it.
   useRealtime(['combat.changed', 'combat.ended', 'roll.recorded'], () => loaded.reload());
 
-  const change = (next: CombatInstance) => {
-    setCombat(next);
-    void combats.save(next).then(
-      () => {
-        setFailure(null);
-        connection.reportSuccess();
-      },
-      (error: unknown) => {
-        setFailure(error instanceof Error ? error.message : 'That did not reach the table.');
-        connection.reportFailure();
-      },
-    );
+  /**
+   * States an intent. The table decides what it means.
+   *
+   * A phone is a view of the fight, never a second copy of it — so it no longer computes hit
+   * points, turn order or a death save and sends the result. It says what it is trying to do,
+   * with the version it was looking at, and shows what comes back. A `conflict` means the DM
+   * or another player moved first, and re-reading is the recovery.
+   */
+  const send = async (command: CombatCommand): Promise<CombatCommandOutcome | null> => {
+    if (!combat) return null;
+    try {
+      const outcome = await combats.command({
+        combatId: combat.id,
+        commandId: crypto.randomUUID(),
+        expectedVersion: combat.version ?? 0,
+        command,
+      });
+      setCombat(outcome.combat);
+      setFailure(null);
+      connection.reportSuccess();
+      return outcome;
+    } catch (error) {
+      const stale = error instanceof ApiError && error.code === 'conflict';
+      if (stale) telemetry({ name: 'combat_conflict' });
+      setFailure(
+        stale
+          ? 'The table moved on while you were deciding. Catching up.'
+          : error instanceof Error
+            ? error.message
+            : 'That did not reach the table.',
+      );
+      connection.reportFailure();
+      if (stale) loaded.reload();
+      return null;
+    }
   };
 
   const rules = useMemo(
@@ -302,25 +334,29 @@ export function PlayerCombat() {
     });
   };
 
-  const rollDeathSave = () => {
+  /**
+   * A death save, rolled at the table rather than on this phone.
+   *
+   * It decides whether a character lives, so the die is not a device's to throw. The total
+   * comes back with the outcome and is what the log records.
+   */
+  const rollDeathSave = async () => {
     if (!me) return;
-    const request = rules.deathSaveRequest();
-    if (!request) return;
+    const outcome = await send({ kind: 'deathSave.roll', participantId: me.id });
+    if (!outcome?.deathSave) return;
 
-    const evaluated = log.roll({
+    log.note({
       actor: character?.name ?? 'You',
-      title: request.title,
-      expression: request.expression,
+      title: `Death saving throw: ${outcome.deathSave.total}`,
     });
-    change(applyDeathSave(combat, me.id, evaluated, rules).combat);
   };
 
   const endTurn = () => {
-    // A player ends their own turn by handing it on. The advance itself is the shared,
-    // tested transform the DM's screen uses, so the round moves on a wrap exactly once
-    // and a defeated combatant is stepped over on both devices identically.
+    // A player ends their own turn by handing it on, and the authority refuses if it is not
+    // theirs to hand on. The advance itself is the same shared transform the DM's screen
+    // drives, run once, in one place.
     if (!me) return;
-    change(nextTurn(combat));
+    void send({ kind: 'turn.next' });
     log.note({ actor: character?.name ?? 'You', title: 'Ended their turn' });
   };
 
@@ -374,6 +410,11 @@ export function PlayerCombat() {
           Back in sync. Nothing you did was lost.
         </Banner>
       )}
+      {connection.resyncing && (
+        <Banner tone="info" icon="arrows-clockwise">
+          Catching up with the table.
+        </Banner>
+      )}
       {failure && (
         <Banner tone="danger" icon="cloud-slash">
           {failure} It is saved on this phone and will be sent when the table is back.
@@ -402,7 +443,7 @@ export function PlayerCombat() {
               label="Death saving throw"
               expression="1d20"
               primary
-              onClick={rollDeathSave}
+              onClick={() => void rollDeathSave()}
             />
 
             <Alert tone="danger" title="A natural 20 puts you back on your feet">
@@ -556,7 +597,11 @@ export function PlayerCombat() {
               ))}
               // Tapping a row on your turn is how a target is chosen; the rest of the time
               // it is a monitor and does nothing, rather than opening something useless.
-              onOpen={myTurn ? () => change(setTargeted(combat, participant.id)) : undefined}
+              onOpen={
+                myTurn
+                  ? () => void send({ kind: 'target.set', participantId: participant.id })
+                  : undefined
+              }
             />
           ))}
         </div>
@@ -601,10 +646,13 @@ export function PlayerCombat() {
               block
               icon="drop"
               onClick={() => {
-                change(applyHealth(combat, target.id, -pending.damage!.total, rules).combat);
+                const amount = pending.damage!.total;
+                // The amount this attack rolled is stated; what it does to the creature's
+                // track is worked out at the table, from the fight the table holds.
+                void send({ kind: 'health.damage', participantId: target.id, amount });
                 log.note({
                   actor: character?.name ?? 'You',
-                  title: `${pending.damage!.total} damage to ${target.name}`,
+                  title: `${amount} damage to ${target.name}`,
                 });
                 setPending(null);
               }}

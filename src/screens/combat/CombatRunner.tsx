@@ -48,31 +48,17 @@ import {
 } from '../../domain';
 import { CombatPanel } from './CombatPanel';
 import { useCombatLog } from './useCombatLog';
-import {
-  addCondition,
-  applyDeathSave,
-  applyHealth,
-  overrideHealth,
-  overrideState,
-  removeCondition,
-  revertHealth,
-  setTargeted,
-  targetedParticipant,
-  type HealthChange,
-} from './actions';
+// What is left of the transforms this screen used to apply: one read. Everything that
+// changed a fight moved behind `onCommand` at TC-P04.
+import { targetedParticipant } from '../../domain/combat/actions';
+import type { CombatCommand } from '../../domain/combat/commands';
 import {
   activeParticipant,
-  endCombat,
-  jumpToTurn,
-  moveParticipant,
   nextParticipant,
-  nextTurn,
   orderDiffersFromInitiative,
-  previousTurn,
-  resortByInitiative,
-  setInitiativeDuringCombat,
   turnIndex,
-} from './turns';
+} from '../../domain/combat/turns';
+import type { CombatCommandOutcome } from '../../domain/data/repositories';
 
 export interface CombatRunnerProps {
   combat: CombatInstance;
@@ -80,7 +66,14 @@ export interface CombatRunnerProps {
   campaign: Campaign | null;
   characters: Character[];
   monsters: Map<string, Monster>;
-  onChange: (next: CombatInstance) => void;
+  /**
+   * States an intent and resolves to what the authority made of it.
+   *
+   * Awaited wherever this screen needs the result — a log line naming what a death save came
+   * to, the audit row an undo offer points at. The screen never computes that itself: it is
+   * not the only device in the fight.
+   */
+  onCommand: (command: CombatCommand) => Promise<CombatCommandOutcome | null>;
   busy: boolean;
 }
 
@@ -170,7 +163,7 @@ export function CombatRunner({
 
   characters,
   monsters,
-  onChange,
+  onCommand,
   busy,
 }: CombatRunnerProps) {
   const { show, close } = useContextPanel();
@@ -190,7 +183,13 @@ export function CombatRunner({
    * but correcting the change before last is a real thing that happens at a table. Each
    * one is offered on its own line, by name, and disappears once it has been used.
    */
-  const [reversible, setReversible] = useState<Record<string, HealthChange>>({});
+  /**
+   * Log line to the audit row it can put back.
+   *
+   * Undo is the server's — it restores what it recorded rather than what this screen
+   * remembers — so all this holds is the sequence number and the sentence to offer.
+   */
+  const [reversible, setReversible] = useState<Record<string, { seq: number; label: string }>>({});
   /**
    * The row that just changed, for one pass of the design's hit-point flash.
    *
@@ -271,29 +270,37 @@ export function CombatRunner({
    * that correction comes through undo, so the change is kept by name and the tray offers
    * to put it back.
    */
-  const changeHealth = (participantId: ParticipantId, delta: number, actor: string) => {
-    const outcome = applyHealth(combat, participantId, delta, rules);
-    if (!outcome.change) return;
-
-    onChange(outcome.combat);
-
+  const changeHealth = async (participantId: ParticipantId, delta: number, actor: string) => {
+    if (delta === 0) return;
+    const name = combat.participants.find((entry) => entry.id === participantId)?.name ?? 'them';
     const moved = Math.abs(delta);
-    const change = outcome.change;
-    const line = log.note({
-      actor,
-      title: `${delta < 0 ? `${moved} damage to` : `${moved} healing to`} ${change.name}`,
-    });
-    setReversible((current) => ({ ...current, [line]: change }));
+
+    // The amount is stated; what it does to the track — temporary hit points, the floor at
+    // zero, dropping unconscious — is worked out by the authority from the stored fight.
+    const outcome = await onCommand(
+      delta < 0
+        ? { kind: 'health.damage', participantId, amount: moved }
+        : { kind: 'health.heal', participantId, amount: moved },
+    );
+    if (!outcome) return;
+
+    const label = `${delta < 0 ? `${moved} damage to` : `${moved} healing to`} ${name}`;
+    const line = log.note({ actor, title: label });
+    setReversible((current) => ({ ...current, [line]: { seq: outcome.seq, label } }));
     flashRow(participantId, delta < 0 ? 'damage' : 'healing');
 
-    // A hit on someone concentrating forces a save. It is rolled here rather than
-    // queued behind a dialog, because a prompt the DM has to dismiss is a prompt they
-    // start dismissing without reading.
+    // A hit on someone concentrating forces a save. It is rolled here rather than queued
+    // behind a dialog, because a prompt the DM has to dismiss is a prompt they start
+    // dismissing without reading. The server said whether one is owed.
     if (outcome.concentration) {
+      const holder =
+        outcome.combat.participants.find(
+          (entry) => entry.id === outcome.concentration!.participantId,
+        ) ?? null;
       const check = rules.concentrationCheck(outcome.concentration.damage);
-      if (check) {
+      if (check && holder) {
         const evaluated = log.roll({
-          actor: outcome.concentration.participant.name,
+          actor: holder.name,
           title: check.request.title,
           expression: check.request.expression,
           mode: check.request.mode,
@@ -301,11 +308,8 @@ export function CombatRunner({
         if (evaluated.total < check.difficulty) {
           const key = rules.concentrationKey();
           if (key) {
-            onChange(removeCondition(outcome.combat, participantId, key));
-            log.note({
-              actor: outcome.concentration.participant.name,
-              title: 'Concentration broken',
-            });
+            await onCommand({ kind: 'condition.remove', participantId: holder.id, key });
+            log.note({ actor: holder.name, title: 'Concentration broken' });
           }
         }
       }
@@ -323,38 +327,46 @@ export function CombatRunner({
 
     const isDamage = /damage/i.test(title);
     if (isDamage && target) {
-      changeHealth(target.id, -evaluated.total, actor);
+      void changeHealth(target.id, -evaluated.total, actor);
     }
   };
 
   /** A DM override: the number becomes what they say, and it is still reversible. */
-  const setHealthExactly = (participantId: ParticipantId, current: number, actor: string) => {
-    const outcome = overrideHealth(combat, participantId, current);
-    if (!outcome.change || outcome.change.delta === 0) return;
+  const setHealthExactly = async (participantId: ParticipantId, current: number, actor: string) => {
+    const outcome = await onCommand({ kind: 'health.override', participantId, current });
+    if (!outcome) return;
 
-    onChange(outcome.combat);
-    const line = log.note({
-      actor: 'Override',
-      title: `${actor} set to ${current} hit points`,
-    });
-    setReversible((held) => ({ ...held, [line]: outcome.change! }));
+    const label = `${actor} set to ${current} hit points`;
+    const line = log.note({ actor: 'Override', title: label });
+    setReversible((held) => ({ ...held, [line]: { seq: outcome.seq, label } }));
   };
 
-  const rollDeathSave = (participant: CombatParticipant) => {
-    const request = rules.deathSaveRequest();
-    if (!request) return;
+  /**
+   * A death save, rolled by the server.
+   *
+   * The die is not this screen's to throw: a death save decides whether a character lives,
+   * so a device reporting its own would be a device deciding that. The total comes back with
+   * the outcome and is written into the log from there.
+   */
+  const rollDeathSave = async (participant: CombatParticipant) => {
+    const outcome = await onCommand({ kind: 'deathSave.roll', participantId: participant.id });
+    if (!outcome?.deathSave) return;
 
-    const evaluated = log.roll({
+    const line = log.note({
       actor: participant.name,
-      title: request.title,
-      expression: request.expression,
-      mode: request.mode,
+      title: `Death saving throw: ${outcome.deathSave.total}`,
     });
+    setReversible((held) => ({
+      ...held,
+      [line]: { seq: outcome.seq, label: `death save for ${participant.name}` },
+    }));
 
-    const result = applyDeathSave(combat, participant.id, evaluated, rules);
-    onChange(result.combat);
-    if (result.revived) log.note({ actor: participant.name, title: 'Back on their feet at 1 HP' });
-    if (result.outcome === 'dead') log.note({ actor: participant.name, title: 'Died' });
+    if (outcome.deathSave.revived) {
+      log.note({ actor: participant.name, title: 'Back on their feet at 1 HP' });
+    }
+    if (outcome.deathSave.outcome === 'dead') {
+      log.note({ actor: participant.name, title: 'Died' });
+    }
   };
 
   /**
@@ -383,7 +395,7 @@ export function CombatRunner({
               ? `${participant.name} is the target`
               : `Target ${participant.name}`
           }
-          onClick={() => onChange(setTargeted(combat, participant.id))}
+          onClick={() => void onCommand({ kind: 'target.set', participantId: participant.id })}
         />
       ),
       body: (
@@ -393,20 +405,22 @@ export function CombatRunner({
             rules={rules}
             monster={creature}
             character={character}
-            onApplyHealth={(delta) => changeHealth(participant.id, delta, participant.name)}
-            onSetHealth={(current) => setHealthExactly(participant.id, current, participant.name)}
+            onApplyHealth={(delta) => void changeHealth(participant.id, delta, participant.name)}
+            onSetHealth={(current) =>
+              void setHealthExactly(participant.id, current, participant.name)
+            }
             onSetState={(state) => {
-              onChange(overrideState(combat, participant.id, state));
+              void onCommand({ kind: 'state.override', participantId: participant.id, state });
               log.note({ actor: 'Override', title: `${participant.name} set to ${state}` });
             }}
             onToggleCondition={(definition) =>
-              onChange(
+              void onCommand(
                 participant.conditions.some((entry) => entry.key === definition.key)
-                  ? removeCondition(combat, participant.id, definition.key)
-                  : addCondition(combat, participant.id, definition),
+                  ? { kind: 'condition.remove', participantId: participant.id, key: definition.key }
+                  : { kind: 'condition.add', participantId: participant.id, key: definition.key },
               )
             }
-            onDeathSave={() => rollDeathSave(participant)}
+            onDeathSave={() => void rollDeathSave(participant)}
             onRoll={fireRoll(participant.name)}
           />
           {character && (
@@ -435,17 +449,18 @@ export function CombatRunner({
    * history a DM may read back at the end of a session, so it only ever grows.
    */
   const undoFor = (entry: Roll) => {
-    const change = reversible[entry.id];
-    if (!change) return undefined;
-
-    const moved = Math.abs(change.delta);
-    const direction = change.delta < 0 ? 'damage to' : 'healing to';
+    const held = reversible[entry.id];
+    if (!held) return undefined;
 
     return {
-      label: `Undo ${moved} ${direction} ${change.name}`,
+      label: `Undo ${held.label}`,
       run: () => {
-        onChange(revertHealth(combat, change));
-        log.note({ actor: 'Correction', title: `Undid ${moved} ${direction} ${change.name}` });
+        // The audit row says what to put back, and undoing appends a correction rather than
+        // removing the line it corrects. A second attempt is refused by the authority, which
+        // is why the offer is dropped either way.
+        void onCommand({ kind: 'undo', seq: held.seq }).then((outcome) => {
+          if (outcome) log.note({ actor: 'Correction', title: `Undid ${held.label}` });
+        });
         setReversible((current) => {
           const next = { ...current };
           delete next[entry.id];
@@ -486,21 +501,25 @@ export function CombatRunner({
             : `Target ${participant.name} for the next damage`
         }
         disabled={busy}
-        onClick={() => onChange(setTargeted(combat, participant.id))}
+        onClick={() => void onCommand({ kind: 'target.set', participantId: participant.id })}
       />
       <IconButton
         icon="caret-up"
         size="sm"
         label={`Move ${participant.name} earlier in the order`}
         disabled={busy || position === 0}
-        onClick={() => onChange(moveParticipant(combat, participant.id, -1))}
+        onClick={() =>
+          void onCommand({ kind: 'turn.move', participantId: participant.id, direction: 'earlier' })
+        }
       />
       <IconButton
         icon="caret-down"
         size="sm"
         label={`Move ${participant.name} later in the order`}
         disabled={busy || position === combat.participants.length - 1}
-        onClick={() => onChange(moveParticipant(combat, participant.id, 1))}
+        onClick={() =>
+          void onCommand({ kind: 'turn.move', participantId: participant.id, direction: 'later' })
+        }
       />
       <IconButton
         icon="list-numbers"
@@ -514,7 +533,7 @@ export function CombatRunner({
         size="sm"
         label={`Give the turn to ${participant.name}`}
         disabled={busy || participant.id === combat.activeParticipantId}
-        onClick={() => onChange(jumpToTurn(combat, participant.id))}
+        onClick={() => void onCommand({ kind: 'turn.jump', participantId: participant.id })}
       />
     </>
   );
@@ -559,7 +578,7 @@ export function CombatRunner({
             size="sm"
             icon="caret-left"
             disabled={busy}
-            onClick={() => onChange(previousTurn(combat))}
+            onClick={() => void onCommand({ kind: 'turn.previous' })}
           >
             Previous
           </Button>
@@ -568,7 +587,7 @@ export function CombatRunner({
             size="sm"
             iconRight="caret-right"
             disabled={busy || combat.participants.length === 0}
-            onClick={() => onChange(nextTurn(combat))}
+            onClick={() => void onCommand({ kind: 'turn.next' })}
           >
             Next turn
           </Button>
@@ -577,7 +596,7 @@ export function CombatRunner({
             size="sm"
             label="End this combat"
             disabled={busy}
-            onClick={() => onChange(endCombat(combat, new Date().toISOString()))}
+            onClick={() => void onCommand({ kind: 'combat.end' })}
           />
         </div>
       }
@@ -593,7 +612,7 @@ export function CombatRunner({
                   variant="secondary"
                   icon="list-numbers"
                   disabled={busy}
-                  onClick={() => onChange(resortByInitiative(combat, rules))}
+                  onClick={() => void onCommand({ kind: 'turn.resort' })}
                 >
                   Sort by initiative
                 </Button>
@@ -839,9 +858,13 @@ export function CombatRunner({
             width={64}
             ariaLabel={`${editing.name} initiative`}
             onChange={(value) => {
-              const next = setInitiativeDuringCombat(combat, [editing.id as ParticipantId], value);
-              setEditing(next.participants.find((entry) => entry.id === editing.id) ?? editing);
-              onChange(next);
+              // The dialog shows what was typed; the fight shows what the authority made of it.
+              setEditing({ ...editing, initiative: value });
+              void onCommand({
+                kind: 'initiative.set',
+                participantIds: [editing.id as ParticipantId],
+                value,
+              });
             }}
           />
         )}

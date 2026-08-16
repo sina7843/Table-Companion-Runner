@@ -341,6 +341,15 @@ export interface CombatInstance {
   participants: CombatParticipant[];
   startedAt?: Timestamp;
   endedAt?: Timestamp;
+  /**
+   * The revision this state is. Incremented by the server on every accepted command.
+   *
+   * A client sends back the version it was working from, and a command built on a version
+   * that has since moved is refused rather than applied — which is what stops two devices
+   * silently overwriting each other at a table where both are looking at the same fight.
+   * Absent on a fight that has never been through a server.
+   */
+  version?: number;
 }
 
 /* ── Dice ───────────────────────────────────────────────────────────────────── */

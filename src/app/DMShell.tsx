@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from 'react';
 import { Link, matchPath, Outlet, useLocation } from 'react-router-dom';
+import { useSession } from '../domain';
 import {
   Button,
   ConnectionStatus,
@@ -33,6 +34,7 @@ function DMShellInner() {
   const connection = useConnection();
   const { content, close } = useContextPanel();
   const { pathname } = useLocation();
+  const { user } = useSession();
 
   const campaignMatch = matchPath({ path: '/dm/campaigns/:campaignId', end: false }, pathname);
   const activeCampaign = campaignMatch?.params.campaignId;
@@ -64,7 +66,26 @@ function DMShellInner() {
           )
         }
         // Reported, not asserted: the shell used to claim Live whatever was true.
-        footer={isDesktop ? <ConnectionStatus state={connection.state} /> : undefined}
+        //
+        // `restored` and `resyncing` are announced rather than only coloured. A DM who
+        // looked away needs to hear that the fight on screen is current again, and a
+        // status region says it once and then goes quiet.
+        footer={
+          <>
+            <span className="tc-visually-hidden" role="status" aria-live="polite">
+              {connection.state === 'offline'
+                ? 'Offline. Changes are refused rather than lost.'
+                : connection.state === 'reconnecting'
+                  ? 'Reconnecting.'
+                  : connection.resyncing
+                    ? 'Catching up with the table.'
+                    : connection.restored
+                      ? 'Back in sync.'
+                      : ''}
+            </span>
+            {isDesktop && <ConnectionStatus state={connection.state} />}
+          </>
+        }
       >
         {/*
           A live combat pins itself to the top of the sidebar for its duration. That needs
@@ -88,6 +109,22 @@ function DMShellInner() {
             ))}
           </SidebarGroup>
         ))}
+
+        {/*
+          The account, last, and outside the product's own groups — it is not a place in the
+          campaign, it is who is holding it. Labelled with the display name so the answer to
+          "am I signed in, and as whom" is on screen without a click.
+        */}
+        <SidebarGroup label={isDesktop ? 'You' : undefined}>
+          <NavItem
+            as={Link}
+            to="/dm/account"
+            icon="user-circle"
+            label={user?.displayName ?? 'Account'}
+            active={isActivePath(pathname, '/dm/account')}
+            collapsed={!isDesktop}
+          />
+        </SidebarGroup>
       </Sidebar>
 
       <div className="tc-shell__main" data-panel-open={content ? 'true' : undefined}>

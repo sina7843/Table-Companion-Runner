@@ -11,7 +11,7 @@
  * is no confirmation between them. A fight begun by accident is one click from being
  * left; a dialog in front of every fight is a tax on every session.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -27,78 +27,42 @@ import {
   TextInput,
 } from '../../design-system';
 import { DMPage } from '../../app/DMShell';
-import {
-  requireRuleset,
-  type Attribute,
-  type Campaign,
-  type Character,
-  type CombatInstance,
-  type CombatParticipant,
-  type EncounterTemplate,
-  type GameSystemId,
-  type Monster,
-  type ParticipantId,
-} from '../../domain';
-import {
-  beginCombat,
-  groupParticipants,
-  removeParticipants,
-  renameParticipant,
-  rollInitiative,
-  setInitiative,
-  setupIssues,
-  setVisibility,
-} from './setup';
+import type { Campaign, CombatInstance, EncounterTemplate, ParticipantId } from '../../domain';
+import { groupParticipants, setupIssues } from '../../domain/combat/setup';
+import type { CombatCommand } from '../../domain/combat/commands';
 
 export interface CombatSetupProps {
   combat: CombatInstance;
-  /** Resolved by the route, so this screen never has to guess at a fallback. */
-  systemId: GameSystemId;
   campaign: Campaign | null;
   template: EncounterTemplate | null;
-  characters: Character[];
-  monsters: Map<string, Monster>;
-  onChange: (next: CombatInstance) => void;
+  /**
+   * States an intent. The authority decides what it means and answers with the fight.
+   *
+   * Since TC-P04 this screen never computes a next state: initiative it rolled itself would
+   * be initiative a client chose, and a roster it rewrote would be a roster the server took
+   * on trust.
+   */
+  onCommand: (command: CombatCommand) => void;
   busy: boolean;
 }
 
-export function CombatSetup({
-  combat,
-  systemId,
-  campaign,
-  template,
-  characters,
-  monsters,
-  onChange,
-  busy,
-}: CombatSetupProps) {
+export function CombatSetup({ combat, campaign, template, onCommand, busy }: CombatSetupProps) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState<string[]>([]);
 
-  const rules = requireRuleset(systemId);
-
-  /** Where a participant's ability scores come from, whichever kind of thing it is. */
-  const attributesFor = useCallback(
-    (participant: CombatParticipant): Attribute[] => {
-      const source = participant.source;
-      if (source.kind === 'character') {
-        return characters.find((entry) => entry.id === source.characterId)?.attributes ?? [];
-      }
-      return monsters.get(source.monsterId)?.attributes ?? [];
-    },
-    [characters, monsters],
-  );
+  // Ability scores used to be resolved here, to roll initiative with. The server resolves
+  // them now, from the stored character or creature, for the same reason it rolls the dice.
 
   const groups = useMemo(() => groupParticipants(combat), [combat]);
   const issues = setupIssues(combat);
   const blocked = issues.some((issue) => issue.severity === 'blocking');
 
-  const roll = (onlyMissing: boolean) =>
-    onChange(rollInitiative(combat, rules, attributesFor, Math.random, onlyMissing));
+  // The dice are the server's. A client that rolled its own initiative would be a client
+  // that decided who goes first.
+  const roll = (onlyMissing: boolean) => onCommand({ kind: 'initiative.roll', onlyMissing });
 
   const begin = () => {
-    const started = beginCombat(combat, rules, new Date().toISOString());
-    onChange(started);
+    onCommand({ kind: 'combat.begin' });
     void navigate(`/dm/combat/${combat.id}`, { replace: true });
   };
 
@@ -246,7 +210,9 @@ export function CombatSetup({
                           width={48}
                           ariaLabel={`${group.name} initiative`}
                           disabled={busy}
-                          onChange={(value) => onChange(setInitiative(combat, ids, value))}
+                          onChange={(value) =>
+                            onCommand({ kind: 'initiative.set', participantIds: ids, value })
+                          }
                         />
                         <IconButton
                           icon={hidden ? 'eye-slash' : 'eye'}
@@ -259,7 +225,11 @@ export function CombatSetup({
                               : `Hide ${group.name} from the party`
                           }
                           onClick={() =>
-                            onChange(setVisibility(combat, ids, hidden ? 'party' : 'private'))
+                            onCommand({
+                              kind: 'participant.visibility',
+                              participantIds: ids,
+                              visibility: hidden ? 'party' : 'private',
+                            })
                           }
                         />
                         {group.members.length > 1 && (
@@ -281,7 +251,9 @@ export function CombatSetup({
                           size="sm"
                           disabled={busy}
                           label={`Remove ${group.name} from this fight`}
-                          onClick={() => onChange(removeParticipants(combat, ids))}
+                          onClick={() =>
+                            onCommand({ kind: 'participant.remove', participantIds: ids })
+                          }
                         />
                       </span>
                     }
@@ -308,7 +280,11 @@ export function CombatSetup({
                           aria-label={`${member.name} name`}
                           disabled={busy}
                           onChange={(event) =>
-                            onChange(renameParticipant(combat, member.id, event.target.value))
+                            onCommand({
+                              kind: 'participant.rename',
+                              participantId: member.id,
+                              name: event.target.value,
+                            })
                           }
                         />
                         <NumberInput
@@ -318,7 +294,13 @@ export function CombatSetup({
                           width={48}
                           ariaLabel={`${member.name} initiative`}
                           disabled={busy}
-                          onChange={(value) => onChange(setInitiative(combat, [member.id], value))}
+                          onChange={(value) =>
+                            onCommand({
+                              kind: 'initiative.set',
+                              participantIds: [member.id],
+                              value,
+                            })
+                          }
                         />
                         <IconButton
                           icon="trash"
@@ -326,7 +308,9 @@ export function CombatSetup({
                           size="sm"
                           disabled={busy}
                           label={`Remove ${member.name} from this fight`}
-                          onClick={() => onChange(removeParticipants(combat, [member.id]))}
+                          onClick={() =>
+                            onCommand({ kind: 'participant.remove', participantIds: [member.id] })
+                          }
                         />
                       </div>
                     ))}

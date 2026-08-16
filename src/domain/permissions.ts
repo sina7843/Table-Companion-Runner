@@ -1,11 +1,22 @@
 /**
  * Who may see and do what.
  *
- * These are UI-layer guards: they decide what a screen renders, and they keep the
- * "hidden from the party" and "secret roll" rules in one place instead of scattered
- * through components. They are NOT a security boundary. When TC-13 introduces a real
- * server, the same rules have to be enforced there as well — a client that decides its
- * own permissions is a client that can be asked not to.
+ * This file states the rules. It does not enforce them.
+ *
+ * On the client these are UI guards: they decide what a screen renders, and they keep the
+ * "hidden from the party" and "secret roll" rules in one place instead of scattered through
+ * components. **Nothing here is a security boundary.** A client that decides its own
+ * permissions is a client that can be asked not to.
+ *
+ * As of TC-P02 the server imports this same file and enforces it — `server/authorize.ts`
+ * runs `visibleParticipants`, `visibleRolls` and `canSeeCharacterSection` over every response
+ * before it is serialised, so an unrevealed creature and a secret roll are *absent from the
+ * payload* a player's device receives rather than filtered out on arrival. One statement of
+ * the rules, used twice: the screens read it to decide what to draw, and the server reads it
+ * to decide what to send. If the two ever disagree, it is because someone wrote a second
+ * predicate somewhere — which is exactly how a secret roll eventually leaks.
+ *
+ * The server is authoritative. These functions are how the UI stays honest about it.
  */
 import {
   id,

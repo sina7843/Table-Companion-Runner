@@ -80,7 +80,8 @@ function ScreenState({
 
 export { DMHome } from './DMHome';
 export { PlayerHome } from './PlayerHome';
-export { SignIn, JoinCampaign, NewCampaign, NotFound } from './entry';
+export { SignIn, SignUp, JoinCampaign, NewCampaign, NotFound } from './entry';
+export { AccountSettings } from './account';
 export { BuilderScreen } from './builder/BuilderScreen';
 
 /* ── DM ─────────────────────────────────────────────────────────────────────── */

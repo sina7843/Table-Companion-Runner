@@ -1,0 +1,357 @@
+{
+  "source": {
+    "id": "rulebook",
+    "name": "Published rulebooks",
+    "publisher": "Wizards of the Coast LLC",
+    "version": "n/a",
+    "license": {
+      "id": "not-licensed",
+      "name": "No redistribution licence",
+      "url": "",
+      "redistributable": false,
+      "attribution": ""
+    }
+  },
+  "records": [
+    {
+      "kind": "monster",
+      "key": "beholder",
+      "systemId": "dnd5e-2024",
+      "name": "Beholder",
+      "data": {
+        "id": "m-beholder",
+        "systemId": "dnd5e-2024",
+        "name": "Beholder",
+        "subtitle": "Large aberration, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 13",
+        "challengeRank": 13,
+        "facets": {
+          "type": ["Aberration"],
+          "size": ["Large"],
+          "environment": ["Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 10
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 14
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 18
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 17
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 15
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 17
+          }
+        ],
+        "health": {
+          "current": 180,
+          "max": 180,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 18
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 180
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 13"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "0 ft, fly 20 ft (hover)"
+          },
+          {
+            "key": "saves",
+            "label": "Saving throws",
+            "value": "INT +8, WIS +7, CHA +8"
+          },
+          {
+            "key": "skills",
+            "label": "Skills",
+            "value": "Perception +12"
+          },
+          {
+            "key": "conditionImmunities",
+            "label": "Condition immunities",
+            "value": "Prone"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Darkvision 120 ft, passive Perception 22"
+          },
+          {
+            "key": "languages",
+            "label": "Languages",
+            "value": "Deep Speech, Undercommon"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Antimagic Cone",
+            "description": "Its central eye suppresses magic in a 150-foot cone."
+          },
+          {
+            "name": "Antimagic Cone",
+            "description": "Its central eye creates a 150-foot cone of antimagic. Spells and magical effects are suppressed inside it."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Bite",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+5",
+                "damage": "4d6 piercing"
+              },
+              {
+                "name": "Eye Rays",
+                "description": "Fires three of the following rays at random, choosing one to three targets it can see within 120 feet.",
+                "tags": ["3 rays"]
+              },
+              {
+                "name": "Charm Ray",
+                "description": "DC 16 Wisdom save or charmed for one hour.",
+                "tags": ["Eye ray"]
+              },
+              {
+                "name": "Paralysing Ray",
+                "description": "DC 16 Constitution save or paralysed for one minute.",
+                "tags": ["Eye ray"]
+              },
+              {
+                "name": "Fear Ray",
+                "description": "DC 16 Wisdom save or frightened for one minute.",
+                "tags": ["Eye ray"]
+              },
+              {
+                "name": "Disintegration Ray",
+                "description": "DC 16 Dexterity save. A large or smaller object is disintegrated.",
+                "damage": "10d8 force",
+                "tags": ["Eye ray"]
+              },
+              {
+                "name": "Death Ray",
+                "description": "DC 16 Dexterity save.",
+                "damage": "10d10 necrotic",
+                "tags": ["Eye ray"]
+              }
+            ]
+          },
+          {
+            "key": "legendary",
+            "label": "Legendary actions",
+            "note": "3 per round",
+            "entries": [
+              {
+                "name": "Eye Ray",
+                "description": "Uses one random eye ray.",
+                "tags": ["1 action"]
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Aberration",
+          "size": "Large",
+          "alignment": "lawful evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "mind-flayer",
+      "systemId": "dnd5e-2024",
+      "name": "Mind Flayer",
+      "data": {
+        "id": "m-mind-flayer",
+        "systemId": "dnd5e-2024",
+        "name": "Mind Flayer",
+        "subtitle": "Medium aberration, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 7",
+        "challengeRank": 7,
+        "facets": {
+          "type": ["Aberration"],
+          "size": ["Medium"],
+          "environment": ["Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 11
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 12
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 19
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 17
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 17
+          }
+        ],
+        "health": {
+          "current": 71,
+          "max": 71,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 71
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 7"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "saves",
+            "label": "Saving throws",
+            "value": "INT +7, WIS +6, CHA +6"
+          },
+          {
+            "key": "skills",
+            "label": "Skills",
+            "value": "Arcana +7, Deception +6, Insight +6, Perception +6, Stealth +4"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Darkvision 120 ft, passive Perception 16"
+          },
+          {
+            "key": "languages",
+            "label": "Languages",
+            "value": "Deep Speech, Undercommon, telepathy 120 ft"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Magic Resistance",
+            "description": "Advantage on saving throws against spells and magical effects."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Tentacles",
+                "description": "Melee attack, reach 5 ft. On a hit the target is grappled and must save or be stunned.",
+                "attackBonus": "+7",
+                "damage": "2d10 + 4 psychic"
+              },
+              {
+                "name": "Extract Brain",
+                "description": "Against an incapacitated grappled humanoid. Kills the target if the damage reduces it to 0.",
+                "attackBonus": "+7",
+                "damage": "10d10 piercing"
+              },
+              {
+                "name": "Mind Blast",
+                "description": "A 60-foot cone. DC 15 Intelligence save, or stunned for one minute.",
+                "damage": "4d8 + 4 psychic",
+                "tags": ["Recharge 5–6"]
+              }
+            ]
+          },
+          {
+            "key": "spells",
+            "label": "Innate spellcasting",
+            "note": "Intelligence, DC 15",
+            "entries": [
+              {
+                "name": "Detect Thoughts",
+                "description": "Reads the surface thoughts of a creature it can see.",
+                "tier": "At will"
+              },
+              {
+                "name": "Levitate",
+                "description": "Rises or descends vertically up to 20 feet.",
+                "tier": "At will"
+              },
+              {
+                "name": "Dominate Monster",
+                "description": "DC 15 Wisdom save or charmed and commanded.",
+                "tier": "1 per day"
+              },
+              {
+                "name": "Plane Shift",
+                "description": "Transports itself to another plane of existence.",
+                "tier": "1 per day"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Aberration",
+          "size": "Medium",
+          "alignment": "lawful evil"
+        }
+      }
+    }
+  ]
+}

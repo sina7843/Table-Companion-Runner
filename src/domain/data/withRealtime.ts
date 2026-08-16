@@ -8,11 +8,19 @@
  *
  * Events are notifications, not payloads: the receiver re-reads through the repository, so
  * there is exactly one source of truth even when two devices write at once.
+ *
+ * **Only where the client is the authority.** Since TC-P05 a deployment broadcasts after it
+ * commits — the server is the only party that knows a write landed, and a client announcing
+ * one it merely sent is a client inventing an event. So when the channel says its authority is
+ * the server, this returns the repositories untouched, and the announcements below are what
+ * the development adapter does with no server behind it.
  */
 import type { RealtimeChannel } from './realtime.ts';
 import type { Repositories } from './repositories.ts';
 
 export function withRealtime(repositories: Repositories, channel: RealtimeChannel): Repositories {
+  if (channel.authority === 'server') return repositories;
+
   const { campaigns, characters, monsters, encounters, combats, rolls, drafts } = repositories;
 
   return {
@@ -92,13 +100,17 @@ export function withRealtime(repositories: Repositories, channel: RealtimeChanne
         channel.publish({ kind: 'encounter.changed', encounterId });
         return combat;
       },
-      save: async (combat) => {
-        const saved = await combats.save(combat);
-        channel.publish({
-          kind: saved.status === 'ended' ? 'combat.ended' : 'combat.changed',
-          combatId: saved.id,
-        });
-        return saved;
+      command: async (input) => {
+        const outcome = await combats.command(input);
+        // A replayed command changed nothing, so it announces nothing — otherwise a retry
+        // would make every other device re-read for no reason.
+        if (!outcome.replayed) {
+          channel.publish({
+            kind: outcome.combat.status === 'ended' ? 'combat.ended' : 'combat.changed',
+            combatId: outcome.combat.id,
+          });
+        }
+        return outcome;
       },
     },
 

@@ -71,6 +71,18 @@ export {
   type AsyncState,
 } from './data/RepositoryProvider.tsx';
 export { SessionGate, SessionProvider, useSession, useUserId } from './data/SessionProvider.tsx';
+export {
+  onSessionExpired,
+  reportSessionExpired,
+  resetSessionExpiryListeners,
+} from './data/sessionExpiry.ts';
+export {
+  noopSink,
+  TelemetryProvider,
+  useTelemetry,
+  type TelemetryEvent,
+  type TelemetrySink,
+} from './telemetry.ts';
 
 /* ── The seams TC-13 made explicit ──────────────────────────────────────────── */
 
@@ -80,7 +92,7 @@ export { API_ROUTES, ApiError, type ApiConfig, type ApiRoute } from './data/apiC
 export {
   createLocalChannel,
   createNullChannel,
-  createSocketChannel,
+  createEventStreamChannel,
   type ConnectionState,
   type DomainEvent,
   type DomainEventKind,

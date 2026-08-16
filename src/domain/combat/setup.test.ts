@@ -8,12 +8,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createFixtureRepositories } from '../../domain/data/fixtureRepositories.ts';
 import { requireRuleset } from '../../domain/ruleset/registry.ts';
-import {
-  id,
-  type CombatInstance,
-  type CombatParticipant,
-  type ParticipantId,
-} from '../../domain/types.ts';
+import { id, type CombatInstance, type CombatParticipant } from '../../domain/types.ts';
+import type { CombatCommand } from './commands.ts';
 import {
   beginCombat,
   groupParticipants,
@@ -245,13 +241,27 @@ test('a whole start-combat flow leaves the encounter template exactly as it was'
 
   const combat = await repos.combats.startFromTemplate(template.id);
 
-  // Everything a DM can do on the setup screen, then round 1.
-  let edited = rollInitiative(combat, rules, () => [], fixedRandom(13));
-  edited = renameParticipant(edited, edited.participants[0]!.id, 'The big one');
-  edited = setVisibility(edited, [edited.participants[0]!.id as ParticipantId], 'private');
-  edited = removeParticipants(edited, [edited.participants[1]!.id as ParticipantId]);
-  edited = beginCombat(edited, rules, '2026-08-15T20:00:00.000Z');
-  await repos.combats.save(edited);
+  // Everything a DM can do on the setup screen, then round 1 — as commands, which is the
+  // only way a fight changes since TC-P04.
+  const first = combat.participants[0]!.id;
+  const second = combat.participants[1]!.id;
+  let version = combat.version ?? 0;
+  const send = async (command: CombatCommand) => {
+    const outcome = await repos.combats.command({
+      combatId: combat.id,
+      commandId: `setup-${(version += 0)}-${command.kind}-${Math.random()}`,
+      expectedVersion: version,
+      command,
+    });
+    version = outcome.combat.version ?? version + 1;
+    return outcome;
+  };
+
+  await send({ kind: 'initiative.roll', onlyMissing: true });
+  await send({ kind: 'participant.rename', participantId: first, name: 'The big one' });
+  await send({ kind: 'participant.visibility', participantIds: [first], visibility: 'private' });
+  await send({ kind: 'participant.remove', participantIds: [second] });
+  await send({ kind: 'combat.begin' });
 
   const after = await repos.encounters.byId(template.id);
   assert.ok(after);

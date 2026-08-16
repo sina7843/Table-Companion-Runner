@@ -73,18 +73,57 @@ function recorder() {
   };
 }
 
-test('saving a fight announces it, and ending one says so specifically', async () => {
+test('a command announces the fight changed, and ending one says so specifically', async () => {
   const { seen, channel } = recorder();
   const repos = withRealtime(createFixtureRepositories(), channel);
 
   const combat = await repos.combats.byId(id<'CombatInstance'>('cb-goblin-ambush'));
   assert.ok(combat);
 
-  await repos.combats.save({ ...combat, round: 4 });
+  const first = await repos.combats.command({
+    combatId: combat.id,
+    commandId: 'seam-1',
+    expectedVersion: combat.version ?? 0,
+    command: { kind: 'turn.next' },
+  });
   assert.deepEqual(seen.at(-1)?.kind, 'combat.changed');
 
-  await repos.combats.save({ ...combat, status: 'ended' });
+  await repos.combats.command({
+    combatId: combat.id,
+    commandId: 'seam-2',
+    expectedVersion: first.combat.version ?? 1,
+    command: { kind: 'combat.end' },
+  });
   assert.deepEqual(seen.at(-1)?.kind, 'combat.ended');
+});
+
+test('a replayed command announces nothing, because nothing changed', async () => {
+  const { seen, channel } = recorder();
+  const repos = withRealtime(createFixtureRepositories(), channel);
+
+  // Its own fight: the fixture arrays are module scope, so a test that reuses the demo
+  // world's combat inherits whatever the test before it did to it.
+  const templates = await repos.encounters.listForCampaign(id<'Campaign'>('c-lmop'));
+  const template = templates[0];
+  assert.ok(template);
+  const fight = await repos.combats.startFromTemplate(template.id);
+  seen.length = 0;
+
+  const input = {
+    combatId: fight.id,
+    commandId: 'seam-retry',
+    expectedVersion: fight.version ?? 0,
+    // Any command will do; `combat.begin` is one a fresh fight accepts.
+    command: { kind: 'combat.begin' } as const,
+  };
+  await repos.combats.command(input);
+  const announced = seen.length;
+
+  // The same attempt again: the fight is where it already was, so no device is told to
+  // re-read for a change that did not happen.
+  const replay = await repos.combats.command(input);
+  assert.equal(replay.replayed, true);
+  assert.equal(seen.length, announced);
 });
 
 test('starting a fight announces both the fight and the template it came from', async () => {
@@ -166,12 +205,21 @@ test('a device does not hear its own echo', () => {
 
 /* ── The HTTP client talks to the contract ──────────────────────────────────── */
 
+// Bodies that satisfy the response schemas: since TC-P03 the client validates what it is
+// given, so a stub that answers `{}` to every call is a stub that lies about the contract.
+const bodyFor = (url: string): { status: number; body: string } => {
+  if (url.endsWith('/me')) return { status: 200, body: '{"id":"u-1","displayName":"Marta"}' };
+  if (url.includes('/combats/')) return { status: 200, body: 'null' };
+  return { status: 204, body: '' };
+};
+
 test('every repository call goes to the path the contract states', async () => {
   const calls: { url: string; method: string }[] = [];
   const fetcher = (async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: String(url), method: init?.method ?? 'GET' });
-    return new Response(JSON.stringify({}), {
-      status: 200,
+    const { status, body } = bodyFor(String(url));
+    return new Response(body || null, {
+      status,
       headers: { 'Content-Type': 'application/json' },
     });
   }) as unknown as typeof globalThis.fetch;

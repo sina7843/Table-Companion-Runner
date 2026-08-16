@@ -1,0 +1,5451 @@
+{
+  "source": {
+    "id": "srd-5.1",
+    "name": "System Reference Document 5.1",
+    "publisher": "Wizards of the Coast LLC",
+    "version": "5.1",
+    "url": "https://dnd.wizards.com/resources/systems-reference-document",
+    "license": {
+      "id": "cc-by-4.0",
+      "name": "Creative Commons Attribution 4.0 International",
+      "url": "https://creativecommons.org/licenses/by/4.0/",
+      "redistributable": true,
+      "attribution": "This work includes material from the System Reference Document 5.1 (\"SRD 5.1\") by Wizards of the Coast LLC, available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+    }
+  },
+  "records": [
+    {
+      "kind": "monster",
+      "key": "adult-black-dragon",
+      "systemId": "dnd5e-2024",
+      "name": "Adult Black Dragon",
+      "data": {
+        "id": "m-adult-black-dragon",
+        "systemId": "dnd5e-2024",
+        "name": "Adult Black Dragon",
+        "subtitle": "Huge dragon, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 14",
+        "challengeRank": 14,
+        "facets": {
+          "type": ["Dragon"],
+          "size": ["Huge"],
+          "environment": ["Swamp"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 23
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 14
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 21
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 14
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 13
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 17
+          }
+        ],
+        "health": {
+          "current": 195,
+          "max": 195,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 19
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 195
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 14"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "40 ft, fly 80 ft, swim 40 ft"
+          },
+          {
+            "key": "saves",
+            "label": "Saving throws",
+            "value": "DEX +7, CON +11, WIS +6, CHA +8"
+          },
+          {
+            "key": "skills",
+            "label": "Skills",
+            "value": "Perception +11, Stealth +7"
+          },
+          {
+            "key": "immunities",
+            "label": "Damage immunities",
+            "value": "Acid"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Blindsight 60 ft, darkvision 120 ft, passive Perception 21"
+          },
+          {
+            "key": "languages",
+            "label": "Languages",
+            "value": "Common, Draconic"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Amphibious",
+            "description": "Breathes both air and water."
+          },
+          {
+            "name": "Amphibious",
+            "description": "The dragon can breathe air and water."
+          },
+          {
+            "name": "Legendary Resistance",
+            "description": "Three times per day, when it fails a saving throw, it may choose to succeed instead."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Multiattack",
+                "description": "Uses Frightful Presence, then makes three attacks: one bite and two claws."
+              },
+              {
+                "name": "Bite",
+                "description": "Melee weapon attack, reach 10 ft, one target.",
+                "attackBonus": "+11",
+                "damage": "2d10 + 6 piercing",
+                "tags": ["Plus 1d8 acid"]
+              },
+              {
+                "name": "Claw",
+                "description": "Melee weapon attack, reach 5 ft, one target.",
+                "attackBonus": "+11",
+                "damage": "2d6 + 6 slashing"
+              },
+              {
+                "name": "Tail",
+                "description": "Melee weapon attack, reach 15 ft, one target.",
+                "attackBonus": "+11",
+                "damage": "2d8 + 6 bludgeoning"
+              },
+              {
+                "name": "Acid Breath",
+                "description": "Exhales acid in a 60-foot line. DC 18 Dexterity save, half on a success.",
+                "damage": "12d8 acid",
+                "tags": ["Recharge 5–6"]
+              },
+              {
+                "name": "Frightful Presence",
+                "description": "Each creature within 120 feet that can see the dragon makes a DC 16 Wisdom save or is frightened for one minute.",
+                "tags": ["1 per day"]
+              }
+            ]
+          },
+          {
+            "key": "legendary",
+            "label": "Legendary actions",
+            "note": "3 per round",
+            "entries": [
+              {
+                "name": "Detect",
+                "description": "Makes a Wisdom (Perception) check.",
+                "rolls": [
+                  {
+                    "label": "Perception",
+                    "expression": "1d20 +11"
+                  }
+                ],
+                "tags": ["1 action"]
+              },
+              {
+                "name": "Tail Attack",
+                "description": "Makes one tail attack.",
+                "attackBonus": "+11",
+                "damage": "2d8 + 6 bludgeoning",
+                "tags": ["1 action"]
+              },
+              {
+                "name": "Wing Attack",
+                "description": "Beats its wings. Each creature within 10 feet makes a DC 19 Dexterity save or takes damage and is knocked prone.",
+                "damage": "2d6 + 6 bludgeoning",
+                "tags": ["2 actions"]
+              }
+            ]
+          },
+          {
+            "key": "reactions",
+            "label": "Reactions",
+            "entries": [
+              {
+                "name": "Attack of Opportunity",
+                "description": "Attacks a creature that leaves its reach.",
+                "attackBonus": "+11",
+                "damage": "2d10 + 6 piercing",
+                "tags": ["1 per round"]
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Dragon",
+          "size": "Huge",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "adult-red-dragon",
+      "systemId": "dnd5e-2024",
+      "name": "Adult Red Dragon",
+      "data": {
+        "id": "m-adult-red-dragon",
+        "systemId": "dnd5e-2024",
+        "name": "Adult Red Dragon",
+        "subtitle": "Huge dragon, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 17",
+        "challengeRank": 17,
+        "facets": {
+          "type": ["Dragon"],
+          "size": ["Huge"],
+          "environment": ["Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 27
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 10
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 25
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 16
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 13
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 21
+          }
+        ],
+        "health": {
+          "current": 256,
+          "max": 256,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 19
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 256
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 17"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Legendary Resistance",
+            "description": "Three times per day, may choose to succeed on a failed saving throw."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Fire Breath",
+                "description": "A 60-foot cone; a successful save halves the damage.",
+                "damage": "18d6 fire"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Dragon",
+          "size": "Huge",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "air-elemental",
+      "systemId": "dnd5e-2024",
+      "name": "Air Elemental",
+      "data": {
+        "id": "m-air-elemental",
+        "systemId": "dnd5e-2024",
+        "name": "Air Elemental",
+        "subtitle": "Large elemental, neutral",
+        "origin": "library",
+        "challengeLabel": "CR 5",
+        "challengeRank": 5,
+        "facets": {
+          "type": ["Elemental"],
+          "size": ["Large"],
+          "environment": ["Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 14
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 20
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 14
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 6
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 10
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 6
+          }
+        ],
+        "health": {
+          "current": 90,
+          "max": 90,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 90
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 5"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Air Form",
+            "description": "Moves through a space as narrow as one inch without squeezing."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Slam",
+                "description": "Makes two slam attacks.",
+                "attackBonus": "+8",
+                "damage": "2d8 + 5 bludgeoning"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Elemental",
+          "size": "Large",
+          "alignment": "neutral"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "ancient-blue-dragon",
+      "systemId": "dnd5e-2024",
+      "name": "Ancient Blue Dragon",
+      "data": {
+        "id": "m-ancient-blue-dragon",
+        "systemId": "dnd5e-2024",
+        "name": "Ancient Blue Dragon",
+        "subtitle": "Gargantuan dragon, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 23",
+        "challengeRank": 23,
+        "facets": {
+          "type": ["Dragon"],
+          "size": ["Gargantuan"],
+          "environment": ["Desert"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 29
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 10
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 27
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 18
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 17
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 21
+          }
+        ],
+        "health": {
+          "current": 481,
+          "max": 481,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 22
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 481
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 23"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "40 ft, burrow 40 ft, fly 80 ft"
+          },
+          {
+            "key": "saves",
+            "label": "Saving throws",
+            "value": "DEX +9, CON +15, WIS +10, CHA +12"
+          },
+          {
+            "key": "skills",
+            "label": "Skills",
+            "value": "Perception +17, Stealth +9"
+          },
+          {
+            "key": "immunities",
+            "label": "Damage immunities",
+            "value": "Lightning"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Blindsight 60 ft, darkvision 120 ft, passive Perception 27"
+          },
+          {
+            "key": "languages",
+            "label": "Languages",
+            "value": "Common, Draconic"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Legendary Resistance",
+            "description": "Three times per day, may choose to succeed on a failed saving throw."
+          },
+          {
+            "name": "Legendary Resistance",
+            "description": "Three times per day, may choose to succeed on a failed save."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Multiattack",
+                "description": "Uses Frightful Presence, then makes three attacks."
+              },
+              {
+                "name": "Bite",
+                "description": "Melee weapon attack, reach 15 ft.",
+                "attackBonus": "+16",
+                "damage": "2d10 + 9 piercing",
+                "tags": ["Plus 2d10 lightning"]
+              },
+              {
+                "name": "Claw",
+                "description": "Melee weapon attack, reach 10 ft.",
+                "attackBonus": "+16",
+                "damage": "2d6 + 9 slashing"
+              },
+              {
+                "name": "Lightning Breath",
+                "description": "A 120-foot line, 10 feet wide. DC 23 Dexterity save, half on a success.",
+                "damage": "16d10 lightning",
+                "tags": ["Recharge 5–6"]
+              }
+            ]
+          },
+          {
+            "key": "legendary",
+            "label": "Legendary actions",
+            "note": "3 per round",
+            "entries": [
+              {
+                "name": "Detect",
+                "description": "Makes a Wisdom (Perception) check.",
+                "rolls": [
+                  {
+                    "label": "Perception",
+                    "expression": "1d20 +17"
+                  }
+                ],
+                "tags": ["1 action"]
+              },
+              {
+                "name": "Tail Attack",
+                "description": "Makes one tail attack.",
+                "attackBonus": "+16",
+                "damage": "2d8 + 9 bludgeoning",
+                "tags": ["1 action"]
+              },
+              {
+                "name": "Wing Attack",
+                "description": "Each creature within 15 feet makes a DC 24 Dexterity save.",
+                "damage": "2d6 + 9 bludgeoning",
+                "tags": ["2 actions"]
+              }
+            ]
+          },
+          {
+            "key": "reactions",
+            "label": "Reactions",
+            "entries": [
+              {
+                "name": "Attack of Opportunity",
+                "description": "Attacks a creature that leaves its reach.",
+                "attackBonus": "+16",
+                "damage": "2d10 + 9 piercing",
+                "tags": ["1 per round"]
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Dragon",
+          "size": "Gargantuan",
+          "alignment": "lawful evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "animated-armour",
+      "systemId": "dnd5e-2024",
+      "name": "Animated Armour",
+      "data": {
+        "id": "m-animated-armour",
+        "systemId": "dnd5e-2024",
+        "name": "Animated Armour",
+        "subtitle": "Medium construct, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 1",
+        "challengeRank": 1,
+        "facets": {
+          "type": ["Construct"],
+          "size": ["Medium"],
+          "environment": ["Urban", "Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 14
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 11
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 13
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 1
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 3
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 1
+          }
+        ],
+        "health": {
+          "current": 33,
+          "max": 33,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 18
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 33
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Antimagic Susceptibility",
+            "description": "Falls inert while in an antimagic field."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Slam",
+                "description": "Makes two melee attacks.",
+                "attackBonus": "+4",
+                "damage": "1d6 + 2 bludgeoning"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Construct",
+          "size": "Medium",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "ankheg",
+      "systemId": "dnd5e-2024",
+      "name": "Ankheg",
+      "data": {
+        "id": "m-ankheg",
+        "systemId": "dnd5e-2024",
+        "name": "Ankheg",
+        "subtitle": "Large monstrosity, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 2",
+        "challengeRank": 2,
+        "facets": {
+          "type": ["Monstrosity"],
+          "size": ["Large"],
+          "environment": ["Grassland", "Forest"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 17
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 11
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 13
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 1
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 13
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 6
+          }
+        ],
+        "health": {
+          "current": 39,
+          "max": 39,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 14
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 39
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 2"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Bite",
+                "description": "Plus 1d6 acid damage, and the target is grappled.",
+                "attackBonus": "+5",
+                "damage": "2d6 + 3 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Monstrosity",
+          "size": "Large",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "bandit",
+      "systemId": "dnd5e-2024",
+      "name": "Bandit",
+      "data": {
+        "id": "m-bandit",
+        "systemId": "dnd5e-2024",
+        "name": "Bandit",
+        "subtitle": "Medium humanoid, any",
+        "origin": "library",
+        "challengeLabel": "CR 1/8",
+        "challengeRank": 0.125,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Medium"],
+          "environment": ["Grassland", "Urban"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 11
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 12
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 10
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 10
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 10
+          }
+        ],
+        "health": {
+          "current": 11,
+          "max": 11,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 12
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 11
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/8"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Scimitar",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+3",
+                "damage": "1d6 + 1 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Medium",
+          "alignment": "any"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "bandit-captain",
+      "systemId": "dnd5e-2024",
+      "name": "Bandit Captain",
+      "data": {
+        "id": "m-bandit-captain",
+        "systemId": "dnd5e-2024",
+        "name": "Bandit Captain",
+        "subtitle": "Medium humanoid, any",
+        "origin": "library",
+        "challengeLabel": "CR 2",
+        "challengeRank": 2,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Medium"],
+          "environment": ["Grassland", "Urban"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 15
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 16
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 14
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 14
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 11
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 14
+          }
+        ],
+        "health": {
+          "current": 65,
+          "max": 65,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 65
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 2"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Parry",
+            "description": "Adds 2 to armour class against one melee attack it can see."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Scimitar",
+                "description": "Makes three attacks: two with its scimitar and one with its dagger.",
+                "attackBonus": "+5",
+                "damage": "1d6 + 3 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Medium",
+          "alignment": "any"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "basilisk",
+      "systemId": "dnd5e-2024",
+      "name": "Basilisk",
+      "data": {
+        "id": "m-basilisk",
+        "systemId": "dnd5e-2024",
+        "name": "Basilisk",
+        "subtitle": "Medium monstrosity, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 3",
+        "challengeRank": 3,
+        "facets": {
+          "type": ["Monstrosity"],
+          "size": ["Medium"],
+          "environment": ["Underdark", "Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 16
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 8
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 15
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 2
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 8
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 7
+          }
+        ],
+        "health": {
+          "current": 52,
+          "max": 52,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 52
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 3"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Petrifying Gaze",
+            "description": "A creature that starts its turn within 30 feet must save or begin turning to stone."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Bite",
+                "description": "Plus 2d6 poison damage.",
+                "attackBonus": "+5",
+                "damage": "2d6 + 3 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Monstrosity",
+          "size": "Medium",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "brown-bear",
+      "systemId": "dnd5e-2024",
+      "name": "Brown Bear",
+      "data": {
+        "id": "m-brown-bear",
+        "systemId": "dnd5e-2024",
+        "name": "Brown Bear",
+        "subtitle": "Large beast, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 1",
+        "challengeRank": 1,
+        "facets": {
+          "type": ["Beast"],
+          "size": ["Large"],
+          "environment": ["Forest", "Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 19
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 10
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 2
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 13
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 7
+          }
+        ],
+        "health": {
+          "current": 34,
+          "max": 34,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 11
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 34
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Keen Smell",
+            "description": "Advantage on Perception checks that rely on smell."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Claws",
+                "description": "Makes one bite attack and one claws attack.",
+                "attackBonus": "+5",
+                "damage": "2d6 + 4 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Beast",
+          "size": "Large",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "bugbear",
+      "systemId": "dnd5e-2024",
+      "name": "Bugbear",
+      "data": {
+        "id": "m-bugbear",
+        "systemId": "dnd5e-2024",
+        "name": "Bugbear",
+        "subtitle": "Medium humanoid, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 1",
+        "challengeRank": 1,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Medium"],
+          "environment": ["Forest", "Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 15
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 14
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 13
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 8
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 11
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 9
+          }
+        ],
+        "health": {
+          "current": 27,
+          "max": 27,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 16
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 27
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Brute",
+            "description": "A melee weapon deals one extra die of damage on a hit."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Morningstar",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+4",
+                "damage": "2d8 + 2 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Medium",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "bugbear-chief",
+      "systemId": "dnd5e-2024",
+      "name": "Bugbear Chief",
+      "data": {
+        "id": "m-bugbear-chief",
+        "systemId": "dnd5e-2024",
+        "name": "Bugbear Chief",
+        "subtitle": "Medium humanoid, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 3",
+        "challengeRank": 3,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Medium"],
+          "environment": ["Forest", "Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 15
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 14
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 13
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 11
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 12
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 9
+          }
+        ],
+        "health": {
+          "current": 33,
+          "max": 33,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 17
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 33
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 3"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Heart of Hruggek",
+            "description": "Advantage on saves against charm, fear, paralysis, poison, stunning and unconsciousness."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Morningstar",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+5",
+                "damage": "2d8 + 2 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Medium",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "couatl",
+      "systemId": "dnd5e-2024",
+      "name": "Couatl",
+      "data": {
+        "id": "m-couatl",
+        "systemId": "dnd5e-2024",
+        "name": "Couatl",
+        "subtitle": "Medium celestial, lawful good",
+        "origin": "library",
+        "challengeLabel": "CR 4",
+        "challengeRank": 4,
+        "facets": {
+          "type": ["Celestial"],
+          "size": ["Medium"],
+          "environment": ["Forest", "Grassland"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 16
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 20
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 17
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 18
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 20
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 18
+          }
+        ],
+        "health": {
+          "current": 97,
+          "max": 97,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 19
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 97
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 4"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Magic Weapons",
+            "description": "Its attacks are magical."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Bite",
+                "description": "Plus 3d6 poison and possible unconsciousness.",
+                "attackBonus": "+8",
+                "damage": "1d6 + 5 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Celestial",
+          "size": "Medium",
+          "alignment": "lawful good"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "cultist",
+      "systemId": "dnd5e-2024",
+      "name": "Cultist",
+      "data": {
+        "id": "m-cultist",
+        "systemId": "dnd5e-2024",
+        "name": "Cultist",
+        "subtitle": "Medium humanoid, any evil",
+        "origin": "library",
+        "challengeLabel": "CR 1/8",
+        "challengeRank": 0.125,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Medium"],
+          "environment": ["Urban", "Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 11
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 10
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 10
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 11
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 10
+          }
+        ],
+        "health": {
+          "current": 9,
+          "max": 9,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 12
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 9
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/8"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Dark Devotion",
+            "description": "Advantage on saving throws against being charmed or frightened."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Scimitar",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+3",
+                "damage": "1d6 + 1 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Medium",
+          "alignment": "any evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "dire-wolf",
+      "systemId": "dnd5e-2024",
+      "name": "Dire Wolf",
+      "data": {
+        "id": "m-dire-wolf",
+        "systemId": "dnd5e-2024",
+        "name": "Dire Wolf",
+        "subtitle": "Large beast, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 1",
+        "challengeRank": 1,
+        "facets": {
+          "type": ["Beast"],
+          "size": ["Large"],
+          "environment": ["Forest", "Arctic"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 17
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 15
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 15
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 3
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 12
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 7
+          }
+        ],
+        "health": {
+          "current": 37,
+          "max": 37,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 14
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 37
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Keen Hearing and Smell",
+            "description": "Advantage on Perception checks that rely on hearing or smell."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Bite",
+                "description": "On a hit the target must save or be knocked prone.",
+                "attackBonus": "+5",
+                "damage": "2d6 + 3 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Beast",
+          "size": "Large",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "dryad",
+      "systemId": "dnd5e-2024",
+      "name": "Dryad",
+      "data": {
+        "id": "m-dryad",
+        "systemId": "dnd5e-2024",
+        "name": "Dryad",
+        "subtitle": "Medium fey, neutral",
+        "origin": "library",
+        "challengeLabel": "CR 1",
+        "challengeRank": 1,
+        "facets": {
+          "type": ["Fey"],
+          "size": ["Medium"],
+          "environment": ["Forest"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 10
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 11
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 14
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 15
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 18
+          }
+        ],
+        "health": {
+          "current": 22,
+          "max": 22,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 11
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 22
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Tree Stride",
+            "description": "Steps into one living tree and out of another within 60 feet."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Club",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+2",
+                "damage": "1d4 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Fey",
+          "size": "Medium",
+          "alignment": "neutral"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "fire-elemental",
+      "systemId": "dnd5e-2024",
+      "name": "Fire Elemental",
+      "data": {
+        "id": "m-fire-elemental",
+        "systemId": "dnd5e-2024",
+        "name": "Fire Elemental",
+        "subtitle": "Large elemental, neutral",
+        "origin": "library",
+        "challengeLabel": "CR 5",
+        "challengeRank": 5,
+        "facets": {
+          "type": ["Elemental"],
+          "size": ["Large"],
+          "environment": ["Mountain", "Desert"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 10
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 17
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 6
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 10
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 7
+          }
+        ],
+        "health": {
+          "current": 102,
+          "max": 102,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 13
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 102
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 5"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Fire Form",
+            "description": "A creature that touches it takes 5 fire damage and may catch light."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Touch",
+                "description": "Makes two touch attacks.",
+                "attackBonus": "+6",
+                "damage": "2d6 + 3 fire"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Elemental",
+          "size": "Large",
+          "alignment": "neutral"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "frost-giant",
+      "systemId": "dnd5e-2024",
+      "name": "Frost Giant",
+      "data": {
+        "id": "m-frost-giant",
+        "systemId": "dnd5e-2024",
+        "name": "Frost Giant",
+        "subtitle": "Huge giant, neutral evil",
+        "origin": "library",
+        "challengeLabel": "CR 8",
+        "challengeRank": 8,
+        "facets": {
+          "type": ["Giant"],
+          "size": ["Huge"],
+          "environment": ["Arctic", "Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 23
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 9
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 21
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 9
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 10
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 12
+          }
+        ],
+        "health": {
+          "current": 138,
+          "max": 138,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 138
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 8"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Greataxe",
+                "description": "Makes two greataxe attacks.",
+                "attackBonus": "+9",
+                "damage": "3d12 + 6 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Giant",
+          "size": "Huge",
+          "alignment": "neutral evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "gargoyle",
+      "systemId": "dnd5e-2024",
+      "name": "Gargoyle",
+      "data": {
+        "id": "m-gargoyle",
+        "systemId": "dnd5e-2024",
+        "name": "Gargoyle",
+        "subtitle": "Medium elemental, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 2",
+        "challengeRank": 2,
+        "facets": {
+          "type": ["Elemental"],
+          "size": ["Medium"],
+          "environment": ["Urban", "Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 15
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 11
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 6
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 11
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 7
+          }
+        ],
+        "health": {
+          "current": 52,
+          "max": 52,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 52
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 2"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "False Appearance",
+            "description": "Indistinguishable from an inanimate statue while motionless."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Claws",
+                "description": "Makes two attacks: one bite and one claws.",
+                "attackBonus": "+4",
+                "damage": "1d6 + 2 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Elemental",
+          "size": "Medium",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "gelatinous-cube",
+      "systemId": "dnd5e-2024",
+      "name": "Gelatinous Cube",
+      "data": {
+        "id": "m-gelatinous-cube",
+        "systemId": "dnd5e-2024",
+        "name": "Gelatinous Cube",
+        "subtitle": "Large ooze, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 2",
+        "challengeRank": 2,
+        "facets": {
+          "type": ["Ooze"],
+          "size": ["Large"],
+          "environment": ["Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 14
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 3
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 20
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 1
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 6
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 1
+          }
+        ],
+        "health": {
+          "current": 84,
+          "max": 84,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 6
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 84
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 2"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Transparent",
+            "description": "Requires a Perception check to notice until it moves or attacks."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Pseudopod",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+4",
+                "damage": "3d6 acid"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Ooze",
+          "size": "Large",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "ghoul",
+      "systemId": "dnd5e-2024",
+      "name": "Ghoul",
+      "data": {
+        "id": "m-ghoul",
+        "systemId": "dnd5e-2024",
+        "name": "Ghoul",
+        "subtitle": "Medium undead, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 1",
+        "challengeRank": 1,
+        "facets": {
+          "type": ["Undead"],
+          "size": ["Medium"],
+          "environment": ["Underdark", "Urban"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 13
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 15
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 10
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 7
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 10
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 6
+          }
+        ],
+        "health": {
+          "current": 22,
+          "max": 22,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 12
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 22
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Claws",
+                "description": "The target must save or be paralysed for one minute.",
+                "attackBonus": "+4",
+                "damage": "2d4 + 2 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Undead",
+          "size": "Medium",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "giant-spider",
+      "systemId": "dnd5e-2024",
+      "name": "Giant Spider",
+      "data": {
+        "id": "m-giant-spider",
+        "systemId": "dnd5e-2024",
+        "name": "Giant Spider",
+        "subtitle": "Large beast, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 1",
+        "challengeRank": 1,
+        "facets": {
+          "type": ["Beast"],
+          "size": ["Large"],
+          "environment": ["Underdark", "Forest"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 14
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 16
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 12
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 2
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 11
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 4
+          }
+        ],
+        "health": {
+          "current": 26,
+          "max": 26,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 14
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 26
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Spider Climb",
+            "description": "Climbs difficult surfaces, including upside down, without an ability check."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Bite",
+                "description": "Plus 2d8 poison damage on a failed save.",
+                "attackBonus": "+5",
+                "damage": "1d8 + 3 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Beast",
+          "size": "Large",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "goblin",
+      "systemId": "dnd5e-2024",
+      "name": "Goblin",
+      "data": {
+        "id": "m-goblin",
+        "systemId": "dnd5e-2024",
+        "name": "Goblin",
+        "subtitle": "Small humanoid, neutral evil",
+        "origin": "library",
+        "challengeLabel": "CR 1/4",
+        "challengeRank": 0.25,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Small"],
+          "environment": ["Forest", "Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 8
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 14
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 10
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 10
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 8
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 8
+          }
+        ],
+        "health": {
+          "current": 7,
+          "max": 7,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 7
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/4"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Nimble Escape",
+            "description": "Takes the Disengage or Hide action as a bonus action on each of its turns."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Scimitar",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+4",
+                "damage": "1d6 + 2 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Small",
+          "alignment": "neutral evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "goblin-boss",
+      "systemId": "dnd5e-2024",
+      "name": "Goblin Boss",
+      "data": {
+        "id": "m-goblin-boss",
+        "systemId": "dnd5e-2024",
+        "name": "Goblin Boss",
+        "subtitle": "Small humanoid, neutral evil",
+        "origin": "library",
+        "challengeLabel": "CR 1",
+        "challengeRank": 1,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Small"],
+          "environment": ["Forest", "Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 10
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 14
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 10
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 10
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 8
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 10
+          }
+        ],
+        "health": {
+          "current": 21,
+          "max": 21,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 17
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 21
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Redirect Attack",
+            "description": "Swaps places with an adjacent goblin to take a hit meant for it."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Scimitar",
+                "description": "Makes two attacks, but not against the same target.",
+                "attackBonus": "+4",
+                "damage": "1d6 + 2 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Small",
+          "alignment": "neutral evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "green-hag",
+      "systemId": "dnd5e-2024",
+      "name": "Green Hag",
+      "data": {
+        "id": "m-green-hag",
+        "systemId": "dnd5e-2024",
+        "name": "Green Hag",
+        "subtitle": "Medium fey, neutral evil",
+        "origin": "library",
+        "challengeLabel": "CR 3",
+        "challengeRank": 3,
+        "facets": {
+          "type": ["Fey"],
+          "size": ["Medium"],
+          "environment": ["Swamp", "Forest"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 18
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 13
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 14
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 14
+          }
+        ],
+        "health": {
+          "current": 82,
+          "max": 82,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 17
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 82
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 3"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Mimicry",
+            "description": "Mimics animal sounds and humanoid voices convincingly."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Claws",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+6",
+                "damage": "2d8 + 4 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Fey",
+          "size": "Medium",
+          "alignment": "neutral evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "hell-hound",
+      "systemId": "dnd5e-2024",
+      "name": "Hell Hound",
+      "data": {
+        "id": "m-hell-hound",
+        "systemId": "dnd5e-2024",
+        "name": "Hell Hound",
+        "subtitle": "Medium fiend, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 3",
+        "challengeRank": 3,
+        "facets": {
+          "type": ["Fiend"],
+          "size": ["Medium"],
+          "environment": ["Mountain", "Urban"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 17
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 14
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 6
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 13
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 6
+          }
+        ],
+        "health": {
+          "current": 45,
+          "max": 45,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 45
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 3"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Pack Tactics",
+            "description": "Advantage on attacks when an ally is adjacent to the target."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Fire Breath",
+                "description": "A 15-foot cone; a successful save halves the damage.",
+                "damage": "6d6 fire"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Fiend",
+          "size": "Medium",
+          "alignment": "lawful evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "hill-giant",
+      "systemId": "dnd5e-2024",
+      "name": "Hill Giant",
+      "data": {
+        "id": "m-hill-giant",
+        "systemId": "dnd5e-2024",
+        "name": "Hill Giant",
+        "subtitle": "Huge giant, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 5",
+        "challengeRank": 5,
+        "facets": {
+          "type": ["Giant"],
+          "size": ["Huge"],
+          "environment": ["Grassland", "Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 21
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 8
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 19
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 5
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 9
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 6
+          }
+        ],
+        "health": {
+          "current": 105,
+          "max": 105,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 13
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 105
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 5"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Greatclub",
+                "description": "Makes two greatclub attacks.",
+                "attackBonus": "+8",
+                "damage": "3d8 + 5 bludgeoning"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Giant",
+          "size": "Huge",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "hobgoblin",
+      "systemId": "dnd5e-2024",
+      "name": "Hobgoblin",
+      "data": {
+        "id": "m-hobgoblin",
+        "systemId": "dnd5e-2024",
+        "name": "Hobgoblin",
+        "subtitle": "Medium humanoid, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 1/2",
+        "challengeRank": 0.5,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Medium"],
+          "environment": ["Forest", "Grassland"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 13
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 12
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 10
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 10
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 9
+          }
+        ],
+        "health": {
+          "current": 11,
+          "max": 11,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 18
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 11
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/2"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Martial Advantage",
+            "description": "Once per turn, deals an extra 2d6 damage when an ally is adjacent to the target."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Longsword",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+3",
+                "damage": "1d8 + 1 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Medium",
+          "alignment": "lawful evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "imp",
+      "systemId": "dnd5e-2024",
+      "name": "Imp",
+      "data": {
+        "id": "m-imp",
+        "systemId": "dnd5e-2024",
+        "name": "Imp",
+        "subtitle": "Tiny fiend, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 1",
+        "challengeRank": 1,
+        "facets": {
+          "type": ["Fiend"],
+          "size": ["Tiny"],
+          "environment": ["Urban", "Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 6
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 17
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 13
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 11
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 12
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 14
+          }
+        ],
+        "health": {
+          "current": 10,
+          "max": 10,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 13
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 10
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Shapechanger",
+            "description": "Takes the form of a rat, a raven or a spider, keeping its statistics."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Sting",
+                "description": "Plus 3d6 poison damage on a failed save.",
+                "attackBonus": "+5",
+                "damage": "1d4 + 3 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Fiend",
+          "size": "Tiny",
+          "alignment": "lawful evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "kobold",
+      "systemId": "dnd5e-2024",
+      "name": "Kobold",
+      "data": {
+        "id": "m-kobold",
+        "systemId": "dnd5e-2024",
+        "name": "Kobold",
+        "subtitle": "Small humanoid, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 1/8",
+        "challengeRank": 0.125,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Small"],
+          "environment": ["Underdark", "Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 7
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 15
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 9
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 8
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 7
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 8
+          }
+        ],
+        "health": {
+          "current": 5,
+          "max": 5,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 12
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 5
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/8"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Pack Tactics",
+            "description": "Advantage on attacks when an ally is adjacent to the target."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Dagger",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+4",
+                "damage": "1d4 + 2 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Small",
+          "alignment": "lawful evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "mummy",
+      "systemId": "dnd5e-2024",
+      "name": "Mummy",
+      "data": {
+        "id": "m-mummy",
+        "systemId": "dnd5e-2024",
+        "name": "Mummy",
+        "subtitle": "Medium undead, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 3",
+        "challengeRank": 3,
+        "facets": {
+          "type": ["Undead"],
+          "size": ["Medium"],
+          "environment": ["Desert"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 16
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 8
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 15
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 6
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 10
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 12
+          }
+        ],
+        "health": {
+          "current": 58,
+          "max": 58,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 11
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 58
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 3"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Rotting Fist",
+                "description": "Plus 3d6 necrotic and the target may be cursed.",
+                "attackBonus": "+5",
+                "damage": "2d6 + 3 bludgeoning"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Undead",
+          "size": "Medium",
+          "alignment": "lawful evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "ogre",
+      "systemId": "dnd5e-2024",
+      "name": "Ogre",
+      "data": {
+        "id": "m-ogre",
+        "systemId": "dnd5e-2024",
+        "name": "Ogre",
+        "subtitle": "Large giant, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 2",
+        "challengeRank": 2,
+        "facets": {
+          "type": ["Giant"],
+          "size": ["Large"],
+          "environment": ["Grassland", "Forest"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 19
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 8
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 5
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 7
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 7
+          }
+        ],
+        "health": {
+          "current": 59,
+          "max": 59,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 11
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 59
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 2"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Greatclub",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+6",
+                "damage": "2d8 + 4 bludgeoning"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Giant",
+          "size": "Large",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "orc",
+      "systemId": "dnd5e-2024",
+      "name": "Orc",
+      "data": {
+        "id": "m-orc",
+        "systemId": "dnd5e-2024",
+        "name": "Orc",
+        "subtitle": "Medium humanoid, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 1/2",
+        "challengeRank": 0.5,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Medium"],
+          "environment": ["Mountain", "Grassland"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 16
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 7
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 11
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 10
+          }
+        ],
+        "health": {
+          "current": 15,
+          "max": 15,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 13
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 15
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/2"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Aggressive",
+            "description": "Moves up to its speed toward a hostile creature as a bonus action."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Greataxe",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+5",
+                "damage": "1d12 + 3 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Medium",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "owlbear",
+      "systemId": "dnd5e-2024",
+      "name": "Owlbear",
+      "data": {
+        "id": "m-owlbear",
+        "systemId": "dnd5e-2024",
+        "name": "Owlbear",
+        "subtitle": "Large monstrosity, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 3",
+        "challengeRank": 3,
+        "facets": {
+          "type": ["Monstrosity"],
+          "size": ["Large"],
+          "environment": ["Forest"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 20
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 17
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 3
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 12
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 7
+          }
+        ],
+        "health": {
+          "current": 59,
+          "max": 59,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 13
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 59
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 3"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Keen Sight and Smell",
+            "description": "Advantage on Perception checks that rely on sight or smell."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Claws",
+                "description": "Makes one beak attack and one claws attack.",
+                "attackBonus": "+7",
+                "damage": "2d8 + 5 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Monstrosity",
+          "size": "Large",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "pixie",
+      "systemId": "dnd5e-2024",
+      "name": "Pixie",
+      "data": {
+        "id": "m-pixie",
+        "systemId": "dnd5e-2024",
+        "name": "Pixie",
+        "subtitle": "Tiny fey, neutral good",
+        "origin": "library",
+        "challengeLabel": "CR 1/4",
+        "challengeRank": 0.25,
+        "facets": {
+          "type": ["Fey"],
+          "size": ["Tiny"],
+          "environment": ["Forest"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 2
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 20
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 8
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 10
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 14
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 15
+          }
+        ],
+        "health": {
+          "current": 1,
+          "max": 1,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 1
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/4"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Magic Resistance",
+            "description": "Advantage on saving throws against spells and magical effects."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Superior Invisibility",
+                "description": "Turns invisible as an action, taking its equipment with it."
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Fey",
+          "size": "Tiny",
+          "alignment": "neutral good"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "shambling-mound",
+      "systemId": "dnd5e-2024",
+      "name": "Shambling Mound",
+      "data": {
+        "id": "m-shambling-mound",
+        "systemId": "dnd5e-2024",
+        "name": "Shambling Mound",
+        "subtitle": "Large plant, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 5",
+        "challengeRank": 5,
+        "facets": {
+          "type": ["Plant"],
+          "size": ["Large"],
+          "environment": ["Swamp", "Forest"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 18
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 8
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 5
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 10
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 5
+          }
+        ],
+        "health": {
+          "current": 136,
+          "max": 136,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 136
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 5"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Lightning Absorption",
+            "description": "Regains hit points equal to the lightning damage dealt to it."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Slam",
+                "description": "Makes two slam attacks and engulfs on a double hit.",
+                "attackBonus": "+7",
+                "damage": "2d8 + 4 bludgeoning"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Plant",
+          "size": "Large",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "skeleton",
+      "systemId": "dnd5e-2024",
+      "name": "Skeleton",
+      "data": {
+        "id": "m-skeleton",
+        "systemId": "dnd5e-2024",
+        "name": "Skeleton",
+        "subtitle": "Medium undead, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 1/4",
+        "challengeRank": 0.25,
+        "facets": {
+          "type": ["Undead"],
+          "size": ["Medium"],
+          "environment": ["Underdark", "Urban"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 10
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 14
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 15
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 6
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 8
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 5
+          }
+        ],
+        "health": {
+          "current": 13,
+          "max": 13,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 13
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 13
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/4"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Shortsword",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+4",
+                "damage": "1d6 + 2 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Undead",
+          "size": "Medium",
+          "alignment": "lawful evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "stone-golem",
+      "systemId": "dnd5e-2024",
+      "name": "Stone Golem",
+      "data": {
+        "id": "m-stone-golem",
+        "systemId": "dnd5e-2024",
+        "name": "Stone Golem",
+        "subtitle": "Large construct, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 10",
+        "challengeRank": 10,
+        "facets": {
+          "type": ["Construct"],
+          "size": ["Large"],
+          "environment": ["Underdark", "Urban"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 22
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 9
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 20
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 3
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 11
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 1
+          }
+        ],
+        "health": {
+          "current": 178,
+          "max": 178,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 17
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 178
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 10"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Magic Resistance",
+            "description": "Advantage on saving throws against spells and magical effects."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Slam",
+                "description": "Makes two slam attacks.",
+                "attackBonus": "+10",
+                "damage": "3d8 + 6 bludgeoning"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Construct",
+          "size": "Large",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "succubus",
+      "systemId": "dnd5e-2024",
+      "name": "Succubus",
+      "data": {
+        "id": "m-succubus",
+        "systemId": "dnd5e-2024",
+        "name": "Succubus",
+        "subtitle": "Medium fiend, neutral evil",
+        "origin": "library",
+        "challengeLabel": "CR 4",
+        "challengeRank": 4,
+        "facets": {
+          "type": ["Fiend"],
+          "size": ["Medium"],
+          "environment": ["Urban"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 8
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 17
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 13
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 15
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 12
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 20
+          }
+        ],
+        "health": {
+          "current": 66,
+          "max": 66,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 66
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 4"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft, fly 60 ft"
+          },
+          {
+            "key": "skills",
+            "label": "Skills",
+            "value": "Deception +9, Insight +5, Perception +5, Persuasion +9, Stealth +7"
+          },
+          {
+            "key": "resistances",
+            "label": "Damage resistances",
+            "value": "Cold, fire, lightning, poison"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Darkvision 60 ft, passive Perception 15"
+          },
+          {
+            "key": "languages",
+            "label": "Languages",
+            "value": "Abyssal, Common, Infernal, telepathy 60 ft"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Telepathic Bond",
+            "description": "Communicates telepathically with a charmed creature on the same plane."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Claw",
+                "description": "Melee attack in fiend form, reach 5 ft.",
+                "attackBonus": "+5",
+                "damage": "1d6 + 3 slashing"
+              },
+              {
+                "name": "Charm",
+                "description": "One humanoid within 30 feet makes a DC 15 Wisdom save or is charmed for one day.",
+                "tags": ["1 per day"]
+              },
+              {
+                "name": "Draining Kiss",
+                "description": "Against a charmed creature. Its hit point maximum drops by the damage taken.",
+                "damage": "5d10 + 5 psychic"
+              },
+              {
+                "name": "Etherealness",
+                "description": "Steps onto the Ethereal Plane and back."
+              }
+            ]
+          },
+          {
+            "key": "reactions",
+            "label": "Reactions",
+            "entries": [
+              {
+                "name": "Shapechanger",
+                "description": "Switches between its fiend form and a humanoid form as a bonus action."
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Fiend",
+          "size": "Medium",
+          "alignment": "neutral evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "treant",
+      "systemId": "dnd5e-2024",
+      "name": "Treant",
+      "data": {
+        "id": "m-treant",
+        "systemId": "dnd5e-2024",
+        "name": "Treant",
+        "subtitle": "Huge plant, chaotic good",
+        "origin": "library",
+        "challengeLabel": "CR 9",
+        "challengeRank": 9,
+        "facets": {
+          "type": ["Plant"],
+          "size": ["Huge"],
+          "environment": ["Forest"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 23
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 8
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 21
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 12
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 16
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 12
+          }
+        ],
+        "health": {
+          "current": 138,
+          "max": 138,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 16
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 138
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 9"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "False Appearance",
+            "description": "Indistinguishable from an ordinary tree while it remains motionless."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Slam",
+                "description": "Makes two slam attacks.",
+                "attackBonus": "+10",
+                "damage": "3d6 + 6 bludgeoning"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Plant",
+          "size": "Huge",
+          "alignment": "chaotic good"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "troll",
+      "systemId": "dnd5e-2024",
+      "name": "Troll",
+      "data": {
+        "id": "m-troll",
+        "systemId": "dnd5e-2024",
+        "name": "Troll",
+        "subtitle": "Large giant, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 5",
+        "challengeRank": 5,
+        "facets": {
+          "type": ["Giant"],
+          "size": ["Large"],
+          "environment": ["Swamp", "Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 18
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 13
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 20
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 7
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 9
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 7
+          }
+        ],
+        "health": {
+          "current": 84,
+          "max": 84,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 84
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 5"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "skills",
+            "label": "Skills",
+            "value": "Perception +2"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Darkvision 60 ft, passive Perception 12"
+          },
+          {
+            "key": "languages",
+            "label": "Languages",
+            "value": "Giant"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Regeneration",
+            "description": "Regains 10 hit points at the start of its turn unless it took acid or fire damage."
+          },
+          {
+            "name": "Regeneration",
+            "description": "Regains 10 hit points at the start of its turn. If it takes acid or fire damage this does not function on its next turn."
+          },
+          {
+            "name": "Keen Smell",
+            "description": "Advantage on Perception checks that rely on smell."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Multiattack",
+                "description": "Makes three attacks: one bite and two claws."
+              },
+              {
+                "name": "Bite",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+7",
+                "damage": "1d6 + 4 piercing"
+              },
+              {
+                "name": "Claw",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+7",
+                "damage": "2d6 + 4 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Giant",
+          "size": "Large",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "vampire-spawn",
+      "systemId": "dnd5e-2024",
+      "name": "Vampire Spawn",
+      "data": {
+        "id": "m-vampire-spawn",
+        "systemId": "dnd5e-2024",
+        "name": "Vampire Spawn",
+        "subtitle": "Medium undead, neutral evil",
+        "origin": "library",
+        "challengeLabel": "CR 5",
+        "challengeRank": 5,
+        "facets": {
+          "type": ["Undead"],
+          "size": ["Medium"],
+          "environment": ["Urban", "Underdark"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 16
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 16
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 11
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 10
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 12
+          }
+        ],
+        "health": {
+          "current": 82,
+          "max": 82,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 15
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 82
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 5"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Regeneration",
+            "description": "Regains 10 hit points at the start of its turn unless it took radiant damage."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Claws",
+                "description": "The target is grappled on a hit.",
+                "attackBonus": "+6",
+                "damage": "2d4 + 3 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Undead",
+          "size": "Medium",
+          "alignment": "neutral evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "veteran",
+      "systemId": "dnd5e-2024",
+      "name": "Veteran",
+      "data": {
+        "id": "m-veteran",
+        "systemId": "dnd5e-2024",
+        "name": "Veteran",
+        "subtitle": "Medium humanoid, any",
+        "origin": "library",
+        "challengeLabel": "CR 3",
+        "challengeRank": 3,
+        "facets": {
+          "type": ["Humanoid"],
+          "size": ["Medium"],
+          "environment": ["Urban", "Grassland"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 16
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 13
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 14
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 10
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 11
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 10
+          }
+        ],
+        "health": {
+          "current": 58,
+          "max": 58,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 17
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 58
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 3"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Longsword",
+                "description": "Makes two longsword attacks and one shortsword attack.",
+                "attackBonus": "+5",
+                "damage": "1d8 + 3 slashing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Humanoid",
+          "size": "Medium",
+          "alignment": "any"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "wight",
+      "systemId": "dnd5e-2024",
+      "name": "Wight",
+      "data": {
+        "id": "m-wight",
+        "systemId": "dnd5e-2024",
+        "name": "Wight",
+        "subtitle": "Medium undead, neutral evil",
+        "origin": "library",
+        "challengeLabel": "CR 3",
+        "challengeRank": 3,
+        "facets": {
+          "type": ["Undead"],
+          "size": ["Medium"],
+          "environment": ["Underdark", "Swamp"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 15
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 14
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 10
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 13
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 15
+          }
+        ],
+        "health": {
+          "current": 45,
+          "max": 45,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 14
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 45
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 3"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Sunlight Sensitivity",
+            "description": "Disadvantage on attacks and sight-based Perception in sunlight."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Life Drain",
+                "description": "The target’s hit point maximum is reduced by the damage taken.",
+                "attackBonus": "+4",
+                "damage": "1d6 + 2 necrotic"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Undead",
+          "size": "Medium",
+          "alignment": "neutral evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "wolf",
+      "systemId": "dnd5e-2024",
+      "name": "Wolf",
+      "data": {
+        "id": "m-wolf",
+        "systemId": "dnd5e-2024",
+        "name": "Wolf",
+        "subtitle": "Medium beast, unaligned",
+        "origin": "library",
+        "challengeLabel": "CR 1/4",
+        "challengeRank": 0.25,
+        "facets": {
+          "type": ["Beast"],
+          "size": ["Medium"],
+          "environment": ["Forest", "Arctic"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 12
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 15
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 12
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 3
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 12
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 6
+          }
+        ],
+        "health": {
+          "current": 11,
+          "max": 11,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 13
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 11
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/4"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Pack Tactics",
+            "description": "Advantage on attacks when an ally is adjacent to the target."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Bite",
+                "description": "On a hit the target must save or be knocked prone.",
+                "attackBonus": "+4",
+                "damage": "2d4 + 2 piercing"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Beast",
+          "size": "Medium",
+          "alignment": "unaligned"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "young-green-dragon",
+      "systemId": "dnd5e-2024",
+      "name": "Young Green Dragon",
+      "data": {
+        "id": "m-young-green-dragon",
+        "systemId": "dnd5e-2024",
+        "name": "Young Green Dragon",
+        "subtitle": "Large dragon, lawful evil",
+        "origin": "library",
+        "challengeLabel": "CR 8",
+        "challengeRank": 8,
+        "facets": {
+          "type": ["Dragon"],
+          "size": ["Large"],
+          "environment": ["Forest", "Swamp"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 19
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 12
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 17
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 16
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 13
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 15
+          }
+        ],
+        "health": {
+          "current": 136,
+          "max": 136,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 18
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 136
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 8"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Amphibious",
+            "description": "Breathes both air and water."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Poison Breath",
+                "description": "A 30-foot cone; a successful save halves the damage.",
+                "damage": "12d6 poison"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Dragon",
+          "size": "Large",
+          "alignment": "lawful evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "young-white-dragon",
+      "systemId": "dnd5e-2024",
+      "name": "Young White Dragon",
+      "data": {
+        "id": "m-young-white-dragon",
+        "systemId": "dnd5e-2024",
+        "name": "Young White Dragon",
+        "subtitle": "Large dragon, chaotic evil",
+        "origin": "library",
+        "challengeLabel": "CR 6",
+        "challengeRank": 6,
+        "facets": {
+          "type": ["Dragon"],
+          "size": ["Large"],
+          "environment": ["Arctic", "Mountain"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 18
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 10
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 18
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 6
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 11
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 12
+          }
+        ],
+        "health": {
+          "current": 133,
+          "max": 133,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 17
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 133
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 6"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Ice Walk",
+            "description": "Moves across icy surfaces without an ability check and ignores difficult terrain of ice."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Cold Breath",
+                "description": "A 30-foot cone; a successful save halves the damage.",
+                "damage": "8d8 cold"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Dragon",
+          "size": "Large",
+          "alignment": "chaotic evil"
+        }
+      }
+    },
+    {
+      "kind": "monster",
+      "key": "zombie",
+      "systemId": "dnd5e-2024",
+      "name": "Zombie",
+      "data": {
+        "id": "m-zombie",
+        "systemId": "dnd5e-2024",
+        "name": "Zombie",
+        "subtitle": "Medium undead, neutral evil",
+        "origin": "library",
+        "challengeLabel": "CR 1/4",
+        "challengeRank": 0.25,
+        "facets": {
+          "type": ["Undead"],
+          "size": ["Medium"],
+          "environment": ["Underdark", "Urban"]
+        },
+        "attributes": [
+          {
+            "key": "str",
+            "label": "STR",
+            "value": 13
+          },
+          {
+            "key": "dex",
+            "label": "DEX",
+            "value": 6
+          },
+          {
+            "key": "con",
+            "label": "CON",
+            "value": 16
+          },
+          {
+            "key": "int",
+            "label": "INT",
+            "value": 3
+          },
+          {
+            "key": "wis",
+            "label": "WIS",
+            "value": 6
+          },
+          {
+            "key": "cha",
+            "label": "CHA",
+            "value": 5
+          }
+        ],
+        "health": {
+          "current": 22,
+          "max": 22,
+          "temporary": 0
+        },
+        "derived": [
+          {
+            "key": "ac",
+            "label": "Armour class",
+            "value": 8
+          },
+          {
+            "key": "hp",
+            "label": "Hit points",
+            "value": 22
+          },
+          {
+            "key": "challenge",
+            "label": "Challenge",
+            "value": "CR 1/4"
+          },
+          {
+            "key": "speed",
+            "label": "Speed",
+            "value": "30 ft"
+          },
+          {
+            "key": "senses",
+            "label": "Senses",
+            "value": "Passive Perception 10"
+          }
+        ],
+        "traits": [
+          {
+            "name": "Undead Fortitude",
+            "description": "Drops to 1 hit point instead of 0 unless the damage was radiant or a critical."
+          }
+        ],
+        "actionGroups": [
+          {
+            "key": "actions",
+            "label": "Actions",
+            "entries": [
+              {
+                "name": "Slam",
+                "description": "Melee weapon attack, reach 5 ft.",
+                "attackBonus": "+3",
+                "damage": "1d6 + 1 bludgeoning"
+              }
+            ]
+          }
+        ],
+        "systemData": {
+          "type": "Undead",
+          "size": "Medium",
+          "alignment": "neutral evil"
+        }
+      }
+    }
+  ]
+}

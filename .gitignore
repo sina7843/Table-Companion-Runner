@@ -4,7 +4,12 @@ dist/
 build/
 coverage/
 .playwright/
+playwright-report/
 test-results/
+
+# the end-to-end suite's own scratch state: the pid of the API it spawned, and its log
+e2e/.stack.json
+e2e/.server.log
 
 # local environment and secrets
 .env

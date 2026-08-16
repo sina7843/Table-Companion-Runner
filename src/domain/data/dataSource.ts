@@ -1,18 +1,16 @@
 /**
  * Which data layer this build talks to.
  *
- * One decision, made once, from configuration rather than from a code change. Nothing is
- * read here that is not already public in a browser bundle: a base URL and a socket URL.
- * There is no key, no token and no provider name, and there is no default endpoint — with
- * nothing configured the application runs on fixtures, which is what makes `npm run dev`
- * work on a fresh clone with no `.env` at all.
+ * Development may deliberately run on fixtures with no server. A production bundle may not:
+ * silently serving invented data because a build forgot `VITE_API_BASE_URL` is worse than
+ * failing loudly, so production refuses that configuration before constructing a channel.
  *
- * See `.env.example` for the variables. Never put a credential in one: everything a Vite
- * `VITE_`-prefixed variable holds is shipped to the browser.
+ * See `.env.example` for the public browser variables. Never put a credential in one:
+ * everything with a `VITE_` prefix is shipped to the browser.
  */
 import { createFixtureRepositories, type FixtureScenario } from './fixtureRepositories.ts';
 import { createHttpRepositories } from './httpRepositories.ts';
-import { createLocalChannel, createSocketChannel, type RealtimeChannel } from './realtime.ts';
+import { createEventStreamChannel, createLocalChannel, type RealtimeChannel } from './realtime.ts';
 import { withRealtime } from './withRealtime.ts';
 import type { Repositories } from './repositories.ts';
 
@@ -29,15 +27,24 @@ export interface DataSource {
 interface Env {
   VITE_API_BASE_URL?: string;
   VITE_REALTIME_URL?: string;
+  /** Vite's compile-time production flag; exposed here only so the boundary is testable. */
+  PROD?: boolean;
 }
 
 function readEnv(): Env {
-  // `import.meta.env` is Vite's static replacement; it exposes only VITE_-prefixed values,
-  // which is exactly why no credential may ever be named with that prefix.
-  const env = import.meta.env as unknown as Record<string, string | undefined>;
+  // `import.meta.env` is Vite's static replacement. Only VITE_-prefixed values are public
+  // configuration; PROD is Vite's own boolean and carries no deployment secret.
+  const env = import.meta.env as unknown as Record<string, string | boolean | undefined>;
   return {
-    VITE_API_BASE_URL: env.VITE_API_BASE_URL?.trim() || undefined,
-    VITE_REALTIME_URL: env.VITE_REALTIME_URL?.trim() || undefined,
+    VITE_API_BASE_URL:
+      typeof env.VITE_API_BASE_URL === 'string'
+        ? env.VITE_API_BASE_URL.trim() || undefined
+        : undefined,
+    VITE_REALTIME_URL:
+      typeof env.VITE_REALTIME_URL === 'string'
+        ? env.VITE_REALTIME_URL.trim() || undefined
+        : undefined,
+    PROD: env.PROD === true,
   };
 }
 
@@ -51,11 +58,16 @@ export interface DataSourceOptions {
 export function createDataSource(options: DataSourceOptions = {}): DataSource {
   const env = options.env ?? readEnv();
 
-  // A socket only exists when someone configured one. Otherwise the local channel is a
-  // real channel that happens to reach only this machine — which is enough for a DM tab
-  // and a player tab to stay in step, and is not a pretend one.
+  if (env.PROD && !env.VITE_API_BASE_URL) {
+    throw new Error(
+      'Production requires VITE_API_BASE_URL. Refusing to fall back to fixture data.',
+    );
+  }
+
+  // A stream only exists when someone configured one. Otherwise the local channel is the
+  // explicit development adapter: a real channel that happens to reach only this machine.
   const channel = env.VITE_REALTIME_URL
-    ? createSocketChannel(env.VITE_REALTIME_URL)
+    ? createEventStreamChannel(env.VITE_REALTIME_URL)
     : createLocalChannel();
 
   if (env.VITE_API_BASE_URL) {
@@ -77,6 +89,6 @@ export function createDataSource(options: DataSourceOptions = {}): DataSource {
       createFixtureRepositories({ scenario: options.scenario ?? 'populated' }),
       channel,
     ),
-    description: 'Local fixtures — no server configured',
+    description: 'Local fixtures — development only; no server configured',
   };
 }

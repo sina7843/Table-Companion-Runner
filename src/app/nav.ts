@@ -7,6 +7,12 @@ import type { IconName } from '../design-system';
  * Locations, Quests, Factions, Notes) lands inside Campaign and Phase 3 (Maps) inside
  * Session, without moving anything the DM has already learned. Nothing here renders a
  * disabled placeholder for those — they simply do not exist yet.
+ *
+ * The design's sidebar also lists Spells and Items under Library. Requirements §18.1 does
+ * not put them in the Phase 1 information architecture and no ingested spell or item
+ * content exists to fill them, so they are absent rather than present-and-empty. See
+ * DECISIONS.md — this is the one place the implemented navigation is narrower than the
+ * approved design, and it is deliberate.
  */
 
 export interface NavEntry {
@@ -43,8 +49,6 @@ export function globalNavGroups(): NavGroupSpec[] {
       items: [
         { to: '/dm/characters', icon: 'identification-card', label: 'Characters' },
         { to: '/dm/monsters', icon: 'skull', label: 'Monsters' },
-        { to: '/dm/spells', icon: 'magic-wand', label: 'Spells' },
-        { to: '/dm/items', icon: 'backpack', label: 'Items' },
       ],
     },
   ];
@@ -69,8 +73,6 @@ export function campaignNavGroups(campaignId: string): NavGroupSpec[] {
       items: [
         { to: '/dm/characters', icon: 'identification-card', label: 'Characters' },
         { to: '/dm/monsters', icon: 'skull', label: 'Monsters' },
-        { to: '/dm/spells', icon: 'magic-wand', label: 'Spells' },
-        { to: '/dm/items', icon: 'backpack', label: 'Items' },
       ],
     },
     {

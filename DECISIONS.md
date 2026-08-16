@@ -1269,3 +1269,61 @@ they are documented rather than assumed:
 - The 900ms hit-point flash as seen, and reduced motion as actually honoured by a browser.
 - Two devices genuinely in step over the local channel — the transform is tested, the
   cross-tab delivery is not.
+
+---
+
+## TC-17 — Phase 1 audit and handoff
+
+**Six routes were rendering a permanent loading skeleton, and that is a lie.** `DMCharacters`,
+`DMSpells`, `DMItems`, `PlayerDice`, `PlayerParty` and `PlayerCharacters` each rendered a
+`SectionHeader` plus a `Skeleton` with nothing behind it. The file header claimed "Nothing here
+renders a disabled future feature", which was true and beside the point: a skeleton that never
+resolves does not read as a disabled feature, it reads as an app that is still loading. Every one
+was resolved rather than left, in one of two ways.
+
+**Four were built, because the data was already there.** `PlayerCharacters` is
+`characters.listForOwner`. `PlayerParty` is the owner's campaign roster plus `users.byIds`.
+`DMCharacters` is every campaign the DM owns, grouped, reusing the campaign Party tab's own
+table — `PartyTable` was made exported rather than copied, so a column added to the party table
+appears in both. `PlayerDice` is `useRoller` over a die grid. None of these needed a new
+repository method, a new component or a new type; they needed the call that was missing.
+
+**Two were removed, because Phase 1 has no content for them.** The approved design's DM sidebar
+lists Spells (318) and Items (96) under Library. `Requirements.md` §18.1 does not place them in
+the Phase 1 information architecture, and the source precedence in `CLAUDE.md` puts Requirements
+above the design. There is no ingested spell or item data and no prompt introduced any, so a
+built screen would have been an empty list behind a nav entry that promised 414 things. Route and
+sidebar entry are both gone. This is the only place the implemented navigation is narrower than
+the approved design, and it is deliberate.
+
+**The rule is now enforced rather than stated.** `src/app/routes.test.ts` asserts that every
+sidebar and bottom-bar destination resolves to a declared route, that the bottom bar holds at
+most five entries, and that no routed screen renders a `PendingSection`. The first check was
+mutation-verified by pointing a nav entry at the removed `/dm/spells` — it fails, as it should.
+Without it, removing a route silently leaves the sidebar pointing at a "not found".
+
+**My characters is reached from Home, not from the bottom bar.** `/play/characters` existed as a
+route with nothing linking to it. The design's bottom bar is five items and a sixth pushes the
+row below a comfortable touch target, so the Home screen's "Your character" header grows an
+"All N" action when the player owns more than one. A player with exactly one character is not
+offered a list of one.
+
+**`/dev/showcase` stays.** It is dead weight in the product sense — no route links to it and it
+ships as its own 12 kB chunk. It is also the fidelity surface TC-15 audits against and the only
+place every primitive renders at once under live theme and density switches. Deleting it would
+save a chunk nobody downloads and lose the check.
+
+**Three Phase 1 scope items are not finished, and the documents say so.** Authentication has
+identity but no credentials. Realtime has the seam, the local channel and the socket client but
+no server — TC-13 forbade choosing a provider requiring credentials, so this is by instruction,
+not by omission. The 5e.tools ingest does not exist; the monster library reads real SRD stat
+blocks that were hand-authored into the ingest shape. All three are in `PROJECT_STATUS.md` and
+`REQUIREMENTS_TRACEABILITY.md` with the reason attached. None is a defect in what was built;
+each is a part of §6 that no prompt in the sequence covered.
+
+**`PROJECT_STATUS.md` and `REQUIREMENTS_TRACEABILITY.md` had drifted badly.** The first still
+said the active item was TC-06 and the last completed was TC-03, twelve prompts after that
+stopped being true. The second was a three-line stub. Both are now written from the code rather
+than from memory, and every file path in the traceability table was checked to exist — three
+were wrong on the first pass (`domain/sheet.ts`, `domain/library.ts`, `domain/homebrew.ts` are
+all somewhere else) and are corrected.

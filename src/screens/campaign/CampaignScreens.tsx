@@ -70,7 +70,8 @@ function encounterMeta(encounter: EncounterTemplate): string {
 
 /* ── Party table, shared by the overview column and the Party tab ───────────── */
 
-function PartyTable({
+/** Exported because the DM's cross-campaign Characters list is the same table, per campaign. */
+export function PartyTable({
   campaign,
   viewerUserId,
   characters,

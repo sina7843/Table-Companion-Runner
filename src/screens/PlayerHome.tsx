@@ -123,7 +123,7 @@ export function PlayerHome() {
     ]);
     const character = pickCharacter(owned);
     const campaign = mine.find((entry) => entry.id === character?.campaignId) ?? null;
-    return { user, character, live, campaign };
+    return { user, character, live, campaign, owned };
   }, ['player-home']);
 
   if (state.status === 'loading') {
@@ -161,7 +161,7 @@ export function PlayerHome() {
     );
   }
 
-  const { user, character, live, campaign } = state.data;
+  const { user, character, live, campaign, owned } = state.data;
 
   // First run for a player: no character anywhere. Two paths, because a player arriving
   // from an invite link and one arriving on their own want different things.
@@ -211,7 +211,19 @@ export function PlayerHome() {
       {live && <LiveBlock combat={live} character={character} />}
 
       <div style={{ padding: 'var(--space-16) var(--space-16) 0' }}>
-        <SectionHeader sub title="Your character" />
+        <SectionHeader
+          sub
+          title="Your character"
+          // My characters is not in the bottom bar — five items is the design's limit — so
+          // this is how a player with more than one reaches the rest of them.
+          actions={
+            owned.length > 1 ? (
+              <Button size="sm" variant="tertiary" as={Link} to="/play/characters">
+                All {owned.length}
+              </Button>
+            ) : undefined
+          }
+        />
       </div>
 
       <div

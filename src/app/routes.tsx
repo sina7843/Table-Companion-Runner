@@ -50,8 +50,6 @@ const CampaignParty = named(() => import('../screens'), 'CampaignParty');
 const CampaignSettings = named(() => import('../screens'), 'CampaignSettings');
 const DMCharacters = named(() => import('../screens'), 'DMCharacters');
 const DMHome = named(() => import('../screens'), 'DMHome');
-const DMItems = named(() => import('../screens'), 'DMItems');
-const DMSpells = named(() => import('../screens'), 'DMSpells');
 const JoinCampaign = named(() => import('../screens'), 'JoinCampaign');
 const NewCampaign = named(() => import('../screens'), 'NewCampaign');
 const NotFound = named(() => import('../screens'), 'NotFound');
@@ -106,8 +104,6 @@ export const router = createBrowserRouter([
       { path: 'monsters/:monsterId', element: <MonsterPage /> },
       { path: 'monsters/:monsterId/clone', element: <MonsterEditor mode="clone" /> },
       { path: 'monsters/:monsterId/edit', element: <MonsterEditor mode="edit" /> },
-      { path: 'spells', element: <DMSpells /> },
-      { path: 'items', element: <DMItems /> },
       { path: 'campaigns', element: <CampaignList /> },
       {
         path: 'campaigns/:campaignId',

@@ -15,12 +15,16 @@ per-prompt implementation choices in `DECISIONS.md`.
 | UI         | React 19                      |
 | Language   | TypeScript (strict)           |
 | Build      | Vite 7                        |
+| Routing    | react-router-dom 7            |
 | Styling    | Approved design-system CSS    |
 | Lint       | oxlint                        |
 | Format     | Prettier                      |
+| Tests      | `node --test` (no framework)  |
 
-Routing, state management and the data layer are intentionally not installed yet — they arrive
-with TC-02, TC-03 and TC-13. See `DECISIONS.md` for why Next.js and Tailwind were not used.
+`react-router-dom` is the only runtime dependency beyond React itself. There is no state
+library, no data-fetching library, no CSS framework and no test framework: state is React state
+behind repository interfaces, and the test harness is Node's own runner over TypeScript with
+native type stripping. See `DECISIONS.md` for why Next.js and Tailwind were not used.
 
 ## Requirements
 
@@ -96,9 +100,15 @@ Two shells, because the design specifies two compositions rather than one respon
 | Route | Shell | Notes |
 | --- | --- | --- |
 | `/`, `/join`, `/campaigns/new` | none | Entry screens, centred card |
+| `/builder`, `/builder/:draftId` | none | Guided character builder — whole viewport |
+| `/play/sheet/:id` and its sub-flows | none | Sheet, edit, privacy, level up — whole viewport |
 | `/dm/*` | `DMShell` | Sidebar, top bar, workspace, context column |
 | `/play/*` | `PlayerShell` | Header, content, bottom nav, touch density |
 | `/dev/showcase` | none | Design-system fidelity surface |
+
+Every route module is `React.lazy`, so a player opening `/play/combat` on a phone does not
+download the monster library or the encounter builder. The shells stay eager — a frame that
+flashes is worse than a frame that costs a few kilobytes.
 
 Resize past 1280px to see the DM shell pivot: the sidebar collapses to its 56px icon rail,
 density steps from `compact` to `comfortable`, and the context panel leaves the layout flow to
@@ -142,9 +152,37 @@ screen renders anything.
 If you need a D&D value outside `ruleset/dnd5e`, that is the signal to widen the `Ruleset`
 interface, not to import across the boundary. The test will fail if you do.
 
-Data comes from fixtures today ([src/domain/data/fixtures.ts](src/domain/data/fixtures.ts)) —
-the design's own party, fight and monsters. Every repository method is already async, so TC-13
-can swap in a real API without changing a caller.
+### The two seams
+
+**Data.** Every screen reads through the repository interfaces in
+[src/domain/data/repositories.ts](src/domain/data/repositories.ts). Two implementations satisfy
+them and [dataSource.ts](src/domain/data/dataSource.ts) picks one from the environment:
+
+| `VITE_API_BASE_URL` | Implementation | Notes |
+| --- | --- | --- |
+| unset | `createFixtureRepositories` | In-memory; the design's own party, fight and monsters |
+| set | `createHttpRepositories` | Every route and verb is declared in [apiContract.ts](src/domain/data/apiContract.ts) |
+
+The write policy is documented at the top of `repositories.ts`: every write is idempotent,
+autosave is owned by the screen, optimism is allowed where local state is authoritative and
+refused where the server mints an id (`create`, `duplicate`, `cloneFrom`, `startFromTemplate`).
+Nothing in the data layer caches or retries.
+
+**Realtime.** [realtime.ts](src/domain/data/realtime.ts) defines one `RealtimeChannel` with three
+implementations, selected by `VITE_REALTIME_URL`:
+
+| Value | Channel | Notes |
+| --- | --- | --- |
+| unset, browser | `createLocalChannel` | `BroadcastChannel`; keeps a DM tab and a player tab in step |
+| set | `createSocketChannel` | WebSocket with backoff; reports `live` / `reconnecting` / `offline` |
+| no browser | `createNullChannel` | Always `live`, delivers nothing — for tests |
+
+Events are notifications, not payloads: a receiver is told *what changed* and re-reads through
+the repository. That is why a stale event can never write stale data.
+[withRealtime.ts](src/domain/data/withRealtime.ts) wraps a repository set so a write publishes
+its own event; `useRealtime(kinds, handler)` subscribes a screen to the ones it cares about.
+
+To wire a backend: implement `apiContract.ts`, set both variables, change nothing else.
 
 ### Seeing the empty, loading and error states
 
@@ -164,10 +202,14 @@ mock screens.
 
 ## Environment
 
-No environment variables are needed yet. `.env.example` documents the names as they are
-introduced. Never create or commit a real `.env` by hand — run `06-CREATE-LOCAL-ENV.cmd` when
-local secrets become necessary. Vite only exposes variables prefixed `VITE_` to client code, so
-never put a secret behind that prefix.
+With every variable unset the application runs entirely on local fixtures: no server, no
+account, no network. That is the supported way to develop the UI and it is what a fresh clone
+does. `.env.example` documents the two that exist — `VITE_API_BASE_URL` and `VITE_REALTIME_URL`.
+
+Never create or commit a real `.env` by hand — run `06-CREATE-LOCAL-ENV.cmd` when local secrets
+become necessary. Vite inlines every `VITE_*` variable into the browser bundle, so never put a
+key, token or connection string behind that prefix. Nothing in this application reads a
+credential.
 
 ## Design source
 
@@ -210,14 +252,19 @@ src/
     DMHome.tsx          DM home — live combat band, work columns, recall
     PlayerHome.tsx      Player home — the fight, the character, one offer
     entry.tsx           Sign in, join by invite, create a campaign
+    index.tsx           DM characters, player dice/party/characters; re-export barrel
     campaign/           Campaign list, overview, party, encounters, combats, settings
     builder/            The guided character builder (generic shell + field renderers)
-    index.tsx           Route skeletons for the screens not yet built
+    character/          Sheet, edit, privacy controls, guided level up
+    monsters/           Library, sheet, homebrew editor (create / clone / edit)
+    encounters/         Encounter library, detail, builder, balance panel
+    combat/             DM live combat — setup, runner, actions, log, ended
+    player/             The player's mobile combat screen and its turn logic
   domain/
     types.ts            Core entities — names no D&D concept
     permissions.ts      Visibility rules (a UI guard, not a security boundary)
     ruleset/            The game-system seam; dnd5e is the first adapter
-    data/               Repository interfaces, fixtures, useRepositories()
+    data/               Repository interfaces, fixtures, HTTP client, realtime, session
   design-system/
     styles.css          Verbatim import barrel from the approved design source
     tokens/*.css        Verbatim — colour, type, spacing, shape, motion, layout
@@ -229,8 +276,62 @@ src/
   showcase/Showcase.tsx Fidelity-check surface for every primitive
 ```
 
-## Build order
+## Handoff
 
-Work proceeds one `TC-*` prompt at a time from `prompts/`, tracked in `PROJECT_STATUS.md`.
-TC-00 establishes this foundation; TC-01 integrates the design system; TC-02 builds the app shell
-and navigation.
+Phase 1 is complete as a prompt sequence: TC-00 through TC-17, tracked in `PROJECT_STATUS.md`,
+with per-prompt reasoning in `DECISIONS.md` and per-prompt output in `IMPLEMENTATION_STATUS.md`.
+`REQUIREMENTS_TRACEABILITY.md` maps every item of `Requirements.md` §6 to its routes, components
+and tests.
+
+### Where to start reading
+
+1. [src/app/routes.tsx](src/app/routes.tsx) — the whole route graph on one screen.
+2. [src/domain/types.ts](src/domain/types.ts) — the entities, and the vocabulary the product uses.
+3. [src/domain/ruleset/Ruleset.ts](src/domain/ruleset/Ruleset.ts) — every question a screen is
+   allowed to ask the rules.
+4. [src/domain/data/repositories.ts](src/domain/data/repositories.ts) — every read and write,
+   with the write policy in the header.
+5. [src/screens/combat/CombatRunner.tsx](src/screens/combat/CombatRunner.tsx) — the hardest
+   screen, and the one everything else exists to support.
+
+### Three rules that are enforced by tests, not by convention
+
+- **No D&D outside `ruleset/dnd5e`.** [domain.test.ts](src/domain/domain.test.ts) walks every
+  source file. Needing a D&D value elsewhere is the signal to widen `Ruleset`.
+- **No unexercised seam method.** [rulesetContract.test.ts](src/domain/rulesetContract.test.ts)
+  fails when a `Ruleset` method has no test anywhere.
+- **No navigation without a route.** [routes.test.ts](src/app/routes.test.ts) fails when a
+  sidebar or bottom-bar destination has nothing behind it.
+
+### Known limitations
+
+- **No backend.** The HTTP repositories and the socket channel are written and typed against
+  `apiContract.ts`, but nothing has been run against a real server. Expect to find contract
+  mismatches on first connection, not architectural ones.
+- **No authentication.** `SessionProvider` establishes *who* the user is; nothing establishes
+  *that* they are. `permissions.ts` is a UI guard and says so in its header — every visibility
+  rule must be re-enforced server-side.
+- **No content ingest.** Monsters are real SRD stat blocks hand-authored into the ingest shape.
+  There are no spells and no items, which is why the design's Spells and Items sidebar sections
+  are absent.
+- **No DOM in tests.** `node --test` with type stripping is the whole harness, so hooks and
+  layout are covered by testing the pure logic beneath them and, where that is not possible, by
+  asserting rules read from source. Those files say so in their own headers. The manual pass this
+  leaves is listed at the end of `DECISIONS.md`.
+- **One DM per campaign, one campaign per player.** Both are Phase 1 simplifications from
+  `Requirements.md`, not gaps.
+
+### Next recommended work
+
+1. **Stand up the API.** Implement `apiContract.ts`, point `VITE_API_BASE_URL` at it, and fix
+   what the contract got wrong. This unblocks everything else.
+2. **Real authentication**, and re-enforce every rule in `permissions.ts` on the server. The
+   client is not a security boundary.
+3. **The realtime server** behind `VITE_REALTIME_URL`. The client already handles reconnect,
+   backoff and state restoration; it has never spoken to a peer that was not another browser tab.
+4. **The 5e.tools ingest.** The `Monster` shape and `origin: 'library' | 'homebrew'` split are
+   already what a pipeline would write into. Spells and items follow, and the two sidebar
+   sections come back with them.
+5. **A DOM test environment**, if the project wants component-level tests. That is a real
+   dependency decision, not a refactor — see the test-stack note in `DECISIONS.md` (TC-16) for
+   what it would and would not buy.

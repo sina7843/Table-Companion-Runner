@@ -1416,3 +1416,102 @@ or warnings in the dev log.
 Rendered focus order; contrast ratios; real thumb comfort; the 1280px panel reflow as it
 happens; the flash and reduced motion as a browser honours them; and genuine cross-tab
 delivery over the local channel. Listed in DECISIONS.md as the manual pass this leaves.
+
+---
+
+## TC-17 — Phase 1 audit and handoff
+
+Final audit of the Phase 1 implementation, plus the developer handoff. One behavioural
+change came out of the audit; the rest is verification and documentation.
+
+### What the audit found
+
+Six routes rendered a `SectionHeader` plus a permanent `Skeleton` with no data behind them:
+`/dm/characters`, `/dm/spells`, `/dm/items`, `/play/dice`, `/play/party`,
+`/play/characters`. A skeleton that never resolves reads as an app stuck loading, so each
+was resolved rather than left.
+
+### Four screens built
+
+| Route | Reads | Notes |
+| --- | --- | --- |
+| `/dm/characters` | `campaigns.listForUser` → `characters.listForCampaign` → `users.byIds` | Grouped by campaign, reusing the campaign Party tab's `PartyTable` |
+| `/play/characters` | `characters.listForOwner` | Campaign name, pending level-up badge, link to the sheet |
+| `/play/party` | owner's campaign roster + `users.byIds` | Health and conditions only — the sections the design marks always-shared |
+| `/play/dice` | `characters.listForOwner` for the system id | `useRoller` over a die grid; advantage only where `capabilities.advantage` and only on d20 |
+
+`PartyTable` in `CampaignScreens.tsx` was exported rather than duplicated, so one table
+definition serves the campaign tab and the DM's cross-campaign list.
+
+### Two screens removed
+
+`/dm/spells` and `/dm/items`, with their sidebar entries. `Requirements.md` §18.1 does not
+place them in the Phase 1 information architecture and no spell or item content exists.
+Route entries, lazy imports and nav entries all deleted; `nav.ts` documents why in place.
+
+### One screen made reachable
+
+`/play/characters` had no inbound link. The player Home's "Your character" header now shows
+an "All N" action when the player owns more than one character. The bottom bar stays at
+five — a sixth breaks the touch target on a small phone.
+
+### Files changed
+
+- `src/screens/index.tsx` — four real screens replacing six skeletons; a shared
+  `ScreenState` for the loading and failure branches.
+- `src/app/routes.tsx` — two route entries and two lazy imports removed.
+- `src/app/nav.ts` — two sidebar entries removed, with the rationale in the file header.
+- `src/screens/PlayerHome.tsx` — "All N" action to My characters.
+- `src/screens/campaign/CampaignScreens.tsx` — `PartyTable` exported.
+- `src/app/routes.test.ts` — new.
+- `README.md`, `PROJECT_STATUS.md`, `REQUIREMENTS_TRACEABILITY.md`, `DECISIONS.md`.
+
+### Tests — 241, all passing (4 new)
+
+`src/app/routes.test.ts`: every DM sidebar destination resolves to a declared route; every
+player bottom-bar destination resolves; the bottom bar holds at most five entries; no routed
+screen renders a `PendingSection` and the two removed routes stay removed.
+
+The first was mutation-verified — pointing a nav entry at the removed `/dm/spells` fails the
+test, as it must.
+
+### Documentation
+
+- `REQUIREMENTS_TRACEABILITY.md` — was a three-line stub, now traces all 37 items of
+  `Requirements.md` §6 plus the §18 information architecture and the cross-cutting
+  requirements to routes, components and tests, with a Status column that says Partial or
+  Blocked where that is the truth. Every file path in it was checked to exist; three were
+  wrong on the first pass and corrected.
+- `PROJECT_STATUS.md` — was stale by twelve prompts (active item `TC-06`, last completed
+  `TC-03`). Now correct, with a Phase 1 scope-gaps table.
+- `README.md` — stack table corrected (router, test runner, "no state library"), route table
+  extended, the data and realtime seams documented with their environment switches, project
+  layout brought up to date, and a Handoff section: where to start reading, the three rules
+  enforced by tests, known limitations, next recommended work.
+- `DECISIONS.md` — TC-17 reasoning appended.
+
+### Phase 1 scope gaps
+
+Three §6 items are not fully built, and every document now says so rather than implying
+otherwise: authentication has identity but no credentials; realtime has the seam, the local
+channel and the socket client but no server (TC-13 forbade choosing a credentialed
+provider); the 5e.tools ingest does not exist and the monster library reads hand-authored
+SRD stat blocks in the ingest shape.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint` (0 findings), `npm run test` (241 passing),
+`npm run format:check` (clean), `npm run build` (417 kB entry / 130 kB gzip, no size
+warning). Dev server started on a spare port; every route module transforms without error
+and the four new routes serve.
+
+`git log --name-only` across the whole Phase 1 history confirms no protected source —
+`Requirements.md`, `IMPLEMENTATION_DECISIONS.md`, `DESIGN_SOURCE.md`, `CLAUDE.md`,
+`.claude/`, `tools/`, `prompts/` — was ever modified, and no verbatim design-system CSS was
+touched in this slice.
+
+### Not covered by any automated check
+
+Unchanged from TC-16: rendered focus order; contrast ratios; real thumb comfort; the 1280px
+panel reflow; the flash and reduced motion as a browser honours them; genuine cross-tab
+delivery. Listed at the end of `DECISIONS.md` as the manual pass Phase 1 leaves.

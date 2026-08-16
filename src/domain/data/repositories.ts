@@ -1,13 +1,33 @@
 /**
- * Data access interfaces.
+ * Data access interfaces — the persistence contract.
  *
- * Every method is async even though today's implementation is an in-memory fixture set.
- * That is the point: when TC-13 replaces fixtures with a real API and a realtime channel,
- * no calling code changes shape. A synchronous fixture layer would force every consumer
- * to be rewritten the day the network arrives.
+ * Every method is async, which is what let the in-memory fixture set be swapped for
+ * `createHttpRepositories` without a single calling screen changing shape. Two
+ * implementations satisfy this file; `createDataSource` picks one from configuration.
  *
  * Library content (ingested monsters, spells, items) and user campaign data are separate
  * repositories on purpose. Requirement: ingestion must stay isolated from user data.
+ *
+ * ── The write policy, stated once ───────────────────────────────────────────
+ *
+ * **Every write is idempotent.** `save` takes the whole record and replaces it, so an
+ * autosave that fires three times with the same object is one outcome, not three. That is
+ * what makes both a debounce and a retry safe to write anywhere above this line.
+ *
+ * **Autosave is the screen's, not this layer's.** A repository has no timer. The encounter
+ * builder debounces and flushes on every exit path; combat does not debounce at all,
+ * because a fight that started before its roster saved would be the worst bug this product
+ * could have. Both call the same `save`.
+ *
+ * **Optimism is allowed where the local state is already authoritative and the write is
+ * idempotent** — which is combat and encounter editing: the screen holds the new state,
+ * shows it immediately, and on failure keeps it and offers to send it again. It is not
+ * allowed where the server assigns something the client cannot know: `create`,
+ * `duplicate`, `cloneFrom` and `startFromTemplate` all mint an id, so their callers wait.
+ *
+ * **Nothing here caches or retries.** Retrying belongs to the screen that knows whether the
+ * user is still looking at the thing, and staleness is handled by the realtime channel
+ * telling a screen to re-read.
  */
 import type {
   Campaign,

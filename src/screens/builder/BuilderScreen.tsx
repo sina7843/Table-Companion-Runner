@@ -29,7 +29,7 @@ import {
 } from '../../design-system';
 import { BP, useMediaQuery } from '../../app/useMediaQuery';
 import {
-  CURRENT_USER_ID,
+  useUserId,
   requireRuleset,
   useAsync,
   useRepositories,
@@ -254,6 +254,7 @@ export function BuilderScreen() {
   const [search] = useSearchParams();
   const navigate = useNavigate();
   const { drafts, campaigns } = useRepositories();
+  const userId = useUserId();
   const isDesktop = useMediaQuery(BP.lg);
 
   const [draft, setDraft] = useState<CharacterDraft | null>(null);
@@ -272,15 +273,16 @@ export function BuilderScreen() {
     const campaign = campaignId
       ? await campaigns.byId(campaignId as Parameters<typeof campaigns.byId>[0])
       : null;
-    const mine = await campaigns.listForUser(CURRENT_USER_ID);
+    if (!userId) return null;
+    const mine = await campaigns.listForUser(userId);
     const target = campaign ?? mine[0] ?? null;
 
     return drafts.create({
       systemId: (target?.systemId ?? 'dnd5e-2024') as GameSystemId,
-      ownerUserId: CURRENT_USER_ID,
+      ownerUserId: userId,
       campaignId: target?.id,
     });
-  }, ['builder-draft', draftId ?? 'new', search.get('campaign') ?? '']);
+  }, ['builder-draft', draftId ?? 'new', search.get('campaign') ?? '', userId ?? '']);
 
   useEffect(() => {
     if (loaded.status === 'ready' && loaded.data) setDraft(loaded.data);

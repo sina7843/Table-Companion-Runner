@@ -34,7 +34,7 @@ import { BP, useMediaQuery } from '../../app/useMediaQuery';
 import { RollReadout, useRoller } from '../../app/useRoller';
 import {
   canSeeCharacterSection,
-  CURRENT_USER_ID,
+  useUserId,
   id,
   requireRuleset,
   useAsync,
@@ -153,6 +153,7 @@ function ValueList({
 export function CharacterSheet() {
   const { characterId } = useParams();
   const { characters, campaigns } = useRepositories();
+  const userId = useUserId();
   const isDesktop = useMediaQuery(BP.lg);
 
   const [tab, setTab] = useState('actions');
@@ -164,7 +165,7 @@ export function CharacterSheet() {
     const character = characterId ? await characters.byId(characterId as CharacterId) : null;
     if (!character) {
       // Fall back to the signed-in user's own character, which is what /play/sheet means.
-      const owned = await characters.listForOwner(CURRENT_USER_ID);
+      const owned = userId ? await characters.listForOwner(userId) : [];
       const mine = owned.find((entry) => entry.campaignId) ?? owned[0] ?? null;
       if (!mine) return { character: null, campaign: null };
       const campaign = mine.campaignId ? await campaigns.byId(mine.campaignId) : null;
@@ -221,9 +222,12 @@ export function CharacterSheet() {
   }
 
   const ruleset = requireRuleset(character.systemId);
+  // Signed out reads as a player who owns nothing, which is the safe end of every rule in
+  // `permissions.ts` — never the DM branch.
+  const reader = userId ?? id<'User'>('anonymous');
   const viewer: Viewer = campaign
-    ? viewerFor(campaign, CURRENT_USER_ID)
-    : { userId: CURRENT_USER_ID, role: 'player' };
+    ? viewerFor(campaign, reader)
+    : { userId: reader, role: 'player' };
 
   // Sections the viewer is not allowed to read simply do not exist for them — the design
   // hides the tab rather than showing a locked one.

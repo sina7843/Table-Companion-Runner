@@ -14,7 +14,7 @@ import {
 import { DMPage } from '../../app/DMShell';
 import { campaignTabs } from '../../app/nav';
 import {
-  CURRENT_USER_ID,
+  useUserId,
   useAsync,
   useRepositories,
   type CampaignId,
@@ -36,6 +36,7 @@ export function CampaignLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { campaigns, gameSystems } = useRepositories();
+  const userId = useUserId();
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const tabs = campaignTabs(campaignId);
@@ -115,7 +116,7 @@ export function CampaignLayout() {
 
   const context: CampaignContext = {
     campaign,
-    viewerUserId: CURRENT_USER_ID,
+    viewerUserId: userId,
     reload: state.reload,
   };
 
@@ -181,9 +182,11 @@ export function CampaignLayout() {
  */
 export function CampaignList() {
   const { campaigns, combats } = useRepositories();
+  const userId = useUserId();
 
   const state = useAsync(async () => {
-    const mine = await campaigns.listForUser(CURRENT_USER_ID);
+    if (!userId) return { mine: [], liveByCampaign: new Map<CampaignId, CombatInstance>() };
+    const mine = await campaigns.listForUser(userId);
     const live = await Promise.all(mine.map((campaign) => combats.liveForCampaign(campaign.id)));
     const liveByCampaign = new Map<CampaignId, CombatInstance>();
     live.forEach((combat, index) => {

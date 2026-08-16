@@ -4,18 +4,18 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { createFixtureRepositories, type FixtureScenario } from './fixtureRepositories';
+import { createDataSource, type DataSource } from './dataSource';
+import type { FixtureScenario } from './fixtureRepositories';
+import type { DomainEvent, DomainEventKind, RealtimeChannel } from './realtime';
+import { createNullChannel } from './realtime';
 import type { Repositories } from './repositories';
 
-const RepositoryCtx = createContext<Repositories | null>(null);
+const RepositoryCtx = createContext<DataSource | null>(null);
 
-/**
- * Injects the data layer. Screens call `useRepositories()` and never construct a
- * repository themselves, so swapping fixtures for a real API in TC-13 is one change here.
- */
 const SCENARIOS = new Set<FixtureScenario>([
   'populated',
   'first-time',
@@ -37,24 +37,98 @@ function scenarioFromUrl(): FixtureScenario {
     : 'populated';
 }
 
+/**
+ * Injects the data layer. Screens call `useRepositories()` and never construct a
+ * repository themselves, which is what lets `createDataSource` decide — from configuration
+ * alone — whether they are talking to local fixtures or to a deployed API.
+ */
 export function RepositoryProvider({
   repositories,
+  channel,
   children,
 }: {
   /** Overridable so tests and Storybook-style surfaces can supply their own. */
   repositories?: Repositories;
+  channel?: RealtimeChannel;
   children: ReactNode;
 }) {
-  const fallback = useMemo(() => createFixtureRepositories({ scenario: scenarioFromUrl() }), []);
-  return (
-    <RepositoryCtx.Provider value={repositories ?? fallback}>{children}</RepositoryCtx.Provider>
+  // One decision, taken once: configuration picks the data layer and the channel, and
+  // nothing downstream learns which it got.
+  const configured = useMemo(() => createDataSource({ scenario: scenarioFromUrl() }), []);
+
+  const value = useMemo<DataSource>(
+    () =>
+      repositories
+        ? {
+            kind: 'fixtures',
+            repositories,
+            channel: channel ?? createNullChannel(),
+            description: 'Supplied by the host',
+          }
+        : configured,
+    [repositories, channel, configured],
   );
+
+  // A channel holds a BroadcastChannel or a socket; both are closed when the app unmounts.
+  useEffect(() => () => value.channel.close(), [value]);
+
+  return <RepositoryCtx.Provider value={value}>{children}</RepositoryCtx.Provider>;
+}
+
+function useDataSource(): DataSource {
+  const source = useContext(RepositoryCtx);
+  if (!source) throw new Error('useRepositories must be used inside a RepositoryProvider');
+  return source;
 }
 
 export function useRepositories(): Repositories {
-  const repositories = useContext(RepositoryCtx);
-  if (!repositories) throw new Error('useRepositories must be used inside a RepositoryProvider');
-  return repositories;
+  return useDataSource().repositories;
+}
+
+/** Which layer is answering, for a screen or a reader that wants to say so. */
+export function useDataSourceInfo(): Pick<DataSource, 'kind' | 'description'> {
+  const { kind, description } = useDataSource();
+  return { kind, description };
+}
+
+/**
+ * Runs `onChange` when another device changes something this screen is showing.
+ *
+ * The event is a notification, so the handler re-reads rather than trusting a payload —
+ * every caller passes a `reload`. Nothing here debounces: events are rare compared with
+ * renders, and a fight that lags behind the table is worse than one extra read.
+ */
+export function useRealtime(
+  kinds: readonly DomainEventKind[],
+  onChange: (event: DomainEvent) => void,
+) {
+  const { channel } = useDataSource();
+  const handler = useRef(onChange);
+  handler.current = onChange;
+
+  // Joined only to give the effect a stable dependency; the match itself is by whole
+  // value. A substring test over the joined string would fire on any kind that happened
+  // to be a prefix of a wanted one.
+  const wanted = kinds.join(',');
+  useEffect(() => {
+    const allowed = new Set(wanted.split(','));
+    return channel.subscribe((event) => {
+      if (allowed.has(event.kind)) handler.current(event);
+    });
+  }, [channel, wanted]);
+}
+
+/** The channel's own view of the connection, for the shell's status indicator. */
+export function useChannelStatus(): RealtimeChannel['status'] {
+  const { channel } = useDataSource();
+  const [status, setStatus] = useState(channel.status);
+
+  useEffect(() => {
+    setStatus(channel.status);
+    return channel.onStatus(setStatus);
+  }, [channel]);
+
+  return status;
 }
 
 /** What the read itself produced. Internal — screens see `AsyncState`. */
@@ -75,10 +149,11 @@ export type AsyncState<T> = ReadState<T> & {
 /**
  * Minimal async read for fixture-backed screens.
  *
- * ponytail: no cache, no revalidation, no request dedupe. Fixtures resolve on a
- * microtask, so none of that earns its keep yet — TC-13 brings a real client and this
- * hook is where it lands. The three-state shape is deliberate: it forces every screen to
- * have a loading and an error branch from the start, which is what the design requires.
+ * ponytail: no cache, no revalidation, no request dedupe. The three-state shape is the
+ * point — it forces every screen to have a loading and an error branch from the start,
+ * which is what the design requires. Staleness is handled by `useRealtime` telling a
+ * screen to `reload`, which is cheaper to reason about than a cache with its own rules.
+ * Add one when a profiler says the reads cost something.
  */
 export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState<T> {
   const [version, setVersion] = useState(0);

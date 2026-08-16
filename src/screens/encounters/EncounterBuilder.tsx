@@ -39,7 +39,7 @@ import { useContextPanel } from '../../app/panelContext';
 import { MonsterSheet, monsterEyebrow } from '../monsters/MonsterSheet';
 import { relativeTime } from '../campaign/shared';
 import {
-  CURRENT_USER_ID,
+  useUserId,
   requireRuleset,
   useAsync,
   useRepositories,
@@ -106,6 +106,7 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
   const navigate = useNavigate();
   const { campaigns, characters, combats, encounters, monsters } = useRepositories();
   const { show, close } = useContextPanel();
+  const userId = useUserId();
 
   const [draft, setDraft] = useState<EncounterTemplate | null>(null);
   const [source, setSource] = useState<Source>('monsters');
@@ -125,10 +126,11 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
     if (mode === 'create') {
       // A new encounter is written before the DM types anything, so autosave has an id to
       // write against and navigating away never loses a half-built fight.
+      if (!userId) return null;
       creating.current ??= (async () => {
         const [mine, live] = await Promise.all([
-          campaigns.listForUser(CURRENT_USER_ID),
-          combats.liveForUser(CURRENT_USER_ID),
+          campaigns.listForUser(userId),
+          combats.liveForUser(userId),
         ]);
         const focus = mine.find((campaign) => campaign.id === live?.campaignId) ?? mine[0] ?? null;
         if (!focus) return null;
@@ -149,7 +151,7 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
     ]);
 
     return { encounter, campaign, roster, creatures, siblings, fights };
-  }, ['encounter-builder', mode, encounterId ?? '']);
+  }, ['encounter-builder', mode, encounterId ?? '', userId ?? '']);
 
   // The context panel keeps whatever JSX it was handed, so a handler closing over `draft`
   // would write a stale roster the second time a DM used it. Every edit goes via the ref.

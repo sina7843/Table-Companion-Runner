@@ -52,9 +52,10 @@ import {
   quickActions,
 } from './turn';
 import {
-  CURRENT_USER_ID,
+  useUserId,
   requireRuleset,
   useAsync,
+  useRealtime,
   useRepositories,
   visibleRolls,
   type Character,
@@ -87,6 +88,7 @@ const ROLL_MODES = [
 export function PlayerCombat() {
   const { campaigns, characters, combats } = useRepositories();
   const connection = useConnection();
+  const userId = useUserId();
 
   const [combat, setCombat] = useState<CombatInstance | null>(null);
   const [mode, setMode] = useState('normal');
@@ -94,7 +96,8 @@ export function PlayerCombat() {
   const [failure, setFailure] = useState<string | null>(null);
 
   const loaded = useAsync(async () => {
-    const live = await combats.liveForUser(CURRENT_USER_ID);
+    if (!userId) return null;
+    const live = await combats.liveForUser(userId);
     if (!live) return null;
 
     const [campaign, roster] = await Promise.all([
@@ -107,15 +110,19 @@ export function PlayerCombat() {
     // session says — the signed-in fixture user happens to be the DM, and reading their
     // role here would show this screen the unrevealed creatures a player must never see.
     // TC-13's auth layer replaces the id; the role is a property of the surface.
-    const viewer: Viewer = { userId: CURRENT_USER_ID, role: 'player' };
-    const mine = roster.find((entry) => entry.ownerUserId === CURRENT_USER_ID) ?? roster[0] ?? null;
+    const viewer: Viewer = { userId, role: 'player' };
+    const mine = roster.find((entry) => entry.ownerUserId === userId) ?? roster[0] ?? null;
 
     return { combat: live, campaign, characters: roster, viewer, character: mine };
-  }, ['player-combat']);
+  }, ['player-combat', userId ?? '']);
 
   useEffect(() => {
     if (loaded.status === 'ready' && loaded.data) setCombat(loaded.data.combat);
   }, [loaded.status, loaded.data]);
+
+  // The DM moved the turn, or somebody rolled. Both mean re-read: a player's phone is a
+  // view of the fight, never a second copy of it.
+  useRealtime(['combat.changed', 'combat.ended', 'roll.recorded'], () => loaded.reload());
 
   const change = (next: CombatInstance) => {
     setCombat(next);

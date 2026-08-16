@@ -24,7 +24,7 @@ import {
   TextInput,
 } from '../design-system';
 import {
-  CURRENT_USER_ID,
+  useUserId,
   useAsync,
   useRepositories,
   type GameSystem,
@@ -238,6 +238,7 @@ export function JoinCampaign() {
 export function NewCampaign() {
   const navigate = useNavigate();
   const { gameSystems, campaigns } = useRepositories();
+  const userId = useUserId();
   const state = useAsync(() => gameSystems.list(), ['game-systems']);
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -253,13 +254,18 @@ export function NewCampaign() {
       return;
     }
 
+    if (!userId) {
+      setFailure('You are signed out. Sign in again to create a campaign.');
+      return;
+    }
+
     setCreating(true);
     setFailure(null);
     try {
       const campaign = await campaigns.create({
         name: name.trim(),
         systemId: selected as GameSystemId,
-        dmUserId: CURRENT_USER_ID,
+        dmUserId: userId,
       });
       // Straight into the campaign it just made, where the invite code is in the top bar.
       navigate(`/dm/campaigns/${campaign.id}`);

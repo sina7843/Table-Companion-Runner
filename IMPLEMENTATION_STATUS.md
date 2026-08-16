@@ -1182,3 +1182,67 @@ breakdown leaving a dropped die out of the sum.
 
 The bottom-nav badge on the player's turn — the nav is in the shell and does not know about
 the fight; threading combat state through for one badge waits for TC-13's realtime channel.
+
+## TC-13 — Data access, realtime and persistence seams
+
+### What was inspected first
+
+No backend, no API client, no server directory — greenfield. React 19 + Vite 7, one runtime
+dependency beyond React. So the boundary was written rather than integrated with, and the
+fixtures were kept as a first-class local data source.
+
+### The seams
+
+- `src/domain/data/apiContract.ts` — every route and verb in one file, plus `ApiConfig` and
+  a retryable `ApiError`. Reads return domain shapes verbatim; writes are `PUT` with the
+  whole record so replays are no-ops.
+- `src/domain/data/httpRepositories.ts` — the `Repositories` surface over `fetch`, one
+  method per contract route. Injectable `fetch`, so it is tested without a network.
+- `src/domain/data/realtime.ts` — `DomainEvent`, `ConnectionState`, `RealtimeChannel`, and
+  three implementations: `createLocalChannel` (BroadcastChannel), `createSocketChannel`
+  (WebSocket with backoff and a send queue), `createNullChannel`.
+- `src/domain/data/withRealtime.ts` — decorates any `Repositories` so every mutation
+  publishes its event.
+- `src/domain/data/dataSource.ts` — picks fixtures or API, and local or socket channel, from
+  `VITE_API_BASE_URL` / `VITE_REALTIME_URL`.
+- `src/domain/data/SessionProvider.tsx` — `useSession`, `useUserId`, `SessionGate`.
+
+### Contracts covered
+
+Campaign, Character, Monster, Encounter, Combat, Roll and Draft state all route through
+`Repositories`. Autosave, optimistic-update and retry policy are stated in
+`repositories.ts`. Reconnect and refresh: `useChannelStatus` feeds `useConnection`;
+`useRealtime` re-reads on `combat.changed`, `combat.ended` and `roll.recorded` in both the
+DM runner and the player screen.
+
+### Fixture decoupling
+
+`CURRENT_USER_ID` is no longer exported from the domain barrel. Ten screens moved to
+`useUserId()`. No file under `src/screens/` or `src/app/` imports fixture data.
+
+### Configuration
+
+`.env.example` documents both variables and states in its own header that no `VITE_`
+variable may hold a credential. No real env file exists in the repository; a production
+build with nothing configured inlines an empty env object, verified against `dist`.
+
+### Tests — 197, all passing (11 new in `src/domain/seams.test.ts`)
+
+No screen or shell file importing fixture data; the barrel not re-exporting the fixture
+user; a saved fight announcing itself and an ended one saying so specifically; a start
+announcing both fight and template; an encounter edit announcing and a read not; a recorded
+roll announcing without carrying a result; a device not hearing its own echo; every
+repository call reaching the contract's path; a monster query becoming the documented query
+string; a failure reporting whether a retry is worth it; and the contract naming a route for
+every method the client uses.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (197 passing), `npm run format:check`,
+`npm run build`. Dev server serves the entry, DM and player routes plus `?scenario=empty`,
+and compiles every new module.
+
+### Not done
+
+No backend is included — this is the boundary, not an implementation of the other side. No
+provider was chosen and no credential is read anywhere.

@@ -1003,3 +1003,64 @@ a native `<dialog>` like the others, so the focus trap and Escape come from the 
 and does not know about the fight, and threading combat state into it for one badge is more
 plumbing than the badge is worth until TC-13's realtime channel makes it cheap. Noted rather
 than faked.
+
+## TC-13 — Data, persistence and realtime seams
+
+**Greenfield, so the boundary was written rather than integrated with.** There is no
+backend in this repository and none was invented. What exists now is the contract a backend
+can be written against: `apiContract.ts` states every path and verb in one file, and
+`httpRepositories.ts` satisfies the same `Repositories` interface the fixtures do. Nothing
+names a vendor, no endpoint has a default, and with nothing configured a fresh clone runs on
+fixtures exactly as before.
+
+**One decision, taken once, from configuration.** `createDataSource` reads two public
+values — a base URL and a socket URL — and returns the repositories and the channel
+together. No screen learns which it got. `VITE_API_BASE_URL` unset means fixtures; that is
+the supported way to develop the UI and it is what `npm run dev` does with no env file at
+all.
+
+**Nothing in this application reads a credential.** Every `VITE_`-prefixed value is inlined
+into the browser bundle by Vite, so `.env.example` says in its own header that a key, token
+or connection string may never be named with that prefix. The HTTP client forwards an
+`Authorization` header if a host hands it one and never obtains, stores or reads a session
+itself. A build with nothing configured inlines an empty object — verified against `dist`.
+
+**The domain barrel no longer exports `CURRENT_USER_ID`.** That single export was the hard
+coupling: eleven screens imported the signed-in user straight out of the demo data. They now
+call `useUserId()`, which reads `users.current()` through the repository — fixtures answer
+with the fixture user, a deployment answers with whoever holds the cookie. Removing the
+export is what keeps it removed, and a test asserts both that it is gone and that no file
+under `screens/` or `app/` imports fixture data at all.
+
+**Events are notifications, not payloads.** A `DomainEvent` says a thing changed and who
+changed it; the receiver re-reads through the repository. Shipping new state in the event
+would mean two sources of truth and a merge problem the first time two devices wrote at
+once. It also means a secret roll can announce itself safely: the event carries no total and
+no visibility, and the DM-only rule stays where it already was.
+
+**`withRealtime` wraps any implementation.** Announcing a write is a decorator over
+`Repositories`, so the fixture layer and the HTTP layer announce identically and neither has
+to remember to. That is the failure mode it exists to remove.
+
+**The local channel is a real channel, not a pretend one.** `BroadcastChannel` genuinely
+keeps a DM tab and a player tab in step on one machine, which makes the seam something that
+works today rather than something that type-checks. `createSocketChannel` is the production
+path and is constructed only when a URL is configured — a socket is a platform API, and
+choosing a provider belongs to whoever deploys this.
+
+**The write policy is stated once, in the contract.** Every write is idempotent, which is
+what makes a debounce and a retry safe anywhere above the repository. Autosave belongs to
+the screen — the encounter builder debounces and flushes, combat deliberately does not
+debounce at all. Optimism is allowed where local state is already authoritative and the
+write is idempotent (combat, encounter editing) and refused where the server mints an id
+(`create`, `duplicate`, `cloneFrom`, `startFromTemplate`), because a caller cannot
+optimistically know a key it did not generate.
+
+**Reconnect is two signals, honestly combined.** `useConnection` already read the browser's
+online/offline events; it now also reads the channel's own status, because a socket knows it
+has dropped before the browser notices. With the local channel that reduces to the
+online/offline events, which is the honest answer when nothing is deployed.
+
+**A React-shaped bug fixed on the way.** `useRealtime` matched wanted event kinds by
+substring over a joined string, which would fire a handler for any kind that happened to be
+a prefix of a wanted one. It matches whole values now.

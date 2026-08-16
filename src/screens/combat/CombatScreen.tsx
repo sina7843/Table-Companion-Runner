@@ -16,9 +16,10 @@ import { Alert, Button, EmptyState, Skeleton } from '../../design-system';
 import { DMPage } from '../../app/DMShell';
 import { useConnection } from '../../app/useConnection';
 import {
-  CURRENT_USER_ID,
+  useUserId,
   requireRuleset,
   useAsync,
+  useRealtime,
   useRepositories,
   type CombatInstance,
   type CombatInstanceId,
@@ -34,6 +35,7 @@ export function CombatScreen() {
   const { campaigns, characters, combats, encounters, monsters } = useRepositories();
 
   const connection = useConnection();
+  const userId = useUserId();
   const [combat, setCombat] = useState<CombatInstance | null>(null);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -41,7 +43,9 @@ export function CombatScreen() {
   const loaded = useAsync(async () => {
     const found = combatId
       ? await combats.byId(combatId as CombatInstanceId)
-      : await combats.liveForUser(CURRENT_USER_ID);
+      : userId
+        ? await combats.liveForUser(userId)
+        : null;
     if (!found) return null;
 
     const [campaign, roster, creatures, template] = await Promise.all([
@@ -63,11 +67,17 @@ export function CombatScreen() {
       monsters: new Map<string, Monster>(creatures.map((entry) => [entry.id, entry])),
       template,
     };
-  }, ['combat', combatId ?? '']);
+  }, ['combat', combatId ?? '', userId ?? '']);
 
   useEffect(() => {
     if (loaded.status === 'ready' && loaded.data) setCombat(loaded.data.combat);
   }, [loaded.status, loaded.data]);
+
+  // Another device changed this fight. The event is a notification, so this re-reads
+  // rather than trusting a payload — one source of truth even when two people act at once.
+  useRealtime(['combat.changed', 'combat.ended'], (event) => {
+    if ('combatId' in event && event.combatId === combat?.id) loaded.reload();
+  });
 
   // Runtime edits write straight through: initiative and who is present are not a draft,
   // and a debounce here would mean a fight that started before its roster was saved.

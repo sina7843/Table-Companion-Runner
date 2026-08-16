@@ -27,7 +27,7 @@ import {
 import { DMPage } from '../../app/DMShell';
 import { relativeTime } from '../campaign/shared';
 import {
-  CURRENT_USER_ID,
+  useUserId,
   requireRuleset,
   useAsync,
   useRepositories,
@@ -83,6 +83,7 @@ const NUMBER = new Intl.NumberFormat('en-GB');
 export function EncounterLibrary() {
   const { campaigns, characters, combats, encounters, monsters } = useRepositories();
   const navigate = useNavigate();
+  const userId = useUserId();
 
   const [options, setOptions] = useState<Row | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<EncounterTemplate | null>(null);
@@ -91,10 +92,11 @@ export function EncounterLibrary() {
   const [version, setVersion] = useState(0);
 
   const state = useAsync(async () => {
-    const mine = await campaigns.listForUser(CURRENT_USER_ID);
+    if (!userId) return { focus: null, rows: [] as Row[] };
+    const mine = await campaigns.listForUser(userId);
 
     // The same focus rule the DM home uses: the campaign in play, else the most recent.
-    const live = await combats.liveForUser(CURRENT_USER_ID);
+    const live = await combats.liveForUser(userId);
     const focus: Campaign | null =
       mine.find((campaign) => campaign.id === live?.campaignId) ?? mine[0] ?? null;
 
@@ -131,7 +133,7 @@ export function EncounterLibrary() {
     });
 
     return { focus, rows };
-  }, ['encounter-library', version]);
+  }, ['encounter-library', version, userId ?? '']);
 
   const reload = () => {
     setVersion((current) => current + 1);

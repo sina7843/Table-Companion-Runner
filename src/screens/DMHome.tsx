@@ -15,7 +15,7 @@ import {
 } from '../design-system';
 import { DMPage } from '../app/DMShell';
 import {
-  CURRENT_USER_ID,
+  useUserId,
   useAsync,
   useRepositories,
   type Campaign,
@@ -165,13 +165,27 @@ function LiveCombatBand({
  */
 export function DMHome() {
   const { campaigns, combats, encounters, activity, recents } = useRepositories();
+  const userId = useUserId();
 
   const state = useAsync(async () => {
+    // The session resolves through the data layer, so the read waits for it rather than
+    // reaching into fixture data for an id.
+    if (!userId) {
+      return {
+        campaigns: [],
+        live: null,
+        recall: [],
+        changes: [],
+        focus: null,
+        prepared: [],
+      };
+    }
+
     const [mine, live, recall, changes] = await Promise.all([
-      campaigns.listForUser(CURRENT_USER_ID),
-      combats.liveForUser(CURRENT_USER_ID),
-      recents.listForUser(CURRENT_USER_ID),
-      activity.listForUser(CURRENT_USER_ID),
+      campaigns.listForUser(userId),
+      combats.liveForUser(userId),
+      recents.listForUser(userId),
+      activity.listForUser(userId),
     ]);
 
     // Prepared encounters come from the campaign in play, or the most recent campaign.
@@ -179,7 +193,7 @@ export function DMHome() {
     const prepared = focus ? await encounters.listForCampaign(focus.id) : [];
 
     return { campaigns: mine, live, recall, changes, focus, prepared };
-  }, ['dm-home']);
+  }, ['dm-home', userId ?? '']);
 
   const actions = (
     <Button variant="primary" size="sm" icon="plus" as={Link} to="/campaigns/new">

@@ -64,7 +64,33 @@ export {
 export {
   RepositoryProvider,
   useAsync,
+  useChannelStatus,
+  useDataSourceInfo,
+  useRealtime,
   useRepositories,
   type AsyncState,
 } from './data/RepositoryProvider.tsx';
-export { CURRENT_USER_ID } from './data/fixtures.ts';
+export { SessionGate, SessionProvider, useSession, useUserId } from './data/SessionProvider.tsx';
+
+/* ── The seams TC-13 made explicit ──────────────────────────────────────────── */
+
+export { createDataSource, type DataSource, type DataSourceKind } from './data/dataSource.ts';
+export { createHttpRepositories } from './data/httpRepositories.ts';
+export { API_ROUTES, ApiError, type ApiConfig, type ApiRoute } from './data/apiContract.ts';
+export {
+  createLocalChannel,
+  createNullChannel,
+  createSocketChannel,
+  type ConnectionState,
+  type DomainEvent,
+  type DomainEventKind,
+  type OutgoingEvent,
+  type RealtimeChannel,
+} from './data/realtime.ts';
+export { withRealtime } from './data/withRealtime.ts';
+
+/*
+ * `CURRENT_USER_ID` is deliberately NOT exported. A screen that needs the signed-in user
+ * calls `useUserId()`; reaching into the fixture file was the one hard coupling between the
+ * UI and the demo data, and removing the export is what keeps it removed.
+ */

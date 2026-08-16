@@ -12,6 +12,7 @@
  * after a few seconds and nothing loops.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useChannelStatus } from '../domain';
 
 export type ConnectionState = 'live' | 'reconnecting' | 'offline';
 
@@ -29,6 +30,10 @@ export interface Connection {
 const RESTORED_MS = 4000;
 
 export function useConnection(): Connection {
+  // The channel is the better signal when there is one: a socket knows it has dropped
+  // before the browser notices anything. With the local channel this reduces to the
+  // online/offline events below, which is the honest answer when nothing is deployed.
+  const channelStatus = useChannelStatus();
   const [online, setOnline] = useState(() => navigator.onLine);
   const [failing, setFailing] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -54,7 +59,12 @@ export function useConnection(): Connection {
     [],
   );
 
-  const state: ConnectionState = !online ? 'offline' : failing ? 'reconnecting' : 'live';
+  const state: ConnectionState =
+    !online || channelStatus === 'offline'
+      ? 'offline'
+      : failing || channelStatus === 'reconnecting'
+        ? 'reconnecting'
+        : 'live';
 
   useEffect(() => {
     if (state !== 'live') {

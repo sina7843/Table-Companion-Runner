@@ -32,7 +32,7 @@ import {
 } from '../../design-system';
 import { DMPage } from '../../app/DMShell';
 import {
-  CURRENT_USER_ID,
+  useUserId,
   id,
   requireRuleset,
   useAsync,
@@ -40,20 +40,21 @@ import {
   type Monster,
   type MonsterAction,
   type MonsterId,
+  type UserId,
 } from '../../domain';
 import { MonsterSheet } from './MonsterSheet';
 
 const SYSTEM = id<'GameSystem'>('dnd5e-2024');
 
 /** A creature with nothing filled in but the shape the rules expect. */
-function blankMonster(): Monster {
+function blankMonster(ownerUserId: UserId): Monster {
   return {
     id: id<'Monster'>(`m-draft-${Date.now()}`),
     systemId: SYSTEM,
     name: '',
     subtitle: '',
     origin: 'homebrew',
-    ownerUserId: CURRENT_USER_ID,
+    ownerUserId,
     source: 'You',
     challengeLabel: '',
     challengeRank: 0,
@@ -115,6 +116,7 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
   const { monsterId } = useParams();
   const navigate = useNavigate();
   const { monsters, users } = useRepositories();
+  const userId = useUserId();
   const ruleset = requireRuleset(SYSTEM);
 
   const [monster, setMonster] = useState<Monster | null>(null);
@@ -133,7 +135,10 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
   const cloning = useRef<Promise<Monster> | null>(null);
 
   const loaded = useAsync(async () => {
-    if (mode === 'create') return { monster: blankMonster(), source: null };
+    if (mode === 'create') {
+      // A creature has an owner, so a signed-out editor has nothing to make.
+      return { monster: userId ? blankMonster(userId) : null, source: null };
+    }
 
     const existing = monsterId ? await monsters.byId(monsterId as MonsterId) : null;
     if (!existing) return { monster: null, source: null };
@@ -149,7 +154,7 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
       .current()
       .then((me) => monsters.cloneFrom(existing.id, me.id, me.displayName));
     return { monster: await cloning.current, source: existing };
-  }, ['monster-editor', mode, monsterId ?? '']);
+  }, ['monster-editor', mode, monsterId ?? '', userId ?? '']);
 
   useEffect(() => {
     if (loaded.status !== 'ready' || !loaded.data.monster) return;

@@ -24,6 +24,7 @@ import {
 } from '../../design-system';
 import { useContextPanel } from '../../app/panelContext';
 import {
+  id,
   useAsync,
   useRepositories,
   viewerFor,
@@ -46,7 +47,8 @@ import {
 /** What `CampaignLayout` resolves once and every tab reads. */
 export interface CampaignContext {
   campaign: Campaign;
-  viewerUserId: User['id'];
+  /** Null when signed out, which every permission rule reads as "not the DM". */
+  viewerUserId: User['id'] | null;
   reload: () => void;
 }
 
@@ -76,13 +78,14 @@ function PartyTable({
   showPrivacy,
 }: {
   campaign: Campaign;
-  viewerUserId: User['id'];
+  viewerUserId: User['id'] | null;
   characters: Character[];
   users: User[];
   showPrivacy?: boolean;
 }) {
   const { show } = useContextPanel();
-  const viewer = viewerFor(campaign, viewerUserId);
+  // Signed out resolves to a player, which is the safe end of every permission rule.
+  const viewer = viewerFor(campaign, viewerUserId ?? id<'User'>('anonymous'));
   const rows = buildPartyRows(characters, campaign, users);
 
   if (rows.length === 0) {
@@ -325,11 +328,12 @@ export function CampaignParty() {
   const state = useAsync(async () => {
     const [party, unattached] = await Promise.all([
       characters.listForCampaign(campaign.id),
-      characters.listUnattached(viewerUserId),
+      // Signed out has no characters of its own to attach, so the list is simply empty.
+      viewerUserId ? characters.listUnattached(viewerUserId) : Promise.resolve([]),
     ]);
     const members = await users.byIds(campaign.members.map((member) => member.userId));
     return { party, unattached, members };
-  }, ['campaign-party', campaign.id]);
+  }, ['campaign-party', campaign.id, viewerUserId ?? '']);
 
   async function attach(character: Character) {
     setAttaching(character.id);

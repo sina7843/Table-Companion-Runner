@@ -97,20 +97,20 @@ test('a player finds their own combatant, and nobody else is mistaken for it', a
 
 /* ── Low health ─────────────────────────────────────────────────────────────── */
 
-test('low health is a quarter of the track, and zero is not low — it is down', () => {
-  const at = (current: number, max: number): CombatParticipant => ({
-    id: id<'CombatParticipant'>('p-test'),
-    name: 'Test',
-    subtitle: '',
-    entityType: 'player',
-    initiative: 10,
-    health: { current, max, temporary: 0 },
-    conditions: [],
-    state: 'waiting',
-    visibility: 'party',
-    source: { kind: 'character', characterId: id<'Character'>('ch-aria') },
-  });
+const at = (current: number, max: number): CombatParticipant => ({
+  id: id<'CombatParticipant'>('p-test'),
+  name: 'Test',
+  subtitle: '',
+  entityType: 'player',
+  initiative: 10,
+  health: { current, max, temporary: 0 },
+  conditions: [],
+  state: 'waiting',
+  visibility: 'party',
+  source: { kind: 'character', characterId: id<'Character'>('ch-aria') },
+});
 
+test('low health is a quarter of the track, and zero is not low — it is down', () => {
   assert.equal(isLowHealth(at(10, 40)), true);
   assert.equal(isLowHealth(at(11, 40)), false);
   assert.equal(isLowHealth(at(1, 40)), true);

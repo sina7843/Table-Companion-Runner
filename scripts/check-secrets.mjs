@@ -43,19 +43,29 @@ for (const file of trackedFiles()) {
 
 /* ── A credential in the source ─────────────────────────────────────────────── */
 
-/**
- * What deliberately does not count as a leak.
- *
- * The development database's password is committed on purpose — it listens on loopback, holds
- * seeded demo data, and says so in `docker-compose.yml`. CI's is throwaway and named so. Both
- * are allowed by exact value rather than by pattern, so a *new* literal cannot hide behind the
- * exemption.
- */
 const ALLOWED_LITERALS = new Set([
   'localdev',
   'ci-only-not-a-secret',
   'table-companion-dev',
   'table-companion-e2e-password',
+]);
+
+/**
+ * Exact fake credentials used to prove redaction and strict payload handling.
+ *
+ * This is intentionally path-and-value specific. We do not skip test files, and we do not
+ * weaken a pattern globally: a new hash/token/connection string in any test still fails CI.
+ */
+const TEST_FIXTURES = new Map([
+  ['server/account.test.ts', ['scrypt$1$2$3$x$y']],
+  [
+    'server/operations.test.ts',
+    [
+      'postgres://user:pw@localhost:5432/db',
+      'scrypt$32768$8$1$abc$def',
+      'Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig',
+    ],
+  ],
 ]);
 
 const PATTERNS = [
@@ -88,10 +98,16 @@ for (const file of trackedFiles()) {
   }
   if (text.includes('\0')) continue;
 
+  for (const fixture of TEST_FIXTURES.get(file) ?? []) {
+    text = text.replaceAll(fixture, '[explicit-test-fixture]');
+  }
+
   for (const pattern of PATTERNS) {
+    pattern.test.lastIndex = 0;
     if (pattern.test.test(text)) say(file, `looks like it contains ${pattern.name}`);
   }
 
+  CONNECTION_STRING.lastIndex = 0;
   for (const match of text.matchAll(CONNECTION_STRING)) {
     const password = match[1];
     if (password && !ALLOWED_LITERALS.has(password) && !password.startsWith('$')) {

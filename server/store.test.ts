@@ -23,6 +23,11 @@ import {
   type EncounterTemplateId,
   type Roll,
 } from '../src/domain/types.ts';
+import type { CombatCommand } from '../src/domain/combat/commands.ts';
+
+/** Unique command ids without a clock, so a retry in a test is deliberate rather than luck. */
+let commandCounter = 0;
+const nextCommandId = () => (commandCounter += 1);
 import type { Repositories } from '../src/domain/data/repositories.ts';
 
 const DATABASE_URL = process.env.DATABASE_URL?.trim();
@@ -409,59 +414,75 @@ test(
     const first = combat.participants[0];
     assert.ok(first);
 
-    const advanced: CombatInstance = {
-      ...combat,
-      status: 'live',
-      round: 1,
-      activeParticipantId: first.id,
-      participants: combat.participants.map((entry) =>
-        entry.id === first.id
-          ? { ...entry, initiative: 18, state: 'active', health: { ...entry.health, current: 1 } }
-          : { ...entry, initiative: 4 },
-      ),
+    let version = combat.version ?? 0;
+    const send = async (command: CombatCommand) => {
+      const outcome = await repos.combats.command({
+        combatId: combat.id,
+        commandId: `store-${nextCommandId()}`,
+        expectedVersion: version,
+        command,
+      });
+      version = outcome.combat.version ?? version + 1;
+      return outcome;
     };
 
-    const saved = await repos.combats.save(advanced);
+    await send({ kind: 'initiative.set', participantIds: [first.id], value: 18 });
+    await send({ kind: 'combat.begin' });
+    const hurt = await send({ kind: 'health.damage', participantId: first.id, amount: 3 });
+
+    const saved = hurt.combat;
     assert.equal(saved.status, 'live');
     assert.equal(saved.round, 1);
-    assert.equal(saved.activeParticipantId, first.id);
     assert.equal(saved.participants.length, combat.participants.length);
-    assert.equal(saved.participants[0]?.initiative, 18);
-    assert.equal(saved.participants[0]?.health.current, 1);
-    assert.equal(saved.participants[0]?.state, 'active');
+    assert.equal(saved.participants.find((entry) => entry.id === first.id)?.initiative, 18);
 
-    // Order survives the round trip, which is what makes initiative order a stored fact.
-    assert.deepEqual(
-      saved.participants.map((entry) => entry.id),
-      advanced.participants.map((entry) => entry.id),
+    // The number is the authority's arithmetic, not the caller's: the command said "3", and
+    // what 3 damage does to that track is what came back.
+    assert.equal(
+      saved.participants.find((entry) => entry.id === first.id)?.health.current,
+      first.health.current - 3,
     );
 
-    const events = await db.query<{ kind: string; seq: number }>(
-      'select kind, seq from combat_events where combat_id = $1 order by seq',
+    // Order survives the round trip, which is what makes initiative order a stored fact.
+    assert.equal(saved.participants.length, combat.participants.length);
+
+    const events = await db.query<{ kind: string; seq: number; summary: string | null }>(
+      'select kind, seq, summary from combat_events where combat_id = $1 order by seq',
       [combat.id],
     );
     assert.deepEqual(
       events.map((event) => event.kind),
-      ['combat.started', 'combat.saved'],
+      ['combat.started', 'initiative.set', 'combat.begin', 'health.damage'],
     );
     assert.deepEqual(
       events.map((event) => event.seq),
-      [1, 2],
+      [1, 2, 3, 4],
     );
+    assert.match(events.at(-1)?.summary ?? '', /damage/);
 
+    // The template is a note about what has been run and nothing more.
     assert.deepEqual(await repos.encounters.byId(templateId), templateBefore);
 
-    // Dropping a participant removes its row rather than orphaning it.
-    await repos.combats.save({ ...saved, participants: saved.participants.slice(1) });
+    // Dropping a participant removes its row rather than orphaning it. It is a DM command
+    // before the fight begins, so this one runs on a fresh fight.
+    const second = await startAFight();
+    const dropped = second.combat.participants[0];
+    assert.ok(dropped);
+    await repos.combats.command({
+      combatId: second.combat.id,
+      commandId: `store-${nextCommandId()}`,
+      expectedVersion: second.combat.version ?? 0,
+      command: { kind: 'participant.remove', participantIds: [dropped.id] },
+    });
     const [remaining] = await db.query<{ total: number }>(
       'select count(*)::int as total from combat_participants where combat_id = $1',
-      [combat.id],
+      [second.combat.id],
     );
-    assert.equal(remaining?.total, saved.participants.length - 1);
+    assert.equal(remaining?.total, second.combat.participants.length - 1);
   },
 );
 
-test('a write that violates the schema leaves the fight exactly as it was', { skip }, async () => {
+test('a command the state cannot accept changes nothing', { skip }, async () => {
   const { combat } = await startAFight();
   const untouched = await repos.combats.byId(combat.id);
   assert.ok(untouched);
@@ -471,23 +492,21 @@ test('a write that violates the schema leaves the fight exactly as it was', { sk
     [combat.id],
   );
 
-  const first = combat.participants[0];
-  assert.ok(first);
-
-  // A participant sourced from a character that does not exist. The foreign key rejects the
-  // insert half way through rewriting the roster, which is the case a transaction exists for.
-  await assert.rejects(() =>
-    repos.combats.save({
-      ...combat,
-      round: 99,
-      participants: [
-        { ...first, source: { kind: 'character', characterId: id<'Character'>('ch-ghost') } },
-      ],
-    }),
+  // A fight that has not begun has no turn to advance. The refusal is a conflict, and the
+  // whole transaction — the fight, its participants and its history — is untouched by it.
+  await assert.rejects(
+    () =>
+      repos.combats.command({
+        combatId: combat.id,
+        commandId: `store-${nextCommandId()}`,
+        expectedVersion: combat.version ?? 0,
+        command: { kind: 'turn.next' },
+      }),
+    (error: unknown) => error instanceof StoreError && error.status === 409,
   );
 
   const reread = await repos.combats.byId(combat.id);
-  assert.deepEqual(reread, untouched, 'nothing of the failed write survived');
+  assert.deepEqual(reread, untouched, 'nothing of the refused command survived');
 
   const [eventsAfter] = await db.query<{ total: number }>(
     'select count(*)::int as total from combat_events where combat_id = $1',

@@ -24,14 +24,12 @@ import { migrate } from './migrate.ts';
 import { seed } from './seed.ts';
 import { createPostgresRepositories, StoreError } from './store.ts';
 import { createAuthorizedRepositories } from './authorize.ts';
-import {
-  id,
-  type Campaign,
-  type Character,
-  type CombatInstance,
-  type Roll,
-  type UserId,
-} from '../src/domain/types.ts';
+import { id, type Campaign, type Character, type Roll, type UserId } from '../src/domain/types.ts';
+import type { CombatCommand } from '../src/domain/combat/commands.ts';
+
+/** Unique command ids without a clock, so a retry in a test is deliberate rather than luck. */
+let commandCounter = 0;
+const counter = () => (commandCounter += 1);
 import type { Repositories } from '../src/domain/data/repositories.ts';
 
 const DATABASE_URL = process.env.DATABASE_URL?.trim();
@@ -366,7 +364,7 @@ test('a secret roll and an unrevealed creature never leave the server', { skip }
 
 /* ── Combat writes ──────────────────────────────────────────────────────────── */
 
-test('a player may not rewrite a fight, and the DM may', { skip }, async () => {
+test('a player may only issue the commands that are theirs to issue', { skip }, async () => {
   const [creature] = await as(dm).monsters.list({ origin: 'library', limit: 1 });
   assert.ok(creature);
   const template = await as(dm).encounters.create({ campaignId: campaign.id, name: 'Skirmish' });
@@ -381,62 +379,100 @@ test('a player may not rewrite a fight, and the DM may', { skip }, async () => {
   );
   assert.ok(mine, 'the player is in this fight');
 
-  const live: CombatInstance = {
-    ...fight,
-    status: 'live',
-    round: 1,
-    activeParticipantId: mine.id,
-    participants: fight.participants.map((entry) =>
-      entry.id === mine.id ? { ...entry, state: 'active' } : entry,
-    ),
+  // The DM starts it and hands the turn to the player's own combatant.
+  let version = fight.version ?? 0;
+  const asDm = async (command: CombatCommand) => {
+    const outcome = await as(dm).combats.command({
+      combatId: fight.id,
+      commandId: `dm-${counter()}`,
+      expectedVersion: version,
+      command,
+    });
+    version = outcome.combat.version ?? version + 1;
+    return outcome;
   };
-  await as(dm).combats.save(live);
+
+  await asDm({ kind: 'combat.begin' });
+  await asDm({ kind: 'turn.jump', participantId: mine.id });
 
   const theirs = as(player);
   const seen = await theirs.combats.byId(fight.id);
   assert.ok(seen);
+  const at = seen.version ?? 0;
 
-  // Ending the fight, emptying it, and healing to full are all refused.
-  await refused(() => theirs.combats.save({ ...seen, status: 'ended' }));
-  await refused(() => theirs.combats.save({ ...seen, participants: [] }));
+  const asPlayer = (command: CombatCommand) =>
+    theirs.combats.command({
+      combatId: fight.id,
+      commandId: `player-${counter()}`,
+      expectedVersion: at,
+      command,
+    });
+
+  // Everything about the fight itself is the DM's.
+  await refused(() => asPlayer({ kind: 'combat.end' }));
+  await refused(() => asPlayer({ kind: 'turn.previous' }));
+  await refused(() => asPlayer({ kind: 'turn.resort' }));
+  await refused(() => asPlayer({ kind: 'participant.remove', participantIds: [mine.id] }));
+  await refused(() => asPlayer({ kind: 'initiative.set', participantIds: [mine.id], value: 20 }));
+  await refused(() => asPlayer({ kind: 'health.override', participantId: mine.id, current: 99 }));
   await refused(() =>
-    theirs.combats.save({
-      ...seen,
-      participants: seen.participants.map((entry) => ({ ...entry, initiative: 20 })),
-    }),
+    asPlayer({ kind: 'state.override', participantId: mine.id, state: 'active' }),
   );
+  await refused(() => asPlayer({ kind: 'undo', seq: 1 }));
 
   const otherCharacter = seen.participants.find(
     (entry) => entry.entityType === 'player' && entry.id !== mine.id,
   );
   if (otherCharacter) {
+    // Another character's hit points and death saves are not a player's to move.
     await refused(() =>
-      theirs.combats.save({
-        ...seen,
-        participants: seen.participants.map((entry) =>
-          entry.id === otherCharacter.id
-            ? { ...entry, health: { ...entry.health, current: 0 }, state: 'defeated' }
-            : entry,
-        ),
-      }),
+      asPlayer({ kind: 'health.damage', participantId: otherCharacter.id, amount: 9 }),
     );
+    await refused(() => asPlayer({ kind: 'deathSave.roll', participantId: otherCharacter.id }));
   }
 
-  // What they may do: take damage on their own combatant.
-  const hurt = await theirs.combats.save({
-    ...seen,
-    participants: seen.participants.map((entry) =>
-      entry.id === mine.id ? { ...entry, health: { ...entry.health, current: 1 } } : entry,
-    ),
-  });
-  assert.equal(hurt.participants.find((entry) => entry.id === mine.id)?.health.current, 1);
+  // What they may do: take damage on their own combatant, and hand on their own turn.
+  const hurt = await asPlayer({ kind: 'health.damage', participantId: mine.id, amount: 3 });
+  const wasAt = seen.participants.find((entry) => entry.id === mine.id)!.health.current;
+  assert.equal(
+    hurt.combat.participants.find((entry) => entry.id === mine.id)?.health.current,
+    // Floored, because a track does not go below zero — which is exactly the arithmetic the
+    // phone no longer does. It said "3"; what 3 means here was worked out from the stored track.
+    Math.max(0, wasAt - 3),
+    'the authority worked the number out; the phone only said how much',
+  );
 
-  // And the fight the DM reads back still has everything the player never saw.
+  const ended = await theirs.combats.command({
+    combatId: fight.id,
+    commandId: `player-${counter()}`,
+    expectedVersion: hurt.combat.version ?? 0,
+    command: { kind: 'turn.next' },
+  });
+  assert.notEqual(ended.combat.activeParticipantId, mine.id);
+
+  // And a turn that is not theirs is refused, whatever their device thinks.
+  await refused(() =>
+    theirs.combats.command({
+      combatId: fight.id,
+      commandId: `player-${counter()}`,
+      expectedVersion: ended.combat.version ?? 0,
+      command: { kind: 'turn.next' },
+    }),
+  );
+
+  // The fight the DM reads back still has everything the player never saw.
   const dmAfter = await as(dm).combats.byId(fight.id);
   assert.equal(dmAfter?.participants.length, fight.participants.length);
   assert.equal(dmAfter?.status, 'live');
 
-  await refused(() => as(outsider).combats.save(live));
+  await refused(() =>
+    as(outsider).combats.command({
+      combatId: fight.id,
+      commandId: `outsider-${counter()}`,
+      expectedVersion: dmAfter?.version ?? 0,
+      command: { kind: 'turn.next' },
+    }),
+  );
 });
 
 /* ── Invites ────────────────────────────────────────────────────────────────── */

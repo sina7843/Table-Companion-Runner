@@ -44,9 +44,16 @@ import { StoreError } from './store.ts';
 /** What the service needs from the store to read and write a fight. */
 export interface CombatPort {
   load(tx: Db, combatId: string): Promise<{ combat: CombatInstance; version: number } | null>;
-  writeParticipants(tx: Db, combatId: string, participants: readonly CombatParticipant[]): Promise<void>;
+  writeParticipants(
+    tx: Db,
+    combatId: string,
+    participants: readonly CombatParticipant[],
+  ): Promise<void>;
   systemIdFor(tx: Db, campaignId: string): Promise<GameSystemId | null>;
-  attributesFor(tx: Db, participants: readonly CombatParticipant[]): Promise<Map<string, Attribute[]>>;
+  attributesFor(
+    tx: Db,
+    participants: readonly CombatParticipant[],
+  ): Promise<Map<string, Attribute[]>>;
 }
 
 export interface ExecuteOptions {
@@ -94,7 +101,11 @@ export async function executeCombatCommand(
     if (already) {
       const current = await port.load(tx, input.combatId);
       if (!current) throw new StoreError(404, 'That combat no longer exists.', 'not_found');
-      return { combat: withVersion(current.combat, current.version), seq: already.seq, replayed: true };
+      return {
+        combat: withVersion(current.combat, current.version),
+        seq: already.seq,
+        replayed: true,
+      };
     }
 
     if (input.expectedVersion !== locked.version) {
@@ -151,8 +162,16 @@ export async function executeCombatCommand(
       );
     }
 
+    // Re-read rather than returning what the reducer built. The answer to a command and the
+    // answer to a refresh are then the same bytes by construction — an object assembled in
+    // memory and one assembled from rows differ in ways nobody wants to chase (an explicit
+    // `undefined` where a column was null, for one), and a client that sees two shapes for
+    // one fight is a client that will eventually branch on the difference.
+    const stored = await port.load(tx, input.combatId);
+    if (!stored) throw new StoreError(404, 'That combat no longer exists.', 'not_found');
+
     return {
-      combat: withVersion(outcome.combat, version),
+      combat: withVersion(stored.combat, stored.version),
       seq,
       summary: outcome.summary,
       ...(outcome.concentration ? { concentration: outcome.concentration } : {}),

@@ -1691,3 +1691,74 @@ request nobody will answer, and the next one on a kept-alive connection is parse
 sign-in screen shipped in TC-P02 would have shown that to a user. Reading the error body was part
 of this slice rather than a separate fix, because a stable error contract that nobody reads is
 not a contract.
+
+---
+
+## TC-P04 — Server-authoritative combat and concurrency
+
+**Commands, not a document.** A whole-record write cannot say what it meant, which is why
+TC-P02 had to authorize it by diffing and why two devices could silently overwrite each other.
+An intent can be authorized by asking what it is, computed by the party that holds the state,
+recorded as one line of history, and retried. Every property this slice needed falls out of that
+one change; none of them was reachable while a fight was a document.
+
+**One reducer, shared, and the transforms moved to reach it.** `actions.ts`, `turns.ts` and
+`setup.ts` went from `src/screens/combat/` to `src/domain/combat/`. The alternative was the
+server importing from a screens directory — which works and inverts the layering, so the next
+person copies it — or a second implementation of the combat rules, which is how a server and a
+client start disagreeing about what a critical is. Moving three files and nine imports was
+cheaper than either.
+
+`applyCommand` names no game system. A condition key the adapter does not know is refused rather
+than invented, which is the same rule `types.ts` lives by: the core does not learn a vocabulary
+it cannot check.
+
+**The command id is checked before the version.** This ordering is the whole of retry safety and
+it is easy to get backwards. A client that never saw the answer still holds the *old* version, so
+checking the version first would refuse its resend as stale and it would give up on a command
+that had actually landed. Checking the id first means a replay is recognised as a replay
+regardless of what version it thinks it is at.
+
+**A stale command is refused, never merged.** Merging means guessing which of two people meant
+what, and the guess is invisible when it is wrong. Refusing is legible: the client is told both
+versions, says one sentence, and re-reads. Both combat screens do exactly that and nothing
+cleverer.
+
+**Undo restores one participant, not a snapshot of the fight.** A whole-fight snapshot is simpler
+to write and silently discards everything that happened after the event being undone — which at a
+table is somebody else's damage. Restoring only the participant the original event touched is
+what makes "undo the hit from three rounds ago" safe, and it is the same guarantee TC-11c's
+targeted undo already gave the screens.
+
+Undoing appends. The original row is marked, never deleted: the combat log is a history a DM
+reads back at the end of a session, and a history that edits itself is not one.
+
+**A command answers with the fight re-read from the database.** Returning the object the reducer
+built is one fewer query and produces a subtly different shape — an explicit `undefined` where a
+column was null, for one. A client that sees two shapes for one fight will eventually branch on
+the difference, and "a refresh returns the same authoritative state" stops being true by
+construction and starts being true by luck.
+
+**The dice that move state are the server's; the attack roll is not, yet.** Initiative and death
+saves change the fight on their own, so a device reporting one is a device deciding who goes
+first and who lives. Both are rolled in the reducer from an injected source, and the audit
+payload proves the request carried no number.
+
+An attack roll is different in kind: it needs the ruleset to resolve an action end to end — which
+action, against whom, for how much — and that is a change to the `Ruleset` seam rather than to a
+command set. Pretending otherwise by adding a `damage` field the server trusts would have been
+the same hole with more ceremony. It is written down in `commands.ts` where the next person will
+find it, rather than left to be rediscovered.
+
+**`combats.version` was maintained but unchecked since TC-P01.** That was deliberate: the column
+existed so TC-P04 would inherit a true value in every row rather than a backfill, and checking it
+was a contract change that belonged with the commands. This is that prompt.
+
+**The fixtures run the same reducer.** A fixture layer whose combat rules differ from the
+server's teaches a screen the wrong thing. Version, replay and stale-version behaviour are all
+real in memory too, so `npm run dev` with no server exercises the same paths a deployment does.
+
+**`server/combatPolicy.ts` is deleted rather than kept alongside.** Its diff was a workaround for
+a write model that no longer exists, and a second permission implementation is a second thing to
+keep in step. Its twelve tests were rewritten as questions about commands, which is what they
+were always trying to ask.

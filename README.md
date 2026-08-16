@@ -225,7 +225,7 @@ shape a SameSite session cookie will need when TC-P02 adds authentication.
 | [server/log.ts](server/log.ts) | Structured logs, and the rule about what may go in one |
 | [server/authorize.ts](server/authorize.ts) | Every authorization rule, in one wrapper |
 | [server/auth.ts](server/auth.ts) | Passwords, sessions, cookies, CSRF. `node:crypto` only |
-| [server/combatPolicy.ts](server/combatPolicy.ts) | What a player's device may change about a fight |
+| [server/combatService.ts](server/combatService.ts) | One combat command: lock, version, compute, audit |
 | [server/routes.ts](server/routes.ts) | One entry per contract route. No business logic |
 | [server/http.ts](server/http.ts) | Matcher, JSON, error mapping. No framework |
 | [server/seed.ts](server/seed.ts) | The demo world as development data |
@@ -274,11 +274,9 @@ means a cross-site request arrives with no cookie and therefore no authority; on
 an unsafe method must state `Sec-Fetch-Site: same-origin` or carry an allowlisted `Origin`. No
 CORS headers are emitted at all, deliberately.
 
-**Combat, until TC-P04.** `PUT /combats/:id` still takes a whole record, so a player's write is
-checked as a diff by [combatPolicy.ts](server/combatPolicy.ts): they may act on their own
-combatant, damage a creature, target anyone and end their own turn. They may not rewrite the
-roster, reveal a hidden creature, edit initiative, start or end the fight, take someone else's
-turn, or touch another character's health, conditions or death saves.
+**Combat is a command surface.** As of TC-P04 there is no whole-record write on a fight:
+`POST /combats/:id/commands` takes `{ commandId, expectedVersion, command }` and the server
+computes the result. See **Combat** below.
 
 ### The API boundary
 
@@ -346,11 +344,50 @@ requires an origin allowlist, emits CORS with credentials, answers preflight, an
 `SameSite=None`, which browsers only accept with `Secure` — so the server refuses the
 combination outside production rather than letting it fail in a browser.
 
+### Combat
+
+A fight changes only by command. `POST /combats/:combatId/commands`, body
+`{ commandId, expectedVersion, command }`, answering with the authoritative fight and the audit
+row it produced.
+
+```ts
+await combats.command({
+  combatId,
+  commandId: crypto.randomUUID(),   // the same one on a retry
+  expectedVersion: combat.version,  // refused if the fight has moved on
+  command: { kind: 'health.damage', participantId, amount: 12 },
+});
+```
+
+The command says what you are trying to do and carries no resulting state — the schema is
+strict, so a `finalHp` field is a 400 naming it. What 12 damage does to a track with temporary
+hit points, when a character drops, what order initiative sorts in: all worked out by
+[applyCommand](src/domain/combat/commands.ts) from the stored fight, through the `Ruleset`.
+
+`applyCommand` delegates to the same `actions.ts` / `turns.ts` / `setup.ts` transforms the
+screens use — they live in [src/domain/combat/](src/domain/combat/) so both halves share one
+implementation. Fixtures run it too, so `npm run dev` with no server behaves the same way.
+
+| Concern | Behaviour |
+| --- | --- |
+| Two devices at once | The fight's row is locked, so commands serialise. Both land |
+| Stale `expectedVersion` | `409 conflict` naming both versions. Refused, never merged — the client re-reads |
+| Retried `commandId` | Recognised before the version is checked, answered with current state, `replayed: true`, nothing applied twice |
+| Every accepted command | One row in `combat_events`: kind, actor, payload, summary, and the version it produced |
+| Undo | Restores what the event recorded for one participant. Reversible events only, once, and it **appends** a correction rather than deleting anything |
+| Initiative and death saves | Rolled by the server. The command carries no number and has nowhere to put one |
+
+Who may issue what is a question about the command, in
+[canPlayerIssue](src/domain/combat/commands.ts). A player acts for their own combatant and
+against creatures, targets, and ends their own turn; lifecycle, turn order, initiative,
+overrides, the roster and undo are the DM's.
+
 ### What the backend is not yet
 
-- **It is not authoritative over combat.** Dice are still rolled on the client and roll ids are
-  still minted there, so a player can decide how much damage their own attack did.
-  `combats.version` is maintained but not yet checked, so two writers can still race. TC-P04.
+- **A free-form attack roll is still evaluated on the client** and lands through
+  `health.damage`, so a player still chooses how much damage their own attack did. The server
+  decides what that damage *does*. Closing it needs the ruleset to resolve an action end to end
+  — an action id, a target, and the adapter deciding the damage.
 - **There is no account-creation screen.** `POST /auth/sign-up` exists and works; the approved
   design draws no surface for it, so nothing in Phase 1 calls it. TC-P07 owns account
   lifecycle — including password change, which would revoke sessions
@@ -454,6 +491,7 @@ src/
     player/             The player's mobile combat screen and its turn logic
   domain/
     types.ts            Core entities — names no D&D concept
+    combat/             Combat commands, and the pure transforms they run
     permissions.ts      Visibility rules (a UI guard, not a security boundary)
     ruleset/            The game-system seam; dnd5e is the first adapter
     data/               Repository interfaces, fixtures, HTTP client, realtime, session
@@ -478,7 +516,7 @@ server/
   rateLimit.ts          Fixed-window abuse control
   log.ts                Structured logs, and what may not go in one
   auth.ts               Passwords, sessions, cookies, CSRF
-  combatPolicy.ts       What a player may change about a fight
+  combatService.ts      One combat command, executed authoritatively
   routes.ts             One entry per apiContract.ts route
   http.ts               Route matching, JSON, error mapping
   seed.ts               The demo world as development data
@@ -539,8 +577,8 @@ Golden Path are in `IMPLEMENTATION_STATUS.md`. In short:
    `permissions.ts` is enforced server-side, and private data is filtered before it is sent.
 3. ~~**Runtime validation.**~~ Done — TC-P03. One schema strategy on both sides, stable error
    codes, request ids, structured logs, rate limits and pagination bounds.
-4. **Server-authoritative combat**: intent-shaped mutations, a checked version, server-minted
-   ids and server-rolled dice. TC-P04.
+4. ~~**Server-authoritative combat.**~~ Done — TC-P04. Commands instead of a whole record, a
+   checked version, recognised retries, an auditable event per change and safe undo.
 5. **The realtime server** behind `VITE_REALTIME_URL`. The client already handles reconnect,
    backoff and state restoration; it has never spoken to a peer that was not another browser tab.
    TC-P05.

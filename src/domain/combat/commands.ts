@@ -89,7 +89,6 @@ export type CombatCommand =
   /* Conditions, by the ruleset's own key. */
   | { kind: 'condition.add'; participantId: ParticipantId; key: string; duration?: string }
   | { kind: 'condition.remove'; participantId: ParticipantId; key: string }
-
   | { kind: 'target.set'; participantId: ParticipantId }
 
   /* Death saves. Rolled here, so a phone cannot decide it rolled a 20. */
@@ -218,6 +217,13 @@ export class CommandRefused extends Error {
   }
 }
 
+/** A result with nothing to put back: the command changed something undo cannot restore. */
+const plain = (next: CombatInstance, summary: string): CommandResult => ({
+  combat: next,
+  undo: null,
+  summary,
+});
+
 const find = (combat: CombatInstance, participantId: ParticipantId): CombatParticipant => {
   const participant = combat.participants.find((entry) => entry.id === participantId);
   if (!participant) throw new CommandRefused('That combatant is no longer in this fight.');
@@ -269,11 +275,6 @@ export function applyCommand(
   }
 
   const { rules } = context;
-  const plain = (next: CombatInstance, summary: string): CommandResult => ({
-    combat: next,
-    undo: null,
-    summary,
-  });
 
   switch (command.kind) {
     /* ── Lifecycle ────────────────────────────────────────────────────────── */
@@ -291,7 +292,10 @@ export function applyCommand(
     /* ── Turn order ───────────────────────────────────────────────────────── */
     case 'turn.next': {
       const next = nextTurn(combat);
-      return plain(next, `Turn passed to ${nameOf(next, next.activeParticipantId ?? ('' as ParticipantId))}`);
+      return plain(
+        next,
+        `Turn passed to ${nameOf(next, next.activeParticipantId ?? ('' as ParticipantId))}`,
+      );
     }
     case 'turn.previous':
       return plain(previousTurn(combat), 'Turn stepped back');
@@ -426,10 +430,7 @@ export function applyCommand(
       find(combat, command.participantId);
       const name = command.name.trim();
       if (!name) throw new CommandRefused('A combatant needs a name.');
-      return plain(
-        renameParticipant(combat, command.participantId, name),
-        `Renamed to ${name}`,
-      );
+      return plain(renameParticipant(combat, command.participantId, name), `Renamed to ${name}`);
     }
     case 'participant.visibility': {
       for (const participantId of command.participantIds) find(combat, participantId);

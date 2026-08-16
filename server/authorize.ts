@@ -381,11 +381,7 @@ export function createAuthorizedRepositories(
         const viewer = await requireMember(stored.campaignId, 'that combat');
 
         if (viewer.role !== 'dm') {
-          const verdict = canPlayerIssue(
-            input.command,
-            stored,
-            await ownedParticipantIds(stored),
-          );
+          const verdict = canPlayerIssue(input.command, stored, await ownedParticipantIds(stored));
           if (!verdict.allowed) {
             throw new StoreError(403, 'That change is the DM to make, not yours.', 'forbidden');
           }

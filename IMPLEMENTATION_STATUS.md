@@ -1750,9 +1750,9 @@ Explicit states. **Not Started** is the honest default and appears often on purp
 | 16 | Runtime response validation replacing the `as T` cast | TC-P03 | **Done** |
 | 17 | Safe error contract — no stack traces, no internals to clients | TC-P03 | **Done** |
 | 18 | Rate limiting, body limits, CORS and security headers | TC-P03 | **Done** |
-| 19 | Server-authoritative combat mutations (intent, not whole-record) | TC-P04 | Not Started |
-| 20 | Concurrency control — versioning / `If-Match`, no silent last-write-wins | TC-P04 | Not Started |
-| 21 | Server-side dice and server-minted ids | TC-P04 | Not Started |
+| 19 | Server-authoritative combat mutations (intent, not whole-record) | TC-P04 | **Done** |
+| 20 | Concurrency control — versioning / `If-Match`, no silent last-write-wins | TC-P04 | **Done** |
+| 21 | Server-side dice and server-minted ids | TC-P04 | In Progress — the dice that move state (initiative, death saves) are the server's, and combat ids are server-minted. A free-form attack roll is still evaluated on the client and lands through `health.damage`; closing it needs the ruleset to resolve an action end to end |
 | 22 | Realtime WebSocket server with per-campaign scoping | TC-P05 | Not Started |
 | 23 | Server-stamped event origin; per-viewer event filtering | TC-P05 | Not Started |
 | 24 | Reconnect and state recovery verified against a real server | TC-P05 | Not Started |
@@ -2346,3 +2346,177 @@ Exercised live against the real database with the server running:
 ### Next eligible prompt
 
 **TC-P04** — server-authoritative combat and concurrency.
+
+## TC-P04 — Server-authoritative combat and concurrency
+
+TC-P00's gap category D is closed. `PUT /combats/:id` and `CombatRepository.save` are gone, and
+nothing computes a fight's next state except the authority holding it.
+
+### A fight changes by command
+
+`POST /combats/:combatId/commands`, body `{ commandId, expectedVersion, command }`.
+
+Twenty-two commands in [src/domain/combat/commands.ts](src/domain/combat/commands.ts), grouped
+by what they touch: lifecycle (`combat.begin` / `end` / `reopen`), turn order (`turn.next`,
+`previous`, `jump`, `move`, `resort`), initiative (`initiative.set`, `initiative.roll`), health
+(`health.damage`, `heal`, `override`), `state.override`, conditions (`condition.add` /
+`remove`), `target.set`, `deathSave.roll`, roster (`participant.rename` / `visibility` /
+`remove`), and `undo`.
+
+A command says what a caller is trying to do. It carries no resulting state and has nowhere to
+put one — the schema is strict, so `{ kind: 'health.damage', participantId, amount, finalHp }`
+is a 400 naming `finalHp`. What an amount does to a track with temporary hit points on it, when
+a character drops unconscious, what order initiative sorts in, whether a death save at three
+failures is fatal: all of it is worked out from the stored fight, by the ruleset.
+
+**One reducer, not two.** `applyCommand` is a pure function that delegates to the same
+`actions.ts` / `turns.ts` / `setup.ts` transforms the screens have always used. Those three
+modules moved from `src/screens/combat/` to `src/domain/combat/` so both halves share one
+implementation rather than the server growing a second copy of the rules. The reducer names no
+game system: every rules question goes to `Ruleset`, and a condition key the adapter does not
+know is refused rather than invented.
+
+### Concurrency, retries and conflicts
+
+Every command runs in one transaction in
+[server/combatService.ts](server/combatService.ts), in this order:
+
+| Step | What it stops |
+| --- | --- |
+| `SELECT … FOR UPDATE` on the fight | Two commands interleaving. They serialise; both land |
+| `commandId` already in the history? | A retry after a dropped response becoming a second hit. Answered with the current state, `replayed: true`, and nothing applied |
+| `expectedVersion` equals stored `version`? | Last-write-wins. A stale writer gets `409 conflict` naming both versions and is told to refresh |
+| Compute from the **stored** fight | The client's arithmetic being trusted |
+| Write fight + participants + one audit row | A fight and its history disagreeing |
+
+The command id is checked **before** the version, which is the ordering a retry needs: a client
+that never saw the answer still holds the old version, and its resend must be recognised rather
+than refused as stale.
+
+Conflict behaviour is deterministic and stated: refuse, do not merge. Both combat screens catch
+`conflict`, say so in a sentence and re-read. There is no path that reconciles two writers by
+guessing.
+
+A command answers with the fight **re-read from the database**, not with what the reducer built,
+so the answer to a command and the answer to a refresh are the same bytes by construction.
+
+### Undo
+
+Every reversible command records what one participant looked like before it — health, state,
+death saves, conditions. Undo restores that, and only that:
+
+- **Reversible only.** A turn advance and a fight ending record nothing to restore, and undoing
+  one is refused.
+- **Once.** The original is marked `undone_by_seq`; a second attempt is a `conflict`.
+- **Nothing is deleted.** Undoing appends a new event with `undoes_seq`; the row it corrects
+  stays exactly where it is. The log a DM reads back at the end of a session only ever grows.
+- **Later changes survive.** Restoring one participant rather than a whole-fight snapshot is
+  what makes undoing a hit from three rounds ago safe — a test hits one creature, does three
+  unrelated things, undoes the first hit, and asserts the other three are untouched.
+
+Undo is a DM command. `canPlayerIssue` refuses it, along with everything else about the fight
+itself.
+
+### Dice that move state are the server's
+
+`initiative.roll` and `deathSave.roll` carry no number and have nowhere to put one; the server
+rolls from the ruleset with its own `RandomSource`. Both are asserted against the stored audit
+payload, which is `{ kind, onlyMissing }` and `{ kind, participantId }` and nothing else.
+
+**Still open, and named in the file:** a free-form attack roll is evaluated on the client and
+lands through `health.damage`, so a player still chooses how much damage their own attack did.
+The server decides what that damage *does*; it does not yet decide what the die came up as for
+an attack. Closing it needs the ruleset to resolve an action end to end — an action id, a
+target, and the adapter deciding the damage — which is a change to the `Ruleset` seam rather
+than to this command set.
+
+### Authorization, as a question about intent
+
+TC-P02 had to diff the fight a client sent against the one it was shown, because a whole-record
+write does not say what it meant. A command does, so `canPlayerIssue` asks about the intent
+instead. It is shorter, and it cannot be fooled by a change nobody thought to look for.
+
+A player may damage or heal their own combatant or a creature, condition their own combatant,
+target anyone, roll their own death save, and end their own turn. Everything else — lifecycle,
+turn order, initiative, overrides, the roster, undo, another character's state, another
+character's death save — is the DM's. `server/combatPolicy.ts` and its diff tests are deleted;
+the rule and its tests live with the commands.
+
+### Screens
+
+`CombatScreen` owns one writer, and that writer computes nothing: `send(command)` posts the
+intent with the version it was working from and replaces local state with what comes back.
+`CombatSetup` and `CombatRunner` take `onCommand` instead of `onChange`; `PlayerCombat` sends
+`deathSave.roll`, `turn.next`, `target.set` and `health.damage`. Between them the three screens
+lost every local mutation of a fight — what remains of the transform imports is one read,
+`targetedParticipant`.
+
+Fixtures run the same reducer, with real version, replay and stale-version behaviour, so
+developing with no server at all exercises the same paths.
+
+### Contract changes, documented
+
+| Change | Effect |
+| --- | --- |
+| `PUT /combats/:id` **removed** | `POST /combats/:id/commands` replaces it. A `PUT` to the old path is now `404 not_supported`, asserted by a test |
+| `CombatRepository.save` **removed** | Replaced by `command(input)`. Both implementations and every caller updated in the same step |
+| `CombatInstance.version` | New. Carried on every read, sent back with every command |
+| `combat_events` columns | `command_id` (unique per combat), `undo_restore`, `undoes_seq`, `undone_by_seq`, `summary`, `version` — migration `003_combat_commands.sql` |
+| `withRealtime` | Announces a command unless it was a replay: a retry that changed nothing must not make every other device re-read |
+
+### Tests — 355, all passing (28 new)
+
+`src/domain/combat/commands.test.ts` — 13, no database. The reducer: the amount is stated and
+the arithmetic is not the caller's; damage floors at zero and downs a character; a non-integer
+or negative amount is refused; a condition the ruleset does not know is refused rather than
+invented; the same die always gives the same death save and two different dice give two
+different totals; a fight that has not started has no turn to advance and an ended one takes
+nothing but `reopen`; a reversible command records what to put back and an irreversible one
+records nothing; a combatant who is not in the fight cannot be commanded. Then the permission
+rule, replacing the deleted diff policy: what a player may do, the fifteen commands that are the
+DM's, another character's state and death save refused, the own-turn rule, and a walk over every
+command kind so a new one gets a deliberate verdict rather than an oversight.
+
+`server/combatCommands.test.ts` — 15, needs a database. Two commands issued at the same version
+(one lands, one is refused `409`, the retry lands, neither is lost); a stale version refused
+deterministically three times over with the fight unmoved; a retried `commandId` recognised —
+same `seq`, one audit row, five damage not ten; a turn advance and damage racing each other with
+both surviving; undo restoring exactly and keeping the history with `undoes_seq` / `undone_by_seq`
+set; a double undo refused; an irreversible change refused; **undo leaving three later unrelated
+changes alone**; initiative and death saves rolled by the server with the audit payload asserted
+to carry no number; every accepted command leaving exactly one ordered audit row carrying the
+version it produced; a refresh returning byte-identical state to what the command answered;
+a command against a fight that is gone as a `404`; a refused command rolling the whole
+transaction back including its history; and a participant who left refusing to be commanded.
+
+Four existing test files were updated off the removed `save`.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint` (0 findings), `npm run format:check` (clean),
+`npm run build` (444.89 kB entry / 138.33 kB gzip — up 15 kB, the command union, its schema and
+the shared reducer now reaching the browser), and `npm run test` **three times**: 355 passing
+each time with a database, 285 passing / 70 skipped without.
+
+Exercised live against the real database with the server running:
+
+- `PUT /combats/:id` → `404 not_supported` — the unsafe path is gone, not deprecated
+- `health.damage 3` → `200`, hp 481 → 478, `version` 1 → 2, `seq` 2
+- the same version again → `409 conflict`
+- the same `commandId` again → `200 replayed: true`, one hit not two
+- `undo` → hp restored; `undo` again → `409 conflict`
+- `initiative.roll` → six numbers the request never carried
+- `GET /combats/:id` byte-identical to the command's answer
+- an over-posted `finalHp` → `400 "command.finalHp: is not a known field"`
+
+### Not done, and deliberately so
+
+- **No realtime.** A second device learns about a change by re-reading, not by being told.
+  TC-P05, and explicitly out of scope here.
+- **A free-form attack roll is still the client's.** Named above and in `commands.ts`.
+- **`turn.next` is the only turn command a player may issue.** Nothing in the design gives them
+  another, and widening it would be a product decision rather than a security one.
+
+### Next eligible prompt
+
+**TC-P05** — realtime WebSocket sync and recovery.

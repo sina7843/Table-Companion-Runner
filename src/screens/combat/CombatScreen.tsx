@@ -1,14 +1,18 @@
 /**
  * The combat route.
  *
- * It owns loading a `CombatInstance` and writing runtime changes back, and hands the
- * fight to whichever surface matches its status. `preparing` is `CombatSetup`; `live` is
- * the combat runner, which is TC-11 — until then it states what is true of the fight
- * rather than pretending nothing is running.
+ * It owns loading a `CombatInstance` and sending every change as a command, and hands the
+ * fight to whichever surface matches its status: `preparing` is `CombatSetup`, `live` is
+ * the combat runner.
  *
- * All state lives here rather than in the setup screen so there is exactly one writer,
- * and that writer only ever calls `combats.save`. There is no code path from this route
- * to `encounters.save`, which is what keeps a running fight off the template it came from.
+ * One writer, and since TC-P04 that writer computes nothing. `send` states an intent with
+ * the version it was working from and replaces local state with whatever the authority
+ * answers — so a fight on this screen is a fight the server agreed to, not one this device
+ * worked out. A `conflict` means somebody else moved first, and the recovery is a re-read
+ * rather than a merge.
+ *
+ * There is still no code path from this route to `encounters.save`, which is what keeps a
+ * running fight off the template it came from.
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -29,6 +33,8 @@ import { CombatEnded } from './CombatEnded';
 import { CombatRunner } from './CombatRunner';
 import { CombatSetup } from './CombatSetup';
 import type { CombatCommand } from '../../domain/combat/commands';
+import type { CombatCommandOutcome } from '../../domain/data/repositories';
+import { ApiError } from '../../domain/data/apiContract';
 
 export function CombatScreen() {
   const { combatId } = useParams();
@@ -94,39 +100,48 @@ export function CombatScreen() {
    * response is recognised rather than applied twice, and `version` is what the server checks
    * before it applies anything.
    */
-  const send = (command: CombatCommand, commandId = crypto.randomUUID()) => {
+  const send = async (
+    command: CombatCommand,
+    commandId = crypto.randomUUID(),
+  ): Promise<CombatCommandOutcome | null> => {
     const current = combat;
-    if (!current) return;
+    if (!current) return null;
 
     setBusy(true);
     inFlight.current += 1;
     pending.current = command;
 
-    void combats
-      .command({
+    try {
+      const outcome = await combats.command({
         combatId: current.id,
         commandId,
         expectedVersion: current.version ?? 0,
         command,
-      })
-      .then(
-        (outcome) => {
-          inFlight.current -= 1;
-          if (inFlight.current === 0) setBusy(false);
-          pending.current = null;
-          setCombat(outcome.combat);
-          setFailure(null);
-          connection.reportSuccess();
-        },
-        (error: unknown) => {
-          inFlight.current -= 1;
-          if (inFlight.current === 0) setBusy(false);
-          // Nothing local was changed optimistically, so nothing is lost — the fight on
-          // screen is still the last one the server confirmed.
-          setFailure(error instanceof Error ? error.message : 'That change was not saved.');
-          connection.reportFailure();
-        },
+      });
+      pending.current = null;
+      setCombat(outcome.combat);
+      setFailure(null);
+      connection.reportSuccess();
+      return outcome;
+    } catch (error) {
+      // Nothing local was changed optimistically, so nothing is lost — the fight on screen
+      // is still the last one the authority confirmed. A `conflict` means somebody else
+      // moved first, and re-reading is the recovery.
+      const stale = error instanceof ApiError && error.code === 'conflict';
+      setFailure(
+        stale
+          ? 'Somebody else changed this fight first. Reloading it.'
+          : error instanceof Error
+            ? error.message
+            : 'That change was not saved.',
       );
+      connection.reportFailure();
+      if (stale) loaded.reload();
+      return null;
+    } finally {
+      inFlight.current -= 1;
+      if (inFlight.current === 0) setBusy(false);
+    }
   };
 
   const retry = () => {
@@ -224,11 +239,8 @@ export function CombatScreen() {
         {status}
         <CombatSetup
           combat={combat}
-          systemId={loaded.data.systemId}
           campaign={loaded.data.campaign}
           template={loaded.data.template}
-          characters={loaded.data.characters}
-          monsters={loaded.data.monsters}
           onCommand={send}
           busy={busy}
         />

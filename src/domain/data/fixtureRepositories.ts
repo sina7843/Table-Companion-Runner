@@ -14,11 +14,7 @@
  * one scenario is visible in another until the page reloads.
  */
 import { listGameSystems, requireRuleset } from '../ruleset/registry.ts';
-import {
-  applyCommand,
-  restoreParticipant,
-  type ParticipantRestore,
-} from '../combat/commands.ts';
+import { applyCommand, restoreParticipant, type ParticipantRestore } from '../combat/commands.ts';
 import { id } from '../types.ts';
 import type {
   Campaign,
@@ -542,7 +538,8 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
 
         const history = (fixtureCombatEvents[input.combatId] ??= []);
         const already = history.find((entry) => entry.commandId === input.commandId);
-        if (already) return resolve({ combat: copyCombat(stored), seq: already.seq, replayed: true });
+        if (already)
+          return resolve({ combat: copyCombat(stored), seq: already.seq, replayed: true });
 
         const version = stored.version ?? 0;
         if (input.expectedVersion !== version) {
@@ -562,7 +559,8 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
           if (intent.kind === 'undo') {
             const target = history.find((entry) => entry.seq === intent.seq);
             if (!target?.undo) throw new Error('That change cannot be undone.');
-            if (target.undoneBy !== undefined) throw new Error('That change has already been undone.');
+            if (target.undoneBy !== undefined)
+              throw new Error('That change has already been undone.');
             next = restoreParticipant(stored, target.undo);
             summary = `Undid: ${target.summary}`;
             target.undoneBy = seq;

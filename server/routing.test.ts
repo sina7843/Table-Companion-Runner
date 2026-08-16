@@ -72,8 +72,15 @@ test('a literal path beats a placeholder, whatever order the table is in', () =>
 });
 
 test('the verb is part of the match, not an afterthought', () => {
-  assert.equal(matchRoute(ROUTES, 'PUT', '/combats/cb-1')?.route.pattern, '/combats/:combatId');
+  assert.equal(matchRoute(ROUTES, 'GET', '/combats/cb-1')?.route.pattern, '/combats/:combatId');
+  // There is no whole-record write on a fight. TC-P04 replaced it with commands, and a PUT
+  // reaching that path again would mean it had come back.
+  assert.equal(matchRoute(ROUTES, 'PUT', '/combats/cb-1'), null);
   assert.equal(matchRoute(ROUTES, 'DELETE', '/combats/cb-1'), null);
+  assert.equal(
+    matchRoute(ROUTES, 'POST', '/combats/cb-1/commands')?.route.pattern,
+    '/combats/:combatId/commands',
+  );
   assert.equal(matchRoute(ROUTES, 'GET', '/nothing/here'), null);
 });
 

@@ -181,7 +181,8 @@
   align-items: center;
   gap: var(--space-12);
   flex-wrap: wrap;
-  min-height: 40px;
+  /* The design specifies a 40px toolbar and the system already holds that number. */
+  min-height: var(--layout-toolbar-height);
   margin: 0 calc(var(--space-20) * -1);
   padding: var(--space-8) var(--space-16);
   background: var(--color-surface-secondary);
@@ -262,15 +263,18 @@
       the bar wraps, because Next Turn is pressed more than anything else here.
    3. The dice tray wraps rather than scrolling sideways. */
 @media (max-width: 1279px) {
+  /* The large control at comfortable density — the DM's tablet is a touch surface but it
+     is still their workspace, so it grows to the system's own large step rather than to
+     the 44px touch floor, which would loosen a deliberately dense row. */
   .tc-init__actions .tc-iconbtn {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: var(--density-control-height-lg);
+    min-height: var(--density-control-height-lg);
   }
   .tc-combatbar {
     row-gap: var(--space-8);
   }
   .tc-combatbar .tc-btn {
-    min-height: 40px;
+    min-height: var(--density-control-height-lg);
   }
   .tc-dicetray {
     row-gap: var(--space-8);
@@ -318,8 +322,9 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-8);
 }
+/* The design draws these at 52px, which is the control height touch density already sets. */
 .tc-turnpanel__grid .tc-dice {
-  min-height: 52px;
+  min-height: var(--density-control-height);
 }
 
 /* Not your turn: one strip stating the round, who is acting, and whether you are

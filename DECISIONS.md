@@ -1130,3 +1130,75 @@ tree, and whether a 44px target is actually comfortable under a thumb are all me
 this repository has no way to take — there is no browser automation installed. The tokens
 were designed against the approved palette and the floors are enforced in CSS, but none of
 that is the same as having measured it, and this pass does not claim to have.
+
+## TC-15 — Design fidelity audit
+
+**The vendored CSS was diffed against the source, not assumed to match.** Token values were
+read back through `claude_design` MCP and compared declaration by declaration: the type
+ramp, the semantic `-text` steps, the tracking, the breakpoints, the frame proportions, and
+all three density blocks. Every compared value is identical to the approved system. One
+early "drift" report was my own comparison script matching double-quoted selectors against a
+file Prettier had normalised to single quotes — the code was right and the audit tool was
+wrong, which is worth recording because it is the failure mode a fidelity check has.
+
+**Off-ramp type sizes are the design's own, and were kept.** Seven sizes in the screens are
+not on the token ramp — 26px on a builder step title, 28px on the live-combat band, then 22,
+20, 19, 14.5 and 12.5. Each one was traced back to the approved canvas and matches it
+exactly, down to the accompanying `font-family`, `font-weight` and `letter-spacing`.
+Normalising them onto the ramp would have *reduced* fidelity, so they stay. The list is
+closed and enforced: a size that is neither on the ramp nor in that list now fails a test,
+because a new number there is a decision rather than a detail.
+
+**One real token-usage miss, found by the check rather than by eye.** The privacy screen set
+`fontSize: 12` as a bare number where `--font-size-12` holds that exact value. It now uses
+the token.
+
+**Three magic numbers in the application layer replaced with the tokens holding them.** The
+combat control bar's 40px is `--layout-toolbar-height`, which is the number the design's own
+Extension 1 asked for; the tablet control bump is `--density-control-height-lg` rather than a
+literal 40; the player's dice grid is `--density-control-height`, which at touch density is
+the 52px the design draws. Same rendering, but the frame now moves when the system moves.
+
+**The tablet control bump is deliberately 40px, not the 44px touch floor.** The DM's tablet
+runs at comfortable density because it is still their workspace; flooring its row controls to
+the touch minimum would loosen a row the design deliberately keeps dense. It grows to the
+system's own large-control step instead, which is what that token is for.
+
+**`FLASH_MS` restates `--duration-flash` and says so.** A `setTimeout` cannot read a custom
+property, so the 900ms realtime highlight is written twice. The constant names the token it
+mirrors, and a test asserts both that 900ms is still the longest thing the design animates
+and that the runner still points at it.
+
+### Intentional deviations from the approved design
+
+These are choices where the implementation knowingly differs. Each was made once, for a
+stated reason, and each is the smallest departure that solves the problem.
+
+1. **Row actions are revealed on hover-less devices** (TC-14). The approved CSS hides them
+   until hover. On a touch screen that state cannot be entered, so Start combat, Duplicate
+   and the overflow menu were unreachable. Opacity only, under `@media (hover: none)`; the
+   pointer experience is untouched.
+2. **`InitiativeRow` is a `div` whose name is the button**, not a `button` (TC-11a). The
+   design's CSS resets the row like a button, but the row carries controls, and a control
+   inside a control is invalid markup whose inner control never reaches the keyboard.
+3. **Titles are real headings** (TC-14). The design's canvas draws them as `span`s. The type
+   is identical — user-agent heading styling is zeroed — but the document now has a
+   structure a screen reader can navigate.
+4. **Encounter location is a text field with a datalist, not a `Select`** (TC-10). A DM
+   naming a new room has to be able to type one; a closed list is a dead end.
+5. **Explicit "open" buttons instead of clickable rows containing buttons** (TC-08a, TC-10).
+   Same reason as 2, and it keeps the design's stated click count.
+6. **No "Group identical" expand toggle** (TC-10). Grouping is the only state with data
+   behind it; an expanded view would render N identical rows with nothing per-creature to
+   edit until combat instances carry per-participant state.
+7. **The dice tray's four expressions are fixed** (TC-11b). A tray that rebuilt itself every
+   turn would move under the DM's hand; the actions themselves are already rollable from the
+   panel.
+8. **Encounter difficulty is computed, never stored** (TC-09). The design states it against
+   the current party, which a stored label cannot stay true to.
+
+**What this audit could not do.** It compares source against source. Nothing here rendered a
+route and measured it, because there is no browser automation in this repository — so
+"visibly belongs to the approved design system" is argued from tokens, structure and the
+design's own stated rules, not from a screenshot. That limit is real and is not being
+dressed up.

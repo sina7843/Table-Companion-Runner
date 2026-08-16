@@ -91,6 +91,13 @@ const CONDITION_TONE: Record<string, ConditionTone> = {
   danger: 'danger',
 };
 
+/**
+ * Mirrors `--duration-flash`, the design system's realtime "this just changed" highlight
+ * and the longest thing it permits to animate. Restated here because a timeout cannot read
+ * a CSS custom property; if the token moves, this moves with it.
+ */
+const FLASH_MS = 900;
+
 /** Four chips fit a row; past that the count is honest and the rest open in the panel. */
 const CHIPS_ON_A_ROW = 4;
 
@@ -187,8 +194,8 @@ export function CombatRunner({
   /**
    * The row that just changed, for one pass of the design's hit-point flash.
    *
-   * A single 900ms flash rather than anything that loops: a roll happens too often to be
-   * an event, and a list that pulses all session is a list a DM stops reading.
+   * One pass of `--duration-flash` rather than anything that loops: a roll happens too
+   * often to be an event, and a list that pulses all session is a list a DM stops reading.
    */
   const [flash, setFlash] = useState<{ id: string; kind: 'damage' | 'healing' } | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -196,7 +203,7 @@ export function CombatRunner({
   const flashRow = (participantId: string, kind: 'damage' | 'healing') => {
     setFlash({ id: participantId, kind });
     if (flashTimer.current) clearTimeout(flashTimer.current);
-    flashTimer.current = setTimeout(() => setFlash(null), 900);
+    flashTimer.current = setTimeout(() => setFlash(null), FLASH_MS);
   };
 
   useEffect(

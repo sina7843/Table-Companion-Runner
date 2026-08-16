@@ -1302,3 +1302,64 @@ Contrast ratios, rendered focus order and real thumb comfort are measurements th
 cannot take — there is no browser automation installed. The tokens follow the approved
 palette and the floors are enforced in CSS, but none of that is a measurement, and this pass
 does not claim otherwise.
+
+## TC-15 — Design fidelity audit
+
+### Method
+
+Token files and Part 4 read back through `claude_design` MCP and compared against the
+vendored copies declaration by declaration — type ramp, semantic `-text` steps, tracking,
+breakpoints, frame proportions, all three density blocks. Every compared value is identical
+to the approved source. The audit standard applied is the design's own closing paragraph:
+"No screen introduces a container style, colour or type size that does not appear
+elsewhere."
+
+### Findings
+
+| Area | Result |
+|---|---|
+| Typography tokens | Identical to source |
+| Layout, frame, breakpoints | Identical to source |
+| Density (comfortable / compact / touch) | Identical to source |
+| Colour in screens | No literal anywhere — all tokens |
+| Colour in application CSS | No literal anywhere |
+| Off-ramp type sizes | 7, every one traced to the approved canvas and kept |
+| On-ramp size written as a literal | 1, fixed |
+| Magic numbers duplicating tokens | 3, replaced |
+| Nav proportions | Token-driven in `nav.css` and `shell.css` |
+| Motion ceiling | 900ms flash is the longest, as the design requires |
+| Meters | Carry real values and spoken labels |
+| Readable text dimmed by opacity | None in the application layer |
+
+### Fixed
+
+- `Privacy.tsx` used `fontSize: 12` where `--font-size-12` exists.
+- `.tc-combatbar` 40px → `--layout-toolbar-height`.
+- Tablet row-control bump 40px → `--density-control-height-lg`.
+- Player dice grid 52px → `--density-control-height`.
+- `FLASH_MS` now names the `--duration-flash` token it mirrors.
+
+### Kept deliberately
+
+Seven off-ramp type sizes (26, 28, 22, 20, 19, 14.5, 12.5) that the approved canvas draws
+directly. Normalising them onto the token ramp would reduce fidelity, not improve it.
+
+### Tests — 217, all passing (8 new in `src/design-system/fidelity.test.ts`)
+
+No screen naming a colour; the application stylesheets naming none either; no restatement of
+a number the tokens hold; every off-ramp type size being one the design draws, against a
+closed list; the type ramp unchanged from source; all three densities unchanged from source;
+frame proportions coming from tokens; and nothing animating longer than the permitted flash,
+with the runner's mirrored constant checked against it.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (217 passing), `npm run format:check`,
+`npm run build`. Dev server serves DM home, DM combat, encounters, player combat and the
+builder.
+
+### Not done
+
+Nothing was rendered and measured — there is no browser automation in this repository, so
+the audit compares source against source. Contrast ratios and true pixel comparison remain
+outside what this project can check.

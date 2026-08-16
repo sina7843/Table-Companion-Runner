@@ -171,7 +171,12 @@ export function CharacterPrivacy() {
                   style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}
                 >
                   <span style={{ fontSize: 14.5, fontWeight: 600 }}>{row.name}</span>
-                  <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+                  <span
+                    style={{
+                      fontSize: 'var(--font-size-12)',
+                      color: 'var(--color-text-tertiary)',
+                    }}
+                  >
                     {whoCanSee(row, visibility, dmName, otherPlayers)}
                   </span>
                 </div>

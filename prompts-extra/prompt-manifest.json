@@ -1,0 +1,18 @@
+{
+  "sequence": "table-companion-production",
+  "version": 1,
+  "independentFrom": "prompts/prompt-manifest.json",
+  "prompts": [
+    "00-production-baseline-and-gap-audit.md",
+    "01-backend-postgres-foundation.md",
+    "02-authentication-and-server-authorization.md",
+    "03-api-contract-runtime-validation-and-hardening.md",
+    "04-server-authoritative-combat-and-concurrency.md",
+    "05-realtime-websocket-sync-and-recovery.md",
+    "06-rules-content-pipeline-and-legal-boundary.md",
+    "07-product-account-offline-and-operational-states.md",
+    "08-e2e-multiplayer-security-and-resilience.md",
+    "09-ci-cd-observability-and-production-infrastructure.md",
+    "10-final-production-readiness-and-golden-path.md"
+  ]
+}

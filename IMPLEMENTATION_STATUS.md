@@ -1363,3 +1363,56 @@ builder.
 Nothing was rendered and measured — there is no browser automation in this repository, so
 the audit compares source against source. Contrast ratios and true pixel comparison remain
 outside what this project can check.
+
+## TC-16 — Testing, performance and edge cases
+
+### Required coverage, mapped
+
+| Area | Where |
+|---|---|
+| Ruleset adapter calculations | `domain.test.ts`, `sheet.test.ts`, `builder.test.ts`, `homebrew.test.ts`, `encounters.test.ts` |
+| Ruleset contract completeness | `rulesetContract.test.ts` — new |
+| Character Builder critical path | `builder.test.ts` |
+| Privacy visibility | `sheet.test.ts`, `rolls.test.ts` |
+| Encounter template vs Combat Instance | `encounters.test.ts`, `screens/combat/setup.test.ts` |
+| Initiative and turn advancement | `screens/combat/turns.test.ts` |
+| HP damage / heal / undo | `screens/combat/actions.test.ts` |
+| Public vs secret rolls | `domain/rolls.test.ts` |
+| Connection and reconnect | `app/connection.test.ts` — new |
+| Responsive smoke | `app/connection.test.ts` — new |
+
+### Added
+
+- `src/domain/rulesetContract.test.ts` — the three previously untested seam methods, plus a
+  guard that every seam method is exercised and every ready adapter implements all of it.
+  Both guards mutation-verified.
+- `src/app/connection.test.ts` — channel subscribe/unsubscribe/status against the real
+  implementations, the rules `useConnection` is built from, the failure copy, and the
+  responsive contract (breakpoints, density switch, panel forms, container-query opt-in).
+
+### Performance
+
+- **Bundle**: one 620 kB chunk → 418 kB entry plus per-route chunks; the Vite size warning
+  is gone and the player's combat screen is 11 kB on its own. Required wrapping each shell's
+  `Outlet` in `Suspense` — the existing boundary sits inside `DMPage`, below the route.
+- **Combat re-renders**: `armourOf` no longer calls `deriveCharacter` per row per render;
+  `useCombatLog` no longer re-filters the whole log and hands out fresh array identities on
+  every render.
+- **List keys**: audited. Every `key={index}` is over a fixed positional array (pips, dice,
+  skeleton rows) where the index is the identity. Nothing dynamic uses one.
+- **Hydration**: not applicable — client-rendered Vite, no SSR.
+
+### Tests — 237, all passing (20 new)
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (237 passing), `npm run format:check`,
+`npm run build`. Dev server serves entry, DM home, DM combat, the encounter builder, the
+monster editor, player combat, the character builder and `?scenario=error`, with no errors
+or warnings in the dev log.
+
+### Not covered by any automated check
+
+Rendered focus order; contrast ratios; real thumb comfort; the 1280px panel reflow as it
+happens; the flash and reduced motion as a browser honours them; and genuine cross-tab
+delivery over the local channel. Listed in DECISIONS.md as the manual pass this leaves.

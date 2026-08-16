@@ -25,7 +25,9 @@ export function PlayerShell() {
         Skip to content
       </a>
 
-      <Outlet />
+      <Suspense fallback={<RouteLoading />}>
+        <Outlet />
+      </Suspense>
 
       <BottomNav
         items={PLAYER_NAV}

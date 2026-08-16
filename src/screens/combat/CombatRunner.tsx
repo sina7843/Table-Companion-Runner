@@ -233,17 +233,36 @@ export function CombatRunner({
     return source.kind === 'monster' ? (monsters.get(source.monsterId) ?? null) : null;
   };
 
-  /** The armour class a DM needs mid-fight, from whichever record backs the combatant. */
-  const armourOf = (participant: CombatParticipant): string | null => {
-    const character = characterFor(participant);
-    const values = character
-      ? rules.deriveCharacter(character)
-      : (monsterFor(participant)?.derived ?? null);
-    if (!values) return null;
+  /**
+   * Armour class per combatant, resolved once.
+   *
+   * `deriveCharacter` recomputes a character's whole derived block, and this list redraws
+   * on every hit point — so doing it per row per render was thirteen full derives on every
+   * keystroke, for a number that does not change during a fight. Keyed by participant so
+   * the row lookup stays trivial.
+   */
+  const armourByParticipant = useMemo(() => {
+    const found = new Map<string, string>();
 
-    const armour = values.find((value) => value.key === 'ac')?.value;
-    return armour === undefined ? null : `AC ${armour}`;
-  };
+    for (const participant of combat.participants) {
+      const source = participant.source;
+      const values =
+        source.kind === 'character'
+          ? (() => {
+              const character = characters.find((entry) => entry.id === source.characterId);
+              return character ? rules.deriveCharacter(character) : null;
+            })()
+          : (monsters.get(source.monsterId)?.derived ?? null);
+
+      const value = values?.find((entry) => entry.key === 'ac')?.value;
+      if (value !== undefined) found.set(participant.id, `AC ${value}`);
+    }
+
+    return found;
+  }, [combat.participants, characters, monsters, rules]);
+
+  const armourOf = (participant: CombatParticipant): string | null =>
+    armourByParticipant.get(participant.id) ?? null;
 
   /* ── Acting ───────────────────────────────────────────────────────────────── */
 

@@ -91,7 +91,15 @@ function DMShellInner() {
       </Sidebar>
 
       <div className="tc-shell__main" data-panel-open={content ? 'true' : undefined}>
-        <Outlet />
+        {/*
+          The route modules are loaded on demand, so the Outlet needs its own boundary —
+          the one inside DMPage sits below the route and would never see it suspend.
+        */}
+        <Suspense fallback={<RouteLoading />}>
+          <Suspense fallback={<RouteLoading />}>
+            <Outlet />
+          </Suspense>
+        </Suspense>
 
         <ContextPanel
           open={content !== null}

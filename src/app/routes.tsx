@@ -1,38 +1,65 @@
+import { lazy, type ComponentType } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { DMShell } from './DMShell';
 import { PlayerShell } from './PlayerShell';
-import { Showcase } from '../showcase/Showcase';
-import { BuilderScreen } from '../screens/builder/BuilderScreen';
-import { CharacterSheet } from '../screens/character/CharacterSheet';
-import { CharacterEdit, CharacterPrivacy } from '../screens/character/Privacy';
-import { LevelUp } from '../screens/character/LevelUp';
-import { MonsterLibrary } from '../screens/monsters/MonsterLibrary';
-import { MonsterPage } from '../screens/monsters/MonsterPage';
-import { MonsterEditor } from '../screens/monsters/MonsterEditor';
-import { EncounterBuilder, EncounterDetail, EncounterLibrary } from '../screens/encounters';
-import { CombatScreen } from '../screens/combat';
-import { PlayerCombat } from '../screens/player/PlayerCombat';
-import {
-  CampaignCombats,
-  CampaignEncounters,
-  CampaignLayout,
-  CampaignList,
-  CampaignOverview,
-  CampaignParty,
-  CampaignSettings,
-  DMCharacters,
-  DMHome,
-  DMItems,
-  DMSpells,
-  JoinCampaign,
-  NewCampaign,
-  NotFound,
-  PlayerCharacters,
-  PlayerDice,
-  PlayerHome,
-  PlayerParty,
-  SignIn,
-} from '../screens';
+
+/*
+ * Route modules load on demand.
+ *
+ * Everything used to arrive in one chunk, which meant a player opening their phone at the
+ * table downloaded the monster library, the encounter builder and the whole DM surface
+ * before their own combat screen could render. Splitting at the route is the natural seam:
+ * each shell's Outlet has a Suspense boundary and the fallback is the skeleton the design
+ * already specifies for a loading route, so nothing new appears on screen.
+ *
+ * The shells themselves stay eager — they are the frame, and a frame that flashes is worse
+ * than a frame that costs a few kilobytes.
+ */
+function named<T extends string>(
+  load: () => Promise<Record<T, ComponentType>>,
+  name: T,
+): ComponentType {
+  return lazy(async () => ({ default: (await load())[name] as ComponentType }));
+}
+
+const Showcase = named(() => import('../showcase/Showcase'), 'Showcase');
+const BuilderScreen = named(() => import('../screens/builder/BuilderScreen'), 'BuilderScreen');
+const CharacterSheet = named(() => import('../screens/character/CharacterSheet'), 'CharacterSheet');
+const CharacterEdit = named(() => import('../screens/character/Privacy'), 'CharacterEdit');
+const CharacterPrivacy = named(() => import('../screens/character/Privacy'), 'CharacterPrivacy');
+const LevelUp = named(() => import('../screens/character/LevelUp'), 'LevelUp');
+const MonsterLibrary = named(() => import('../screens/monsters/MonsterLibrary'), 'MonsterLibrary');
+const MonsterPage = named(() => import('../screens/monsters/MonsterPage'), 'MonsterPage');
+const MonsterEditor = lazy(async () => ({
+  default: (await import('../screens/monsters/MonsterEditor')).MonsterEditor,
+}));
+const EncounterLibrary = named(() => import('../screens/encounters'), 'EncounterLibrary');
+const EncounterDetail = named(() => import('../screens/encounters'), 'EncounterDetail');
+const EncounterBuilder = lazy(async () => ({
+  default: (await import('../screens/encounters')).EncounterBuilder,
+}));
+const CombatScreen = named(() => import('../screens/combat'), 'CombatScreen');
+const PlayerCombat = named(() => import('../screens/player/PlayerCombat'), 'PlayerCombat');
+
+const CampaignCombats = named(() => import('../screens'), 'CampaignCombats');
+const CampaignEncounters = named(() => import('../screens'), 'CampaignEncounters');
+const CampaignLayout = named(() => import('../screens'), 'CampaignLayout');
+const CampaignList = named(() => import('../screens'), 'CampaignList');
+const CampaignOverview = named(() => import('../screens'), 'CampaignOverview');
+const CampaignParty = named(() => import('../screens'), 'CampaignParty');
+const CampaignSettings = named(() => import('../screens'), 'CampaignSettings');
+const DMCharacters = named(() => import('../screens'), 'DMCharacters');
+const DMHome = named(() => import('../screens'), 'DMHome');
+const DMItems = named(() => import('../screens'), 'DMItems');
+const DMSpells = named(() => import('../screens'), 'DMSpells');
+const JoinCampaign = named(() => import('../screens'), 'JoinCampaign');
+const NewCampaign = named(() => import('../screens'), 'NewCampaign');
+const NotFound = named(() => import('../screens'), 'NotFound');
+const PlayerCharacters = named(() => import('../screens'), 'PlayerCharacters');
+const PlayerDice = named(() => import('../screens'), 'PlayerDice');
+const PlayerHome = named(() => import('../screens'), 'PlayerHome');
+const PlayerParty = named(() => import('../screens'), 'PlayerParty');
+const SignIn = named(() => import('../screens'), 'SignIn');
 
 /**
  * The Phase 1 route graph.

@@ -1202,3 +1202,70 @@ route and measured it, because there is no browser automation in this repository
 "visibly belongs to the approved design system" is argued from tokens, structure and the
 design's own stated rules, not from a screenshot. That limit is real and is not being
 dressed up.
+
+## TC-16 — Testing, performance and edge cases
+
+**Coverage was measured, not estimated.** A script parsed the `Ruleset` interface and
+checked every method name against every test file. Thirty-five methods, three of them
+untouched: `deriveMonster`, `initiativeRequest` and `levelUpStepForm`. All three now have
+tests, and the measurement itself is now a test — a new method on the seam with no coverage
+fails the suite. Mutation-verified by adding a method and watching it fail.
+
+**A second contract test asserts every registered adapter implements the whole seam**,
+including the three non-method members. That one also fails on the same mutation, which is
+what makes the pair worth having: one catches an untested method, the other an unimplemented
+one.
+
+**One test was wrong, not the code.** The level-up assertion required every step form to
+have fields; the `review` step is a summary and correctly has none. Fixed the assertion, and
+replaced it with the thing actually worth pinning — that at least one step asks something,
+because a level-up flow that asks nothing is not a flow.
+
+**The bundle was one 620kB chunk and is now 418kB plus per-route pieces.** Everything was
+imported eagerly, which meant a player opening their phone at the table downloaded the
+monster library, the encounter builder and the entire DM surface before their own combat
+screen could render. Routes are `lazy` now; the player's combat screen is an 11kB chunk. The
+Vite size warning is gone. Two things made this safe rather than fiddly: each shell's
+`Outlet` needed its own `Suspense` boundary — the existing one sits inside `DMPage`, below
+the route, and would never have seen it suspend — and the fallback is the `RouteLoading`
+skeleton the design already specifies, so nothing new appears on screen. The shells stay
+eager: a frame that flashes is worse than a frame that costs a few kilobytes.
+
+**Two real recomputations in the combat surface, both fixed.** `armourOf` called
+`deriveCharacter` per row per render — thirteen full derived-block recomputations on every
+keystroke, for a number that cannot change during a fight; it is a `useMemo` keyed by
+participant now. `useCombatLog` re-filtered the whole log into two arrays on every render
+and returned fresh identities each time, which also defeated any memo downstream; both
+halves are memoised in one pass.
+
+**List keys were checked and left alone.** Every `key={index}` in the codebase is over a
+fixed positional array — death-save pips, spell-slot pips, the dice inside one roll
+breakdown, skeleton rows. For those the index *is* the identity, and a generated key would
+be worse. Nothing dynamic uses one.
+
+**Hydration is not applicable and is not pretended to be.** This is a client-rendered Vite
+application with no SSR and no server-rendered markup to mismatch. There is nothing to test
+and no warning to chase.
+
+**What the test stack can and cannot do, stated plainly.** There is no DOM environment and
+no browser automation here — `node --test` with type stripping is the whole harness. So the
+hook-shaped requirements are covered at the level the stack supports: the connection tests
+exercise the real channel implementations for subscribe, unsubscribe and status, and then
+assert the *rules* `useConnection` is built from by reading its source. That catches a rule
+being deleted; it does not catch a rule being mis-wired in a render. The same limit applies
+to the responsive checks, which verify the breakpoints, the density switch, the panel's two
+forms and the container-query opt-in, but never measure a rendered layout. Where a check is
+source-shaped rather than behavioural, it says so in its own file header.
+
+### The manual checks this leaves
+
+These are the Phase 1 interactions no automated check in this repository covers, listed so
+they are documented rather than assumed:
+
+- Rendered focus order through a real tab pass on each shell.
+- Contrast ratios against the approved palette.
+- Whether a 44px target is comfortable under an actual thumb.
+- The docked-panel-to-drawer transition as it actually reflows at 1280px.
+- The 900ms hit-point flash as seen, and reduced motion as actually honoured by a browser.
+- Two devices genuinely in step over the local channel — the transform is tested, the
+  cross-tab delivery is not.

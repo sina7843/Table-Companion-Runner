@@ -10,7 +10,7 @@
  * this file writes a secret roll into the list a player device would read; the separation
  * is by field and by array, not by a filter a caller might forget.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { evaluate } from '../../app/useRoller';
 import {
   id,
@@ -131,11 +131,21 @@ export function useCombatLog(combatId: CombatInstanceId, systemId: GameSystemId)
 
   // Split on the same predicate a player device would apply, not on a list of its own.
   // Two rules for one question is how a secret roll eventually shows up in the wrong list.
-  return {
-    party: entries.filter(isPlayerVisibleRoll),
-    secret: entries.filter((entry) => !isPlayerVisibleRoll(entry)),
-    roll,
-    note,
-    reload: () => setVersion((current) => current + 1),
-  };
+  //
+  // Memoised because a combat screen re-renders on every hit point, and both halves would
+  // otherwise be rebuilt over the whole log each time — along with two new array
+  // identities that defeat any memo a consumer puts downstream of them.
+  const [party, secret] = useMemo(() => {
+    const visible: Roll[] = [];
+    const hidden: Roll[] = [];
+    for (const entry of entries) (isPlayerVisibleRoll(entry) ? visible : hidden).push(entry);
+    return [visible, hidden] as const;
+  }, [entries]);
+
+  const reload = useCallback(() => setVersion((current) => current + 1), []);
+
+  return useMemo(
+    () => ({ party, secret, roll, note, reload }),
+    [party, secret, roll, note, reload],
+  );
 }

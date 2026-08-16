@@ -34,7 +34,10 @@ test('only the ruleset registry imports the D&D adapter', () => {
   const offenders = sourceFiles(SRC)
     .filter((file) => !file.includes(path.join('ruleset', 'dnd5e')))
     .filter((file) => path.basename(file) !== 'registry.ts')
-    .filter((file) => path.basename(file) !== 'domain.test.ts')
+    // A test may reach across the seam — asserting that the adapter reads its catalogue from
+    // the content layer means importing both sides of the boundary being asserted. Product
+    // code may not, which is what this check is for.
+    .filter((file) => !file.endsWith('.test.ts'))
     .filter((file) => /from\s+['"][^'"]*ruleset\/dnd5e/.test(readFileSync(file, 'utf8')))
     .map((file) => path.relative(SRC, file));
 

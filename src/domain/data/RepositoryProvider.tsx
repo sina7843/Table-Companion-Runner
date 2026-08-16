@@ -97,6 +97,10 @@ export function useDataSourceInfo(): Pick<DataSource, 'kind' | 'description'> {
  * The event is a notification, so the handler re-reads rather than trusting a payload —
  * every caller passes a `reload`. Nothing here debounces: events are rare compared with
  * renders, and a fight that lags behind the table is worse than one extra read.
+ *
+ * `sync.required` is delivered to every subscriber whatever kinds it asked for. It means the
+ * stream cannot say what was missed, so everything on screen is suspect and the only correct
+ * response is the one every caller already has: read again.
  */
 export function useRealtime(
   kinds: readonly DomainEventKind[],
@@ -113,7 +117,7 @@ export function useRealtime(
   useEffect(() => {
     const allowed = new Set(wanted.split(','));
     return channel.subscribe((event) => {
-      if (allowed.has(event.kind)) handler.current(event);
+      if (event.kind === 'sync.required' || allowed.has(event.kind)) handler.current(event);
     });
   }, [channel, wanted]);
 }

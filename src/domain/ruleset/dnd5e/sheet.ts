@@ -39,7 +39,7 @@ interface Dnd5eData {
 const data = (character: Character): Dnd5eData => character.systemData as Dnd5eData;
 
 const classOf = (character: Character): ClassDefinition | undefined =>
-  CLASSES.find((entry) => entry.key === data(character).classKey);
+  CLASSES().find((entry) => entry.key === data(character).classKey);
 
 function modifier(character: Character, ability: string): number {
   const attribute = character.attributes.find((entry) => entry.key === ability);
@@ -279,12 +279,12 @@ const PACKS: Record<string, string[]> = {
 
 function isCaster(character: Character): boolean {
   const key = data(character).classKey;
-  return key !== undefined && SPELLS[key] !== undefined;
+  return key !== undefined && SPELLS()[key] !== undefined;
 }
 
 function allSpells(character: Character): RollableEntry[] {
   const info = data(character);
-  const list = info.classKey ? SPELLS[info.classKey] : undefined;
+  const list = info.classKey ? SPELLS()[info.classKey] : undefined;
   if (!list) return [];
 
   const spellMod = spellcastingModifier(character);
@@ -493,7 +493,7 @@ export function sheetContent(character: Character, sectionId: string): SheetCont
         .filter((feature) => feature.level <= character.level)
         .toSorted((a, b) => a.level - b.level);
 
-      const style = FIGHTING_STYLES.find((entry) => entry.value === info.fightingStyle);
+      const style = FIGHTING_STYLES().find((entry) => entry.value === info.fightingStyle);
       return {
         prose: [
           ...(style
@@ -668,7 +668,7 @@ export function levelUpStepForm(
       };
 
     case 'spells': {
-      const list = info.classKey ? SPELLS[info.classKey] : undefined;
+      const list = info.classKey ? SPELLS()[info.classKey] : undefined;
       if (!list) return null;
       return {
         stepId,
@@ -812,7 +812,7 @@ export function levelUpChanges(
   }
 
   if (choices.newSpell) {
-    const list = info.classKey ? SPELLS[info.classKey] : undefined;
+    const list = info.classKey ? SPELLS()[info.classKey] : undefined;
     const spell = list?.first.find((entry) => entry.value === choices.newSpell);
     if (spell) {
       chosen.push({ key: 'spell', summary: spell.label, detail: spell.description, isNew: true });

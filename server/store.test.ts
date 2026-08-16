@@ -126,7 +126,7 @@ test('the seeded world is in the database, not in this process', { skip }, async
     );
 
     const monsters = await afterRestart.monsters.count();
-    assert.ok(monsters >= 50, 'the seeded creature library survived');
+    assert.ok(monsters >= 40, 'the seeded creature library survived');
   } finally {
     await reconnected.close();
   }

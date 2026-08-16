@@ -30,6 +30,7 @@ import {
   type ApiRoute,
 } from './apiContract.ts';
 import { maybe, RESPONSE } from './contractSchemas.ts';
+import { reportSessionExpired } from './sessionExpiry.ts';
 import { validate, type Schema } from './schema.ts';
 import type {
   CampaignId,
@@ -136,6 +137,16 @@ export function createHttpRepositories(config: ApiConfig): Repositories {
 
     if (!response.ok) {
       const failure = readFailure(response.status, payload);
+
+      // The session ended while the app was open. Announced once, here, rather than left for
+      // each of forty call sites to recognise — a screen that renders "Not signed in." as an
+      // error message is a screen that has stranded somebody. `auth.*` is excluded: a refused
+      // credential is not an expired session, and signing a user out of one they never had
+      // would replace a wrong-password message with a confusing one.
+      if (failure.code === 'unauthenticated' && !route.startsWith('auth.')) {
+        reportSessionExpired();
+      }
+
       throw new ApiError(response.status, route, failure.message, {
         code: failure.code,
         ...((failure.requestId ?? requestId) ? { requestId: failure.requestId ?? requestId } : {}),
@@ -181,6 +192,8 @@ export function createHttpRepositories(config: ApiConfig): Repositories {
         request('users.byId', API_ROUTES['users.byId'].path(userId), maybe(RESPONSE.user)),
       byIds: (userIds: UserId[]) =>
         request('users.byIds', API_ROUTES['users.byIds'].path(userIds.join(',')), RESPONSE.users),
+      updateSelf: (input: { displayName: string }) =>
+        request('users.updateSelf', API_ROUTES['users.updateSelf'].path(), RESPONSE.user, input),
     },
 
     gameSystems: {

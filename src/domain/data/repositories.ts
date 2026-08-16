@@ -252,6 +252,11 @@ export interface UserRepository {
   byId(userId: UserId): Promise<User | null>;
   /** Resolves several at once — a party table needs every member's name in one go. */
   byIds(userIds: UserId[]): Promise<User[]>;
+  /**
+   * Changes something about the signed-in account. Self-scoped: there is no id to pass,
+   * because there is no other account this may reach.
+   */
+  updateSelf(input: { displayName: string }): Promise<User>;
 }
 
 export interface GameSystemRepository {

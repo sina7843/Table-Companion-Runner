@@ -95,7 +95,7 @@ test('homebrew sits in the same list as printed content, distinguishable but not
   // The distinction matters for trust, not for navigation: it is in the main list, and
   // its source column names the person rather than a book.
   assert.equal(homebrew[0]?.source, 'Marta');
-  assert.ok(all.some((monster) => monster.source === 'Monster Manual'));
+  assert.ok(all.some((monster) => monster.source === 'System Reference Document 5.1'));
 
   // And it can still be isolated when a DM wants only their own.
   const onlyMine = await repos.monsters.list({ origin: 'homebrew' });

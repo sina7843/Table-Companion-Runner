@@ -40,11 +40,14 @@ import { StoreError } from './store.ts';
 import type { Actor } from './authorize.ts';
 import type { Db } from './db.ts';
 import { createLogger, silentLogger, type Logger } from './log.ts';
+import { createMetrics, noMetrics, type Metrics } from './metrics.ts';
+import { createStaticHandler, type StaticHandler } from './static.ts';
+import { scopeFor, type Hub, type StreamEvent } from './broadcast.ts';
 import {
   clientAddress,
   createRateLimiter,
   rateKey,
-  RATE_RULES,
+  scaleRules,
   type RateClass,
   type RateLimiter,
 } from './rateLimit.ts';
@@ -185,9 +188,36 @@ export interface HandlerOptions {
   routes?: readonly Route[];
   /** Answers `GET /health`. Returns false when the database cannot be reached. */
   checkHealth?: () => Promise<boolean>;
+  /**
+   * Answers `GET /ready`.
+   *
+   * Liveness and readiness are different questions and a deployment needs both: a process that
+   * is alive but whose schema is behind must not be sent traffic, and restarting it will not
+   * help. `/health` says "this process is running"; `/ready` says "and it can serve".
+   */
+  checkReady?: () => Promise<{ ready: boolean; detail: string }>;
+  /** Counters behind `GET /metrics`. Absent means the endpoint is not served. */
+  metrics?: Metrics;
+  /**
+   * Built static files to serve, if this process is also the web server.
+   *
+   * With it set, the API answers under `/api/*` and everything else is the bundle, with an
+   * SPA fallback to `index.html`. That is the same-origin topology in one process: no proxy to
+   * configure, no CORS to get wrong, one thing to deploy.
+   */
+  staticDir?: string | null;
   logger?: Logger;
   /** Injectable so a test can drive the clock and so one limiter is shared per server. */
   rateLimiter?: RateLimiter;
+  /** Multiplies every limit, for a deployment where one address is many people. */
+  rateLimitScale?: number;
+  /**
+   * The realtime hub. Absent means no `GET /events`, which is the honest answer for a
+   * deployment that has not turned realtime on rather than a stream that delivers nothing.
+   */
+  hub?: Hub;
+  /** How often the stream writes a keep-alive comment. Shortened by tests. */
+  heartbeatMs?: number;
 }
 
 export function createRequestListener(
@@ -197,6 +227,11 @@ export function createRequestListener(
   const { db } = options;
   const logger = options.logger ?? createLogger();
   const limiter = options.rateLimiter ?? createRateLimiter();
+  const rules = scaleRules(options.rateLimitScale ?? 1);
+  const metrics = options.metrics ?? noMetrics;
+  const files: StaticHandler | null = options.staticDir
+    ? createStaticHandler(options.staticDir)
+    : null;
 
   return (request, response) => {
     void (async () => {
@@ -225,7 +260,15 @@ export function createRequestListener(
             ? { Vary: 'Origin' }
             : {};
 
+      // Counted where the response is written rather than at each `return`, so a route added
+      // later cannot forget to. A request that never reaches `send` — a stream, a static file
+      // — counts itself where it ends.
+      const record = (status: number): void => {
+        metrics.request(route, request.method ?? 'GET', status, performance.now() - startedAt);
+      };
+
       const send = (status: number, payload?: unknown): void => {
+        record(status);
         const headers: Record<string, string> = {
           ...STANDING_HEADERS,
           ...corsHeaders,
@@ -252,6 +295,7 @@ export function createRequestListener(
         message: string,
         extra: { details?: string; retryAfter?: number } = {},
       ): void => {
+        metrics.refusal(code);
         if (extra.retryAfter !== undefined) {
           response.setHeader('Retry-After', String(extra.retryAfter));
         }
@@ -283,6 +327,30 @@ export function createRequestListener(
         const url = new URL(request.url ?? '/', 'http://localhost');
         const method = request.method ?? 'GET';
 
+        // With a bundle to serve, the API answers under `/api/*` and the rest is the
+        // application — the same split the development proxy makes, so one topology is
+        // described in one way everywhere. Without one, this process is an API and every
+        // path is a route.
+        // The operational endpoints answer at the root whatever else this process serves.
+        // A probe and a scraper look there, and a deployment that also serves a bundle must
+        // not move them somewhere a load balancer has to be told about.
+        const OPERATIONAL = new Set(['/health', '/ready', '/metrics']);
+
+        if (files) {
+          if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+            url.pathname = url.pathname.slice('/api'.length) || '/';
+          } else if (!OPERATIONAL.has(url.pathname)) {
+            route = 'static';
+            const served = await files.serve(request, response, url.pathname);
+            if (served) {
+              record(200);
+              return;
+            }
+            fail(404, 'not_supported', 'No such endpoint.');
+            return;
+          }
+        }
+
         // A preflight is answered only where cross-origin is switched on. Otherwise it falls
         // through to "no such endpoint", which is the truth: there is no cross-origin API.
         if (method === 'OPTIONS' && options.crossOrigin) {
@@ -294,10 +362,91 @@ export function createRequestListener(
           return;
         }
 
+        if (method === 'GET' && url.pathname === '/events' && options.hub) {
+          route = '/events';
+          const streamToken = readCookie(request, SESSION_COOKIE);
+          const streamSession = await readSession(db, streamToken);
+          if (!streamSession) {
+            fail(401, 'unauthenticated', 'You are not signed in.');
+            return;
+          }
+          actorId = streamSession.userId;
+
+          // A subscription is granted from stored membership, never taken from the request.
+          // Asking for a campaign you are not in is refused rather than answered with a room
+          // that quietly delivers nothing — the second is indistinguishable from a bug.
+          const scope = await scopeFor(
+            options.repositoriesFor({ userId: streamSession.userId }),
+            streamSession.userId,
+            url.searchParams.get('campaignId'),
+          );
+          if (!scope) {
+            fail(403, 'forbidden', 'You are not in that campaign.');
+            return;
+          }
+
+          metrics.stream(1);
+          response.on('close', () => metrics.stream(-1));
+
+          openStream({
+            request,
+            response,
+            hub: options.hub,
+            userId: streamSession.userId,
+            scope,
+            requestId,
+            lastEventId: readLastEventId(request, url),
+            heartbeatMs: options.heartbeatMs ?? HEARTBEAT_MS,
+            headers: { ...STANDING_HEADERS, ...corsHeaders, 'X-Request-Id': requestId },
+          });
+
+          record(200);
+          logger.request('info', {
+            requestId,
+            method,
+            route,
+            status: 200,
+            durationMs: Math.round(performance.now() - startedAt),
+            actorId,
+          });
+          return;
+        }
+
         if (method === 'GET' && url.pathname === '/health') {
           route = '/health';
           const healthy = options.checkHealth ? await options.checkHealth() : true;
           send(healthy ? 200 : 503, { status: healthy ? 'ok' : 'unavailable' });
+          return;
+        }
+
+        // Readiness is a different question from liveness: this process is running, and it
+        // can serve. A schema behind the code is the case that matters — restarting does not
+        // fix it, so an orchestrator must stop sending traffic rather than kill the process.
+        if (method === 'GET' && url.pathname === '/ready') {
+          route = '/ready';
+          const verdict = options.checkReady
+            ? await options.checkReady()
+            : { ready: true, detail: 'no readiness check configured' };
+          send(verdict.ready ? 200 : 503, {
+            status: verdict.ready ? 'ready' : 'not-ready',
+            detail: verdict.detail,
+          });
+          return;
+        }
+
+        // Counts, never content. Deliberately unauthenticated and deliberately bound to the
+        // deployment's own network: a scraper is not a user, and there is nothing here a
+        // subject could object to. See `metrics.ts` for why the labels are bounded.
+        if (method === 'GET' && url.pathname === '/metrics' && options.metrics) {
+          route = '/metrics';
+          const body = options.metrics.render();
+          response.writeHead(200, {
+            ...STANDING_HEADERS,
+            'X-Request-Id': requestId,
+            'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
+            'Content-Length': Buffer.byteLength(body),
+          });
+          response.end(body);
           return;
         }
 
@@ -337,7 +486,7 @@ export function createRequestListener(
         );
         const verdict = limiter.check(
           rateKey(rateClass, actorId ?? null, address),
-          RATE_RULES[rateClass],
+          rules[rateClass],
         );
         if (!verdict.allowed) {
           fail(429, 'rate_limited', 'Too many requests. Wait a moment and try again.', {
@@ -489,8 +638,30 @@ export function createRequestListener(
   };
 }
 
+/**
+ * How long a client may take to send its headers, and then its whole request.
+ *
+ * Node's defaults are 60s and 0 (no limit). A request that never finishes holds a socket and a
+ * file descriptor, and enough of them is an outage that looks like nothing — which is why the
+ * limit is explicit here rather than left to whatever the runtime ships this year.
+ *
+ * The keep-alive timeout is deliberately longer than a typical load balancer's idle timeout so
+ * this process is not the one closing a connection the balancer is about to reuse; that race
+ * shows up as sporadic 502s that nothing in the application can explain.
+ */
+const HEADERS_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 60_000;
+const KEEP_ALIVE_TIMEOUT_MS = 65_000;
+
 export function createHttpServer(options: HandlerOptions): Server {
   const server = createServer(createRequestListener(options));
+
+  server.headersTimeout = HEADERS_TIMEOUT_MS;
+  server.requestTimeout = REQUEST_TIMEOUT_MS;
+  server.keepAliveTimeout = KEEP_ALIVE_TIMEOUT_MS;
+  // A stream is a long-lived response by design, so the *response* timeout stays off; the
+  // request timeout above still bounds how long the client has to finish asking.
+  server.setTimeout(0);
 
   // Expired windows are dropped on a timer rather than on every request, so a quiet server
   // does not hold a map of everyone who visited it an hour ago. Unref'd: it must not be the
@@ -502,4 +673,105 @@ export function createHttpServer(options: HandlerOptions): Server {
   return server;
 }
 
-export { silentLogger };
+export { silentLogger, createMetrics };
+
+/* ── The event stream ───────────────────────────────────────────────────────── */
+
+/**
+ * How often a keep-alive comment goes down an idle stream.
+ *
+ * Proxies and load balancers close a connection that has said nothing for a while, and a
+ * comment line is the cheapest thing that counts as saying something. It is also how a client
+ * finds out the connection died: `EventSource` notices the socket, not the silence.
+ */
+const HEARTBEAT_MS = 25_000;
+
+/** How long a client waits before reconnecting. Stated by the server so there is one schedule. */
+const RETRY_MS = 3000;
+
+/** Where a reconnecting client says how far it got. The header is the browser's own. */
+function readLastEventId(request: IncomingMessage, url: URL): number {
+  const header = request.headers['last-event-id'];
+  const raw = typeof header === 'string' ? header : url.searchParams.get('lastEventId');
+  const value = Number(raw);
+  return Number.isInteger(value) && value >= 0 ? value : 0;
+}
+
+interface StreamOptions {
+  request: IncomingMessage;
+  response: ServerResponse;
+  hub: Hub;
+  userId: ReturnType<typeof id<'User'>>;
+  scope: { campaigns: Set<string>; dmOf: Set<string> };
+  requestId: string;
+  lastEventId: number;
+  heartbeatMs: number;
+  headers: Record<string, string>;
+}
+
+/**
+ * Opens one server-sent event stream and keeps it until the client goes away.
+ *
+ * The order matters. Headers first, so a client that is waiting on `open` gets it; then the
+ * replay of whatever was missed, or `resync` when the gap is wider than the window; then the
+ * subscription, so nothing published during the replay is lost. Registering before the replay
+ * would deliver events twice, and after a gap in it would lose them.
+ */
+function openStream(options: StreamOptions): void {
+  const { request, response, hub, scope } = options;
+
+  response.writeHead(200, {
+    ...options.headers,
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-store',
+    Connection: 'keep-alive',
+    // Nginx buffers a response by default, which for a stream means it never arrives.
+    'X-Accel-Buffering': 'no',
+  });
+
+  const write = (chunk: string): void => {
+    response.write(chunk);
+  };
+
+  write(`retry: ${RETRY_MS}\n\n`);
+
+  const sendEvent = (entry: StreamEvent): void => {
+    write(`id: ${entry.seq}\ndata: ${JSON.stringify(entry.event)}\n\n`);
+  };
+
+  const sendResync = (reason: string): void => {
+    // Named, so the client can tell it apart from an ordinary notification without parsing.
+    // The id still advances, so a client that reconnects again does not replay from zero.
+    write(`id: ${hub.position()}\nevent: resync\ndata: ${reason}\n\n`);
+  };
+
+  const missed = hub.replay(options.lastEventId, scope.campaigns, scope.dmOf);
+  if (missed === null) {
+    sendResync('the stream fell behind');
+  } else if (options.lastEventId === 0) {
+    // A fresh stream has nothing to catch up on; it read the state it is showing a moment ago.
+    // Telling it to resync anyway would mean every page load costs a second full read.
+  } else {
+    for (const entry of missed) sendEvent(entry);
+  }
+
+  const remove = hub.add({
+    userId: options.userId,
+    campaigns: scope.campaigns,
+    dmOf: scope.dmOf,
+    send: sendEvent,
+    resync: sendResync,
+  });
+
+  const heartbeat = setInterval(() => write(': ping\n\n'), options.heartbeatMs);
+
+  const cleanup = (): void => {
+    clearInterval(heartbeat);
+    remove();
+    response.end();
+  };
+
+  // Both ends: a client that navigates away, and a socket that died without saying so.
+  request.on('close', cleanup);
+  response.on('error', cleanup);
+}

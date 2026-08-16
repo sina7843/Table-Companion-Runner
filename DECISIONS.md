@@ -1762,3 +1762,414 @@ real in memory too, so `npm run dev` with no server exercises the same paths a d
 a write model that no longer exists, and a second permission implementation is a second thing to
 keep in step. Its twelve tests were rewritten as questions about commands, which is what they
 were always trying to ask.
+
+---
+
+## TC-P05 — Realtime sync and recovery
+
+**Server-sent events, not a WebSocket.** The prompt allowed either, and the choice follows from
+what an event has been in this product since TC-13: a notification, never a payload. The
+receiver is told what changed and re-reads. That makes the traffic one-way, and the whole
+argument for a WebSocket — a channel back — is a channel nothing here uses.
+
+What it would have cost: a dependency, because Node has no WebSocket server and RFC 6455 framing
+is not something to hand-roll; an upgrade handshake to authenticate separately from every other
+request; and a reconnect schedule on the client that has to be kept in step with the server's.
+`EventSource` gives reconnect, `Last-Event-ID` replay and cookie authentication as platform
+behaviour, over the HTTP server that already exists.
+
+The honest limitation is the one worth naming: SSE counts against the browser's per-origin
+connection limit and offers no client→server path. If a later feature needs one — typing
+indicators, presence, a cursor — that is the moment to revisit this, not before.
+
+**A subscription is granted, never requested.** The rooms on a stream are the campaigns the
+account is a member of, resolved from stored rows. A client may narrow with `?campaignId=` and
+cannot widen. Asking for a campaign you are not in is a 403 rather than a room that quietly
+delivers nothing: the second is indistinguishable from a bug, and the difference matters when
+somebody is trying to work out why their table is silent.
+
+**The audience is decided per event, and a secret roll is not announced.** TC-13 wrote that
+announcing a secret roll was harmless because the event carries no total. That was wrong.
+"The DM just rolled something" is information, and at a table it is frequently *the*
+information — a player who sees the notification knows a hidden creature is being played. The
+same `canSee` predicate that keeps the roll out of a player's log now keeps the announcement out
+of their stream. An encounter edit is DM-only for the same reason: a template carries setup
+notes, so telling a player it changed is telling them it exists.
+
+**Publishing wraps the authorized repositories, outermost.** Every announcement is after an
+`await` on the store, and the store's promise resolves after `COMMIT`. That makes "never before
+the transaction succeeded" structural rather than a rule to remember — there is no ordering a
+future edit could get wrong without also moving the wrapper.
+
+It also means the client stopped announcing. `withRealtime` returns its input untouched when the
+channel's authority is the server, because a client announcing a write it merely *sent* is a
+client inventing an event: only the server knows one landed.
+
+**A gap is answered with "read again", never with a partial history.** The hub keeps a bounded
+replay window and hands back exactly what a reconnecting client missed. Beyond the window the
+answer is `sync.required`. Reconstructing state from events known to be incomplete is how a
+client ends up confidently wrong, and the database is one read away and authoritative — which is
+the same reason events have never carried payloads.
+
+`sync.required` reaches every subscriber whatever kinds it asked for, so a screen that already
+knows how to re-read recovers without a line of new code.
+
+**Duplicate and out-of-order delivery need no defence.** An event carries no state, so applying
+one twice is two reads with the same answer, and replay is sorted by sequence before it is
+written. This is the property the notification-not-payload decision was made for; the tests
+assert it rather than the code defending against it.
+
+**The hub is per-process, and says so where it is created.** Two instances would each broadcast
+only to their own subscribers. The fix is a shared bus and PostgreSQL `LISTEN/NOTIFY` is already
+in the box, but building it before there is a second instance is speculative infrastructure —
+the same call the rate limiter made in TC-P03, for the same reason.
+
+**`createSocketChannel` was replaced rather than kept.** It was written at TC-13 against a server
+that did not exist and never connected to one. Keeping a speculative implementation beside a
+working one is two things to maintain and one of them is untested by construction.
+
+**`resyncing` is a separate state from `restored`.** They look similar and are not: a connection
+can be fine while the screen is stale, and a connection can drop without anything having changed.
+Collapsing them would mean the banner sometimes says the wrong thing, and a status that is
+sometimes wrong is a status people stop reading. Neither blocks interaction — a command carries
+the version it was built from, so a stale one is refused by the table rather than by a banner
+that stopped somebody acting.
+
+---
+
+## TC-P06 — Rules content pipeline and legal boundary
+
+**The SRD is the approved source; 5e.tools is a documented blocker.** `Requirements.md` §6.35
+names 5e.tools as where D&D content comes from. It aggregates published rulebook material far
+beyond the SRD under no licence that permits redistribution, so it cannot be the production
+source and no amount of engineering makes it one. The SRD 5.1 is published under CC BY 4.0,
+which permits exactly what this product needs to do with it.
+
+The requirement's *intent* — real content, ingested rather than typed in — is met. What changed
+is where from, and the traceability entry says so rather than carrying **Blocked** with no plan
+behind it.
+
+**Redistribution is the question, not mechanics.** Nobody needs permission to write software that
+adds a modifier to a die roll. Shipping somebody else's text does. Framing the boundary that way
+is what makes it decidable: every source gets one verdict, in `licenses.ts`, with a reason.
+
+**The boundary is enforced, not documented.** A licence note in a README is a note. The importer
+refuses a non-redistributable source outright in production, and the `--allow-unlicensed` escape
+hatch is itself refused when `NODE_ENV=production` — so there is no combination of flags that
+puts unlicensed content in front of a user. `loadContent` filters on the same column again, so a
+development source sitting in a database still cannot be served.
+
+**Running the pipeline over the existing library found two creatures that could not ship.**
+Beholder and Mind Flayer are Product Identity — named in no licence this product holds — and were
+labelled "Monster Manual" and shipped. They are quarantined rather than deleted, so the decision
+is visible and reversible.
+
+The honest limit is written down too: the other 48 have not been checked name by name against the
+SRD index. Claiming they had would be the kind of confident wrongness this whole prompt is about,
+so `content/README.md` carries it as an operator task and the pipeline makes it a data change.
+
+**Categories, not types.** `ContentKind` is `species`, `class`, `spell` and so on because those
+are *slots* every system in scope has — a species and an ancestry and a lineage are one slot in
+three games. The alternative, a kind per system concept, would have put D&D vocabulary in the
+core the first time anything was imported.
+
+**`data` is opaque and stays opaque.** The core validates that it is an object and nothing more.
+It cannot know what a species is, so it must not pretend to check one; the adapter reads its own
+bag back and takes responsibility for what it wrote. That single decision is what lets one table
+hold a D&D species and a Pathfinder ancestry, and it is what the "another ruleset needs no schema
+rewrite" claim rests on.
+
+**Creatures are the exception, and the exception proves the rule.** `Monster` is already a core
+type — it names no D&D concept, keeps its taxonomy in `facets` and its rules in `systemData` — so
+reading a creature record back is the core reading its own shape, and no adapter needs to be
+involved. A species has no core shape and never will.
+
+**The bundles were generated from what the repository already had.** The catalogue existed as
+literals in `builder.ts` and `monsterLibrary.ts`; a one-off script turned it into bundles with
+their source and licence stated, and the literals were deleted. Retyping the SRD from memory
+would have been slower, less accurate, and would have produced content nobody could diff against
+what the product used to serve. Pointing the importer at a fuller extract later is `--from=`.
+
+**Imports replace a bundle, not a source.** The first version replaced everything a source had
+provided, which meant the SRD's bestiary wiped its character catalogue — caught by a test rather
+than in production. `bundle_id` scopes the delete: a bundle states what *it* now contains, and a
+source split across files keeps its other halves.
+
+**A malformed record does not fail its bundle.** A source with a typo in one creature is a source
+with a typo in one creature. Refusing the other four hundred would make the pipeline unusable
+against real data; refusing the one and naming it is what an operator can act on.
+
+**The catalogue is its own chunk.** Inlining it put the entry bundle back over the size warning
+TC-16 removed. Content changes when a source is re-imported and not when a screen is edited, so
+splitting it is both smaller today (411 kB entry, down from 445) and better cached tomorrow.
+
+
+---
+
+## TC-P07 — Product, account, offline and operational states
+
+**A failed write is never reported as a saved one.** The character builder did exactly that:
+`() => setSaving('idle')` on rejection, and `idle` rendered as `Saved`. It is the worst class of
+defect this product can have, because the person it lies to has no other way to check. Three
+screens autosaved with three copies of the logic and three different answers to the failure
+case, so the fix is one implementation all three use rather than three corrections that can
+drift apart again.
+
+**The autosave state machine is a plain object, not hook internals.** This project has no DOM
+test environment, and "a failed save must never read as saved" is precisely the rule that has to
+be *tested* rather than reviewed. Making the engine drivable — its own scheduler injected, a
+subscribe/getSnapshot pair the hook feeds to `useSyncExternalStore` — costs about thirty lines
+and buys nine tests that would have caught the original defect.
+
+**Autosave does not retry on its own.** A screen nobody is looking at retrying in a loop is how
+a failing deployment becomes a busy one. The person who knows whether the work still matters is
+the one at the keyboard, so a failure keeps the edit and offers a button.
+
+**A session's end is detected, not predicted.** The cookie is HttpOnly by design, so there is no
+expiry timestamp the client can read and no schedule it could keep. The honest signal is the
+first call that comes back `unauthenticated` — the app finds out the same way the person would.
+
+The emitter is module-level rather than React context because the party that detects it
+(`httpRepositories`) sits *below* the party that must react to it (`SessionProvider`), and
+inverting that would mean a provider between the data layer and itself.
+
+**One refused request is evidence, not proof.** The provider re-reads the identity before
+concluding anything. A single unlucky 401 — a race with a renewal, a proxy hiccup — must not
+sign somebody out of a session that is fine.
+
+**`auth.*` is excluded from that signal.** A wrong password is a 401 about a credential. Treating
+it as an expiry would replace a clear message with a confusing one and sign a user out of a
+session they never had.
+
+**Where somebody was going is carried, and validated.** `RequireSession` records `from`; the
+sign-in screen honours only a same-origin path. The moment right after typing a password is the
+moment a person is least likely to read a redirect, so an open redirect there is worth more to
+an attacker than almost anywhere else in the product. Its own module so it can be tested
+directly rather than through a component this project cannot render.
+
+**`PUT /me` is scoped by the session, not by anything the caller sent.** No id in the path, none
+in the body, and `strict` on the schema — so an attempt to aim it at another account is an
+over-post refused by name rather than a field quietly ignored. The alternative, `PUT /users/:id`
+with an ownership check, has the same outcome when the check is right and a much worse one when
+it is wrong.
+
+**Email and password are refused on that route rather than accepted and ignored.** An email
+change is a re-verification flow; a password change is a credential flow. Neither is Phase 1,
+and a route that silently drops them is a route somebody will one day assume worked.
+
+**The data boundary is stated on the account screen, in claims about the implementation.** Not a
+policy nobody opens: what it says other people can see is what `authorize.ts` returns, and what
+it says is never sent is what the server never puts in a response. A test asserts the screen
+still makes each claim, so if one stopped being true somebody would notice.
+
+**Invalid, expired, revoked and spent invites get one sentence.** That is the server's decision
+and the screen does not try to improve on it — distinguishing them would let a stranger use the
+join form to find out which campaigns exist. Joining twice is answered like joining once for the
+same reason: telling them apart means asking who is already a member of what.
+
+**The invented "Live" badge was removed rather than made real.** The party table drew a
+connection state against every player. This product has no presence — the realtime hub tracks
+connections, not who is at the table — so the badge was true only because nothing could
+contradict it. It is the same class of dishonesty as `Saved` on a failed write, and the fix is
+the same: say what is actually known, which is whether a member has a character yet.
+
+**Try again re-runs the read, not the page.** Three screens called `window.location.reload()`,
+which throws away every other screen's state, the context panel and any queued autosave to
+recover one failed read. `useAsync` has handed every caller a `reload` since TC-13.
+
+**Telemetry ships as a boundary with nothing behind it.** Provider-neutral, no secrets, not
+invasive — all three are satisfied at once by shipping the seam and no provider. The events are
+a closed union rather than a string, because an open `track(name, props)` becomes invasive one
+careless call at a time: the easiest thing to reach for at a call site is whatever is in scope,
+and what is in scope is a character name, an email, a roll. Adding an event is a deliberate edit
+to a list somebody can read in full.
+
+**No offline queue.** Offline refuses a write and says so. Replaying queued writes later would
+need conflict resolution the server deliberately does not offer — TC-P04 refuses a stale command
+rather than merging it — so a queue would be a mechanism for losing work quietly, which is the
+thing this whole slice exists to remove.
+
+
+---
+
+## TC-P08 — End-to-end, multiplayer, security and resilience
+
+**Two browser contexts, never two tabs.** Two tabs share a cookie jar, so a suite built on them
+cannot tell "the player sees it" from "the DM sees it" — which is the only question a
+multiplayer product's tests are really asking. Everything below rests on that.
+
+**Playwright, as the one new dependency.** Browser end-to-end coverage cannot be written without
+a browser driver; there is no platform API for it. Of the options, Playwright is the one that
+gives independent contexts, a real accessibility tree and a CI story in one package. It is a
+devDependency and ships nothing.
+
+**Tested against `vite preview`, not `vite`.** The bundle under test is the one `npm run build`
+produces. Testing the dev server would be testing the toolchain.
+
+**Driven by role and accessible name, never by a `data-testid`.** Two reasons, and the second is
+the better one: it keeps the tests honest about what is actually reachable, and a control that
+loses its label breaks a test instead of quietly becoming unusable for anybody navigating by
+one. The accessibility spec and the golden path reinforce each other because of it.
+
+**`retries: 0`, in CI too.** A retry count is precisely how a suite stops being able to tell you
+it is flaky. Every intermittent failure this suite produced turned out to have a cause worth
+knowing — including a product defect that had been shipping since TC-P07 — and a retry would
+have hidden all six.
+
+**The suite owns its own database.** `DATABASE_URL`'s name with `_e2e` appended, dropped and
+rebuilt every run. CLAUDE.md forbids destroying developer data automatically, and a suite that
+resets state is only safe when the state is its own; a schema inside the developer's database
+would have been one `drop schema` away from their evening.
+
+**The API is spawned by global setup rather than by Playwright's `webServer`.** One test kills
+and restarts it, which `webServer` cannot express. Its pid goes in a file because a worker
+process does not share memory with global setup.
+
+**`TC_RATE_LIMIT_SCALE` is a product knob, not a test hatch.** The limiter counts an anonymous
+caller by address, which is the only thing it can know about them — so a company behind one
+NAT, a university, a conference network and a test suite all look like one very busy person.
+That is a real deployment property. The honest answer is a validated multiplier with a safe
+default of 1, scaling the count and never the window, rather than either a limit nobody can
+raise or a limit nobody enforces.
+
+**Every privacy claim is asserted on the wire, in the DOM, in the stream and in the logs.** The
+prompt says client-side hiding is not a security pass, and the four places are not redundant:
+absent-from-the-payload is the property that matters, the DOM check catches a screen that
+received it anyway, and the log check catches the leak nobody looks for. Each also asserts the
+DM *can* see the thing, or it proves nothing.
+
+**The flake fixes are all root causes, and one of them was a product defect.** An orphaned API
+from an interrupted run, a reused preview server serving dead chunk hashes, an auth limit,
+a proxy opening a socket per request, pooled sockets pointing at a restarted process, and
+Playwright's default polling interval. But most of what looked like flakiness was the `/me`
+loop: a signed-out browser asking the server who it was six hundred times in fifteen seconds,
+exhausting the machine's sockets and making three unrelated tests fail. Fixing the product made
+the suite reliable, which is the usual direction of that relationship and worth stating.
+
+**The version field is the finding that justifies the whole prompt.** `combatSchema` never
+declared `version`, response schemas drop what they do not declare, and so the browser sent
+`expectedVersion: 0` on every command — the first landed and every one after it was refused as
+stale, forever. Twenty server-side concurrency tests passed the entire time, because none of
+them goes through that schema. There is no layer below a browser where that bug is visible.
+
+**A failed route module now shows the product's own error.** It fell through to react-router's
+developer page, which tells a person at a table to add an `errorElement`. That is the same
+class of dishonesty as `Saved` on a failed write: the app knowing something went wrong and
+saying something useless about it.
+
+
+---
+
+## TC-P09 — CI, deployment and observability
+
+**One process serves the bundle and the API.** The topology has been same-origin since TC-P02 —
+that is what lets the session cookie be `SameSite=Strict` and why there is no CORS to get wrong
+— and one process satisfies it with nothing in front. No proxy to configure, no second
+container, one thing to roll back. A deployment that wants a web server can put one in front and
+leave `TC_STATIC_DIR` unset; the seam is one variable.
+
+**`TC_ENV` is separate from `NODE_ENV`.** The toolchain owns `NODE_ENV` and it only really has
+two values, but a deployment has four and they differ in what they are *allowed* to do. Unset
+means development, which is the safe direction: nothing gains a permission by being unlabelled.
+
+**Staging is production-shaped.** Same cookie policy, same bind, same migration discipline. A
+staging deployment that only works because its cookies are laxer has proved nothing about
+production.
+
+**Liveness and readiness are separate endpoints.** They answer different questions and a
+deployment needs both: a 503 from `/health` means restart me, a 503 from `/ready` means stop
+sending traffic and restarting will not help. The case that separates them is a schema behind
+the code, which is exactly the state a half-finished deploy leaves behind — and it is also what
+makes a deploy quiet, because `/ready` refusing *first* is what stops the balancer sending work
+into a process that is about to close its listener.
+
+**Migrations are a deployment step, not a boot side effect.** On a laptop the opposite is right
+and stays the default. In a deployment, two instances starting together would race for the same
+schema, and a schema change is a step an operator watches rather than one they hope happened.
+`--check` makes it a question with an exit code.
+
+**There are no `down` migrations, and there will not be.** A generated `down` is a script nobody
+has run against real data, and running one during an incident is how a bad deploy becomes a lost
+database. Additive migrations are what make rolling only the application back sufficient, and a
+genuine removal is two deploys.
+
+**Metrics are hand-written Prometheus text.** A line-based format does not need a client
+library. What matters more than the format is that the labels are bounded: a metric labelled
+with a request id or a resolved path is unbounded cardinality — a memory leak in this process
+and a bill wherever it is stored. The router already knows the route pattern, which is the same
+reason the logs carry a pattern rather than a path.
+
+**The redaction rule became code.** It was a well-written comment listing what a log line may
+never contain, and a comment is a thing somebody forgets under pressure — a new field, a
+`...error` spread, a message assembled from the wrong thing. `redact()` runs on every line from
+every caller and matches on field *names* and on *values*, so it catches `passwordHash` and
+`sessionToken` without anyone having thought of each one.
+
+**The container's log is grepped in CI.** The unit test proves the function redacts; the CI step
+proves the deployed process does. Those are different claims and only the second one is about
+the thing that ships.
+
+**`check:package` is deliberately not a CI gate.** It validates the delivery package, including
+a `PROJECT_STATUS.md` with every box unticked — so every completed prompt makes it fail by
+design. A step that always fails is how a CI signal stops meaning anything. It stays a command.
+
+**Socket timeouts are set explicitly rather than left to the runtime.** Node's `requestTimeout`
+default is *no limit*, and a request that never finishes holds a socket. The keep-alive is
+deliberately longer than a typical balancer's idle timeout, because the alternative is this
+process closing a connection the balancer is about to reuse — which surfaces as sporadic 502s
+that nothing in the application can explain.
+
+**Staging was validated by running the suite against it, and that found a defect.** TC-P06's
+importer wrote `content_records`; the application serves creatures from `monsters`. Nothing
+connected them, so a fresh deployment had an empty creature library and the Golden Path stopped
+at the encounter builder. Every content test passed the whole time, because they read back
+through `loadContent` — a different path from the one a screen uses. Describing the deployment
+would never have found it; deploying it took ten minutes.
+
+
+---
+
+## TC-P10 — Production readiness audit
+
+**Everything in the audit was run, not quoted.** An audit that cites an earlier slice's report
+is an audit of a report. A container was built from the `Dockerfile`, pointed at a database
+created empty for the purpose, migrated and imported through the image, and driven by two
+independent browsers. Every number in the TC-P10 section is from that run.
+
+**The audit deviated from production in exactly one way, and says so.** It ran over
+`http://127.0.0.1`, so `Secure` cookies could not be exercised by a browser — that is a property
+of http, not of the product. Rather than quietly running staging config and calling it
+production, the run used `TC_ENV=production` with one explicit override and recorded the gap as
+a follow-up with an owner action. A validation that hides its own deviation is worth less than
+one that names it.
+
+**Two defects were found by deploying rather than by reading.** Staging's cookies were laxer
+than `DEPLOYMENT.md` claimed, and `TC_MIGRATE_ON_BOOT` defaulted to *on* under
+`TC_ENV=production` — safe only because the image happened to set it. Both are the same shape
+as every other defect this production sequence found: a claim that was true of the code that
+was written and not of the thing that ships.
+
+**The verdict is READY WITH NON-BLOCKING FOLLOW-UPS, and the four gates decided it.** The prompt
+forbids READY while the Golden Path depends on fixtures, client-only authorization, non-durable
+state, or single-client realtime simulation. None applies: the fixtures are unreachable in the
+shipped configuration, `authorize.ts` is the only `Repositories` a handler ever gets, a restart
+returned the same version and hit points, and the two clients were two browser contexts with
+two cookie jars. Everything else that is imperfect is a follow-up, and each has an action
+somebody can pick up.
+
+**A cheating vector is not a security blocker, and the distinction is worth stating.** A player
+can send `health.damage` against a *creature* with an amount their client chose. That is
+deliberate — attacking a monster is the whole player screen — and it is bounded: they cannot
+touch another player's character, roll somebody else's death save, or issue a DM command. Two
+people who chose to play together can already lie to each other about a die roll at a physical
+table. Calling this BLOCKED would have been theatre; leaving it undocumented would have been
+dishonest.
+
+**`/dev/showcase` and the fixture bytes were reported even though neither is exploitable.** An
+audit that only reports what it can prove dangerous teaches nobody where the edges are. Both
+have an owner action and neither delayed the decision.
+
+**Backup and restore were not exercised, and the report says exactly that.** The procedure is
+documented with commands and expectations; nobody has restored a dump from this system. The
+honest word is "documented", not "verified", and `DEPLOYMENT.md` already says a backup nobody
+has restored is a hypothesis.

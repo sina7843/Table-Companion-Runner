@@ -17,6 +17,11 @@
  * An error is logged by its message alone. A stack trace is useful and also the place a
  * connection string most often appears, so it is left out and the request id is what ties a
  * report to a line.
+ *
+ * As of TC-P09 the rule is **enforced, not stated**: `redact()` runs on every line from every
+ * caller, refuses a field whose name looks like a credential, and refuses a value that looks
+ * like one whatever it is called. A rule that lives only in a comment is one hurried commit
+ * away from being untrue.
  */
 
 export type LogLevel = 'info' | 'warn' | 'error';
@@ -44,11 +49,90 @@ export interface Logger {
 /** ISO-8601, so a line sorts by time as a string. */
 const stamp = (): string => new Date().toISOString();
 
+/* ── The guard ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Field names a log line may never carry, whatever anyone passes.
+ *
+ * The rules above are a policy, and a policy is a thing somebody forgets under pressure — a
+ * new field on `RequestLog`, a `logger.event` call with the wrong object, a well-meaning
+ * `...error`. This is the same policy as code, applied to every line on its way out.
+ *
+ * Matched on the *name*, case-insensitively and as a substring, because that is what catches
+ * `passwordHash`, `sessionToken` and `x-api-key` without needing to have thought of each one.
+ */
+const FORBIDDEN_KEYS = [
+  'password',
+  'token',
+  'secret',
+  'cookie',
+  'authorization',
+  'credential',
+  'apikey',
+  'api_key',
+  'email',
+  'inviteCode',
+  'invite_code',
+  'body',
+  'payload',
+  'query',
+  'stack',
+];
+
+/**
+ * Values that are a credential whatever they are called.
+ *
+ * Two shapes, both of which have shown up in a log line in some project: this application's own
+ * password hash format, and its session cookie. Neither has any business in a log, and a
+ * message that quotes one is a message that was assembled from the wrong thing.
+ */
+const FORBIDDEN_VALUES = [/scrypt\$/i, /tc_session=/i, /\bbearer\s+\S+/i];
+
+const isForbiddenKey = (key: string): boolean => {
+  const lowered = key.toLowerCase();
+  return FORBIDDEN_KEYS.some((forbidden) => lowered.includes(forbidden.toLowerCase()));
+};
+
+/** What is written in place of something that may not be. Visible, so it is noticed. */
+const REDACTED = '[redacted]';
+
+/**
+ * Strips what may not be logged, one level deep and then some.
+ *
+ * Deliberately not a deep clone of arbitrary structures: a log record is a flat object by
+ * design, and a nested one is already a sign that something is being logged that should not
+ * be. A nested value is redacted wholesale rather than walked.
+ */
+export function redact(record: Record<string, unknown>): Record<string, unknown> {
+  const safe: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(record)) {
+    if (isForbiddenKey(key)) {
+      safe[key] = REDACTED;
+      continue;
+    }
+    if (typeof value === 'string') {
+      safe[key] = FORBIDDEN_VALUES.some((pattern) => pattern.test(value)) ? REDACTED : value;
+      continue;
+    }
+    if (value === null || typeof value !== 'object') {
+      safe[key] = value;
+      continue;
+    }
+    // An object where a scalar belongs. Its *shape* is worth knowing; its contents are not.
+    safe[key] = REDACTED;
+  }
+
+  return safe;
+}
+
 export function createLogger(
   write: (line: string) => void = (line) => process.stdout.write(line),
 ): Logger {
   const emit = (record: Record<string, unknown>): void => {
-    write(`${JSON.stringify(record)}\n`);
+    // The guard runs on the way out, on every line, from every caller. A policy that lives
+    // only in a comment is a policy that is one hurried commit from being untrue.
+    write(`${JSON.stringify(redact(record))}\n`);
   };
 
   return {

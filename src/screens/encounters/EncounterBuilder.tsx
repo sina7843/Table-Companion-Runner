@@ -36,6 +36,8 @@ import {
 } from '../../design-system';
 import { DMPage } from '../../app/DMShell';
 import { useContextPanel } from '../../app/panelContext';
+import { useAutosave } from '../../app/useAutosave';
+import { SaveStatus } from '../../app/SaveStatus';
 import { MonsterSheet, monsterEyebrow } from '../monsters/MonsterSheet';
 import { relativeTime } from '../campaign/shared';
 import {
@@ -43,6 +45,7 @@ import {
   requireRuleset,
   useAsync,
   useRepositories,
+  useTelemetry,
   type Character,
   type CharacterId,
   type EncounterTemplate,
@@ -111,7 +114,6 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
   const [draft, setDraft] = useState<EncounterTemplate | null>(null);
   const [source, setSource] = useState<Source>('monsters');
   const [search, setSearch] = useState('');
-  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [failure, setFailure] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -174,39 +176,15 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
   // Autosave, debounced. The design states saving is automatic — an encounter is a
   // document being edited, not a form waiting to be submitted.
   //
-  // `pending` is what makes it reliable rather than merely automatic: a debounce that only
-  // ever fires on a timer loses the last edit whenever the DM types and immediately
-  // clicks Start, so every exit path flushes it first.
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pending = useRef<EncounterTemplate | null>(null);
-
-  const write = useCallback(
-    (next: EncounterTemplate) => {
-      pending.current = null;
-      setSaving('saving');
-      return encounters.save(next).then(
-        () => {
-          // A newer edit landed while this one was in flight; that one owns the state.
-          if (!pending.current) setSaving('saved');
-          setFailure(null);
-        },
-        (error: unknown) => {
-          // Keep it pending so Retry, and the next edit, both send it again.
-          pending.current = next;
-          setSaving('failed');
-          setFailure(error instanceof Error ? error.message : 'That change was not saved.');
-        },
-      );
-    },
-    [encounters],
-  );
-
-  const flush = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    const next = pending.current;
-    return next ? write(next) : Promise.resolve();
-  }, [write]);
+  // This screen's version of the hook is where it came from: a failed edit stays pending so
+  // Retry and the next edit both send it, and every exit path flushes what is queued. The
+  // other two editors now share it rather than each having their own answer.
+  const telemetry = useTelemetry();
+  const save = useAutosave<EncounterTemplate>((next) => encounters.save(next), {
+    onFailure: () => telemetry({ name: 'save_failed', kind: 'encounter' }),
+    onRecovery: () => telemetry({ name: 'save_recovered', kind: 'encounter' }),
+  });
+  const flush = save.flush;
 
   const edit = useCallback(
     (change: (current: EncounterTemplate) => EncounterTemplate) => {
@@ -215,38 +193,11 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
 
       const next = change(current);
       draftRef.current = next;
-      pending.current = next;
       setDraft(next);
-      setSaving('saving');
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        timer.current = null;
-        void write(next);
-      }, 500);
+      save.save(next);
     },
-    [write],
+    [save],
   );
-
-  // Leaving the builder writes whatever is still queued. Without this, the last thing a
-  // DM typed is the one thing that does not survive.
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-      if (pending.current) void encounters.save(pending.current);
-    },
-    [encounters],
-  );
-
-  // Closing the tab is the one exit React never sees.
-  useEffect(() => {
-    const onLeave = (event: BeforeUnloadEvent) => {
-      if (!pending.current) return;
-      void encounters.save(pending.current);
-      event.preventDefault();
-    };
-    window.addEventListener('beforeunload', onLeave);
-    return () => window.removeEventListener('beforeunload', onLeave);
-  }, [encounters]);
 
   // "/" focuses search, as the design's SearchInput shortcut specifies — but never while
   // the DM is already typing into the name, the notes or the quantity fields.
@@ -405,15 +356,6 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
       ),
     });
 
-  // Save feedback is one quiet line that changes word, never a toast and never a spinner
-  // over the page. It only becomes loud when a write actually failed.
-  const SAVED_LABEL = {
-    idle: 'Draft · autosaved',
-    saving: 'Saving…',
-    saved: 'Saved',
-    failed: 'Not saved',
-  } as const;
-
   const railStyle = {
     flex: '1 1 300px',
     maxWidth: 360,
@@ -441,18 +383,7 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
           {difficulty && roster.length > 0 && (
             <Badge tone={difficulty.tone}>{difficulty.label}</Badge>
           )}
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--font-size-11)',
-              color:
-                saving === 'failed' ? 'var(--color-danger-text)' : 'var(--color-text-tertiary)',
-            }}
-            role="status"
-            aria-live="polite"
-          >
-            {SAVED_LABEL[saving]}
-          </span>
+          <SaveStatus save={save} label="Draft · autosaved" />
           <Button
             size="sm"
             variant="secondary"
@@ -616,17 +547,24 @@ export function EncounterBuilder({ mode }: { mode: 'create' | 'edit' }) {
             gap: 'var(--space-20)',
           }}
         >
-          {failure && (
+          {save.status === 'failed' && (
             <Alert
               tone="danger"
               title="That change was not saved"
               actions={
-                <Button size="sm" variant="secondary" icon="arrow-clockwise" onClick={flush}>
+                <Button size="sm" variant="secondary" icon="arrow-clockwise" onClick={save.retry}>
                   Try again
                 </Button>
               }
             >
-              {failure} Your edits are still here — nothing has been lost.
+              {save.error} Your edits are still here — nothing has been lost.
+            </Alert>
+          )}
+
+          {/* Starting the fight is a separate act from saving it, and fails separately. */}
+          {failure && (
+            <Alert tone="danger" title="Could not start combat">
+              {failure}
             </Alert>
           )}
 

@@ -506,6 +506,14 @@ const MONSTER_COLUMNS = `id, system_id, name, subtitle, origin, owner_user_id, c
   challenge_label, challenge_rank, source, facets, attributes, health, derived, traits,
   action_groups, system_data`;
 
+/** PostgreSQL's unique-violation SQLSTATE. */
+const UNIQUE_VIOLATION = '23505';
+
+const isUniqueViolation = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  (error as { code?: unknown }).code === UNIQUE_VIOLATION;
+
 async function insertMonster(db: Db, monster: Monster): Promise<Monster> {
   const [row] = await db.query<MonsterRow>(
     `insert into monsters (id, system_id, name, subtitle, origin, owner_user_id, cloned_from,
@@ -737,6 +745,21 @@ export function createPostgresRepositories(db: Db, options: StoreOptions = {}): 
         );
         return rows.map(toUser);
       },
+      // Scoped by the session rather than by anything the caller sent: there is no id in
+      // the path or the body, so there is no other account this statement can reach.
+      updateSelf: async (input: { displayName: string }) => {
+        if (!currentUserId) throw new StoreError(401, 'Not signed in.', 'unauthenticated');
+        const name = input.displayName.trim();
+        if (name === '')
+          throw new StoreError(400, 'A display name is required.', 'validation_failed');
+
+        const [row] = await db.query<UserRow>(
+          'update users set display_name = $2 where id = $1 returning id, display_name',
+          [currentUserId, name],
+        );
+        if (!row) throw new StoreError(401, 'Not signed in.', 'unauthenticated');
+        return toUser(row);
+      },
     },
 
     // Supported systems are a property of the deployed build, not of a user's data: the
@@ -955,7 +978,26 @@ export function createPostgresRepositories(db: Db, options: StoreOptions = {}): 
         return row ? toMonster(row) : null;
       },
 
-      create: (monster: Monster) => insertMonster(db, monster),
+      /**
+       * A creature the caller has not saved before.
+       *
+       * The id arrives in the body — a new creature is minted client-side so autosave has
+       * something to write against before the first round trip. That makes a collision a
+       * caller's mistake rather than a server fault, and TC-P08 found it answering with a
+       * 500 and a PostgreSQL constraint name in the log. It is a `conflict`: the contract has
+       * a code for "understood, and it clashes with what is already here", and an unhandled
+       * database error is never an acceptable answer to a well-formed request.
+       */
+      create: async (monster: Monster) => {
+        try {
+          return await insertMonster(db, monster);
+        } catch (error) {
+          if (isUniqueViolation(error)) {
+            throw new StoreError(409, 'A creature with that id already exists.', 'conflict');
+          }
+          throw error;
+        }
+      },
 
       save: (monster: Monster) =>
         db.tx(async (tx) => {

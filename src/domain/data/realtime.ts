@@ -8,9 +8,9 @@
  * Two implementations ship. `createLocalChannel` is a real channel with no infrastructure —
  * it uses the platform's own `BroadcastChannel`, so a DM tab and a player tab on the same
  * machine genuinely stay in step, which is what makes the seam testable today rather than
- * theoretically correct. `createSocketChannel` is the production one and is only ever
- * constructed when a URL has been configured; there is no default endpoint and no provider
- * to sign up to.
+ * theoretically correct, and TC-P05 kept it as the explicit development adapter.
+ * `createEventStreamChannel` is the production one and is only ever constructed when a URL has
+ * been configured; there is no default endpoint and no provider to sign up to.
  *
  * The core publishes and subscribes. It never learns which implementation it has.
  */
@@ -44,7 +44,16 @@ export type DomainEvent =
   | { kind: 'encounter.changed'; encounterId: EncounterTemplateId; at: Timestamp; origin: string }
   | { kind: 'character.changed'; characterId: CharacterId; at: Timestamp; origin: string }
   | { kind: 'monster.changed'; monsterId: MonsterId; at: Timestamp; origin: string }
-  | { kind: 'campaign.changed'; campaignId: CampaignId; at: Timestamp; origin: string };
+  | { kind: 'campaign.changed'; campaignId: CampaignId; at: Timestamp; origin: string }
+  /**
+   * Whatever you are holding, throw it away and read again.
+   *
+   * Sent when the stream cannot honestly say what was missed — a reconnect outside the
+   * replay window, or a server that has restarted. It is deliberately not a list of events
+   * to catch up on: reconstructing state from a partial history is how a client ends up
+   * confidently wrong, and the database is one read away.
+   */
+  | { kind: 'sync.required'; reason: string; at: Timestamp; origin: string };
 
 export type DomainEventKind = DomainEvent['kind'];
 
@@ -64,6 +73,15 @@ export type Unsubscribe = () => void;
 
 export interface RealtimeChannel {
   readonly status: ConnectionState;
+  /**
+   * Who decides what is announced.
+   *
+   * `server` means a deployment is broadcasting after it commits, and a client publishing
+   * would be a client inventing events — so `withRealtime` stays quiet. `local` is the
+   * development adapter, where the tabs on one machine are the only participants and one of
+   * them has to speak.
+   */
+  readonly authority: 'server' | 'local';
   /** Fires on every state change. Returns its own unsubscribe. */
   onStatus(handler: (state: ConnectionState) => void): Unsubscribe;
   /** Fires for events from *other* origins; a device does not hear its own echo. */
@@ -133,6 +151,7 @@ export function createLocalChannel(name = 'table-companion'): RealtimeChannel {
   }
 
   return {
+    authority: 'local',
     get status() {
       return state.status;
     },
@@ -164,68 +183,79 @@ export function createLocalChannel(name = 'table-companion'): RealtimeChannel {
   };
 }
 
-/** How long to wait before trying again, growing to a ceiling rather than hammering. */
-const RETRY_MS = [1000, 2000, 5000, 10_000, 20_000];
-
 /**
- * The production channel: a WebSocket at a URL the deployment supplies.
+ * The production channel: a server-sent event stream at a URL the deployment supplies.
  *
- * Constructed only when `VITE_REALTIME_URL` is set. There is no default endpoint and no
- * third-party client library — a socket is a platform API, and picking a provider is a
- * decision that belongs to whoever deploys this, not to this file.
+ * Constructed only when `VITE_REALTIME_URL` is set. It replaced a speculative WebSocket client
+ * at TC-P05, and the reason is the shape of an event in this product: a notification, never a
+ * payload. Nothing here has anything to say back, so a bidirectional socket would have bought a
+ * channel nobody uses at the cost of a dependency on the server side, a handshake and a framing
+ * layer. `EventSource` is a platform API that already does reconnect, already replays with
+ * `Last-Event-ID`, and already sends the session cookie.
+ *
+ * Three behaviours worth naming:
+ *
+ * - **Reconnect is the browser's.** It retries on its own with the interval the server states
+ *   in a `retry:` field, so there is no backoff schedule here to drift from the server's.
+ * - **A gap is answered by re-reading.** When the server cannot say what was missed it sends
+ *   `sync.required`, which every subscriber receives regardless of the kinds it asked for.
+ * - **Nothing is published.** The server announces after it commits; a client that published
+ *   would be a client inventing events. `authority` says so and `withRealtime` reads it.
  */
-export function createSocketChannel(url: string): RealtimeChannel {
-  const origin = newOrigin();
+export function createEventStreamChannel(url: string): RealtimeChannel {
   const state = makeState();
   state.status = 'reconnecting';
 
-  let socket: WebSocket | null = null;
-  let attempt = 0;
-  let timer: ReturnType<typeof setTimeout> | null = null;
+  let stream: EventSource | null = null;
   let closed = false;
-  /** Events published while the socket was down, sent in order once it returns. */
-  const queued: DomainEvent[] = [];
 
-  const connect = () => {
-    if (closed) return;
-    socket = new WebSocket(url);
+  const deliver = (event: DomainEvent) => {
+    for (const handler of state.eventHandlers) handler(event);
+  };
 
-    socket.addEventListener('open', () => {
-      attempt = 0;
-      setStatus(state, 'live');
-      // Nothing is dropped by a reconnect: the queue is what the DM did while it was down.
-      while (queued.length > 0) {
-        const next = queued.shift();
-        if (next) socket?.send(JSON.stringify(next));
-      }
-    });
+  if (typeof EventSource === 'undefined') {
+    // No stream here — a test runner, or a build without one. The application still works;
+    // it simply learns about other devices when it next reads.
+    state.status = 'offline';
+  } else {
+    // `withCredentials` so the session cookie travels. The deployment is same-origin, which
+    // is what makes that both possible and safe.
+    stream = new EventSource(url, { withCredentials: true });
 
-    socket.addEventListener('message', (message: MessageEvent<string>) => {
+    stream.addEventListener('open', () => setStatus(state, 'live'));
+
+    stream.addEventListener('message', (message: MessageEvent<string>) => {
       try {
-        const event = JSON.parse(message.data) as DomainEvent;
-        if (event.origin === origin) return;
-        for (const handler of state.eventHandlers) handler(event);
+        deliver(JSON.parse(message.data) as DomainEvent);
       } catch {
-        // A malformed frame is not worth tearing the fight down for; the next read of the
+        // A malformed frame is not worth tearing a fight down for; the next read of the
         // repository is authoritative anyway.
       }
     });
 
-    const retry = () => {
+    // Named events the server sends beside the ordinary stream.
+    stream.addEventListener('resync', (message) => {
+      const reason = (message as MessageEvent<string>).data || 'the stream fell behind';
+      deliver({
+        kind: 'sync.required',
+        reason,
+        at: new Date().toISOString(),
+        origin: 'server',
+      });
+    });
+
+    stream.addEventListener('error', () => {
       if (closed) return;
-      setStatus(state, navigator.onLine ? 'reconnecting' : 'offline');
-      const wait = RETRY_MS[Math.min(attempt, RETRY_MS.length - 1)] ?? 20_000;
-      attempt += 1;
-      timer = setTimeout(connect, wait);
-    };
-
-    socket.addEventListener('close', retry);
-    socket.addEventListener('error', () => socket?.close());
-  };
-
-  connect();
+      // `EventSource` reconnects on its own; the status is what the shell shows while it does.
+      setStatus(
+        state,
+        typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'reconnecting',
+      );
+    });
+  }
 
   return {
+    authority: 'server',
     get status() {
       return state.status;
     },
@@ -237,15 +267,14 @@ export function createSocketChannel(url: string): RealtimeChannel {
       state.eventHandlers.add(handler);
       return () => state.eventHandlers.delete(handler);
     },
-    publish(event) {
-      const full = { ...event, origin, at: event.at ?? new Date().toISOString() } as DomainEvent;
-      if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(full));
-      else queued.push(full);
+    publish() {
+      // Deliberately nothing. The server announces what it committed; a client cannot know
+      // that a write landed until it is told, and inventing the announcement is how two
+      // devices start disagreeing about what happened.
     },
     close() {
       closed = true;
-      if (timer) clearTimeout(timer);
-      socket?.close();
+      stream?.close();
       state.statusHandlers.clear();
       state.eventHandlers.clear();
     },
@@ -255,6 +284,7 @@ export function createSocketChannel(url: string): RealtimeChannel {
 /** A channel that does nothing, for tests and for a surface with no fight in it. */
 export function createNullChannel(): RealtimeChannel {
   return {
+    authority: 'local',
     status: 'live',
     onStatus: () => () => {},
     subscribe: () => () => {},

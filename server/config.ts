@@ -9,10 +9,31 @@
  * it boots instead of when a user clicks something.
  */
 
+/**
+ * Which of the four environments this process is.
+ *
+ * Separate from `NODE_ENV`, which the toolchain owns and which only really has two values.
+ * These four differ in what they are *allowed* to do rather than in how fast they run:
+ * `production` refuses a weak secret and requires HTTPS-shaped cookies, `staging` behaves like
+ * production but is expected to be reset, `test` is what the end-to-end suite and CI run, and
+ * `development` is a laptop.
+ *
+ * Defaulting to `development` is the safe direction: nothing gains a permission by being
+ * unlabelled, and a deployment that forgets to set this gets the strictest cookie policy it
+ * can have over http rather than the loosest.
+ */
+export type Environment = 'development' | 'test' | 'staging' | 'production';
+
+const ENVIRONMENTS = new Set<Environment>(['development', 'test', 'staging', 'production']);
+
 export interface ServerConfig {
   /** PostgreSQL connection string. Supplied by the deployment; never committed. */
   databaseUrl: string;
+  /** Which of the four environments this is. */
+  environment: Environment;
   port: number;
+  /** The interface to bind. `0.0.0.0` in a container, loopback by default. */
+  host: string;
   /**
    * Origins accepted on an unsafe request that arrives without `Sec-Fetch-Site`.
    *
@@ -43,6 +64,48 @@ export interface ServerConfig {
    * limit counts against — so a deployment says explicitly whether there is such a proxy.
    */
   trustProxy: boolean;
+  /**
+   * Whether the session cookie is marked `Secure`.
+   *
+   * Follows the environment: staging and production are served over HTTPS, so their cookies
+   * say so. It is a separate field from `isProduction` because they answer different
+   * questions — TC-P10 found `DEPLOYMENT.md` promising a staging deployment production-shaped
+   * cookies while `main.ts` was still keying the flag off production alone, so staging had
+   * been quietly laxer than the document said.
+   *
+   * `TC_COOKIE_SECURE=false` is the one documented exception: a deployment genuinely not
+   * served over TLS — a loopback validation, a private network behind something else. It is
+   * logged loudly at startup, because a `Secure` cookie is the only thing stopping a session
+   * from travelling over plain http.
+   */
+  secureCookies: boolean;
+  /**
+   * Multiplies every rate limit, for a deployment where one address is many people.
+   *
+   * 1 by default, which is the shipped protection. Raised where a NAT, a proxy or an
+   * automated suite makes many callers look like one — see `rateLimit.ts`. Never below 1:
+   * this exists to make the limits fit a topology, not to be turned off.
+   */
+  rateLimitScale: number;
+  /**
+   * Whether the process applies pending migrations as it boots.
+   *
+   * True on a laptop, where "start the server and have a working database" is the point.
+   * A deployment usually wants the opposite: migrations are a separate, observable step that
+   * runs once rather than a race between however many instances started at the same time.
+   * See `DEPLOYMENT.md`.
+   */
+  migrateOnBoot: boolean;
+  /**
+   * Directory of built static files to serve, if this process is also the web server.
+   *
+   * The topology is same-origin, so one process serving both is the simplest thing that
+   * satisfies it — no proxy to configure, no CORS to get wrong, one container to deploy. Unset,
+   * the server is an API only and something in front of it serves the bundle.
+   */
+  staticDir: string | null;
+  /** How long a shutdown waits for in-flight work before it stops waiting. */
+  shutdownGraceMs: number;
   isProduction: boolean;
 }
 
@@ -52,6 +115,10 @@ export class ConfigError extends Error {
     this.name = 'ConfigError';
   }
 }
+
+/** Environments whose cookies are `Secure`, because they are served over HTTPS. */
+const secureByDefault = (environment: Environment): boolean =>
+  environment === 'production' || environment === 'staging';
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const databaseUrl = env.DATABASE_URL?.trim();
@@ -67,7 +134,17 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     throw new ConfigError(`PORT must be a port number, not "${rawPort}".`);
   }
 
-  const isProduction = env.NODE_ENV === 'production';
+  const rawEnvironment = (env.TC_ENV ?? '').trim().toLowerCase();
+  if (rawEnvironment && !ENVIRONMENTS.has(rawEnvironment as Environment)) {
+    throw new ConfigError(
+      `TC_ENV must be one of development, test, staging, production — not "${rawEnvironment}".`,
+    );
+  }
+  // `NODE_ENV=production` still means production, so an existing deployment keeps working.
+  const environment: Environment =
+    (rawEnvironment as Environment) ||
+    (env.NODE_ENV === 'production' ? 'production' : 'development');
+  const isProduction = environment === 'production';
 
   const allowedOrigins = (env.TC_ALLOWED_ORIGINS ?? '')
     .split(',')
@@ -90,7 +167,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   if (crossOrigin && allowedOrigins.length === 0) {
     throw new ConfigError('TC_CROSS_ORIGIN needs TC_ALLOWED_ORIGINS to say which origins.');
   }
-  if (crossOrigin && !isProduction) {
+  if (crossOrigin && !secureByDefault(environment)) {
     throw new ConfigError(
       'TC_CROSS_ORIGIN forces SameSite=None, which browsers only accept on a Secure cookie. ' +
         'In development use the Vite dev-server proxy (VITE_API_BASE_URL=/api) instead.',
@@ -99,13 +176,58 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
 
   const trustProxy = (env.TC_TRUST_PROXY ?? '').trim().toLowerCase() === 'true';
 
+  const rawScale = env.TC_RATE_LIMIT_SCALE?.trim();
+  const rateLimitScale = rawScale ? Number(rawScale) : 1;
+  if (!Number.isInteger(rateLimitScale) || rateLimitScale < 1 || rateLimitScale > 1000) {
+    throw new ConfigError(
+      `TC_RATE_LIMIT_SCALE must be a whole number between 1 and 1000, not "${rawScale}".`,
+    );
+  }
+
+  // Staging is production with different data, so it gets production's cookie policy: a
+  // staging deployment that only works because its cookies are laxer has proved nothing.
+  const rawSecure = (env.TC_COOKIE_SECURE ?? '').trim().toLowerCase();
+  if (rawSecure && rawSecure !== 'true' && rawSecure !== 'false') {
+    throw new ConfigError(`TC_COOKIE_SECURE must be true or false, not "${rawSecure}".`);
+  }
+  const secureCookies = rawSecure ? rawSecure === 'true' : secureByDefault(environment);
+
+  const host = env.HOST?.trim() || (secureCookies ? '0.0.0.0' : '127.0.0.1');
+
+  // On for a laptop, off for a deployment — the default follows the environment rather than
+  // being the same everywhere. TC-P10 found it defaulting to *on* under TC_ENV=production,
+  // which is only safe because the image sets it explicitly; a deployment built any other way
+  // would have had every instance racing for the schema as it booted.
+  const rawMigrate = (env.TC_MIGRATE_ON_BOOT ?? '').trim().toLowerCase();
+  if (rawMigrate && rawMigrate !== 'true' && rawMigrate !== 'false') {
+    throw new ConfigError(`TC_MIGRATE_ON_BOOT must be true or false, not "${rawMigrate}".`);
+  }
+  const migrateOnBoot = rawMigrate ? rawMigrate === 'true' : !secureByDefault(environment);
+
+  const staticDir = env.TC_STATIC_DIR?.trim() || null;
+
+  const rawGrace = env.TC_SHUTDOWN_GRACE_MS?.trim();
+  const shutdownGraceMs = rawGrace ? Number(rawGrace) : 15_000;
+  if (!Number.isInteger(shutdownGraceMs) || shutdownGraceMs < 0 || shutdownGraceMs > 300_000) {
+    throw new ConfigError(
+      `TC_SHUTDOWN_GRACE_MS must be a whole number of milliseconds up to 300000, not "${rawGrace}".`,
+    );
+  }
+
   return {
     databaseUrl,
+    environment,
     port,
+    host,
     allowedOrigins,
     crossOrigin,
     cookieSameSite: crossOrigin ? 'None' : 'Strict',
     trustProxy,
+    secureCookies,
+    rateLimitScale,
+    migrateOnBoot,
+    staticDir,
+    shutdownGraceMs,
     isProduction,
   };
 }

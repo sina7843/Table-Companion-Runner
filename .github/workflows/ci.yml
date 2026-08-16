@@ -1,0 +1,260 @@
+# Every commit and every pull request, validated the same way.
+#
+# One workflow, four jobs, and the split is by what each needs rather than by taste: `check`
+# needs nothing but Node, `test` needs PostgreSQL, `e2e` needs a browser as well, and `image`
+# needs Docker. Running them in parallel means a lint error is reported in under a minute
+# instead of behind a five-minute browser suite.
+#
+# Nothing here names a cloud, and no credential is required. The database is a service
+# container with throwaway credentials that exist for the length of the job.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same branch cancels the run it superseded. The last commit is the one
+# whose answer matters.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Every job installs from the lockfile and nothing else, so a run cannot pick up a version
+  # nobody chose. `npm ci` fails outright when the lockfile and package.json disagree.
+  NODE_VERSION: '24'
+
+jobs:
+  # ── The fast answers ──────────────────────────────────────────────────────────
+  check:
+    name: Lint, types, format, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Nothing secret is committed
+        run: node scripts/check-secrets.mjs
+
+      # `npm run check:package` is deliberately NOT here.
+      #
+      # `tools/validate-package.mjs` validates the *delivery package* — the prompt files, the
+      # Windows wrappers, and a PROJECT_STATUS.md whose boxes are all unticked. It answers "is
+      # this starter kit intact", and every completed prompt makes it fail by design. Running
+      # it on this repository would mean a red build on every commit for a reason that is not
+      # a defect, which is how a CI signal stops meaning anything. It is run before shipping
+      # the package, by hand, against a pristine copy.
+
+  # ── The suite that needs a database ───────────────────────────────────────────
+  test:
+    name: Unit and integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: tablecompanion
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: table_companion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tablecompanion -d table_companion"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://tablecompanion:ci-only-not-a-secret@127.0.0.1:5432/table_companion
+      TC_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # Migrations before the tests, and then again: applying them twice must be a no-op, which
+      # is the property the whole additive-migration policy rests on.
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Migrations are idempotent
+        run: |
+          npm run db:migrate
+          npm run db:migrate -- --check
+
+      - name: Tests
+        run: npm test
+
+      # The same suite with no database, which is the shape a contributor runs on a laptop
+      # before they have started one. It must skip rather than fail.
+      - name: Tests without a database
+        env:
+          DATABASE_URL: ''
+        run: npm test
+
+  # ── Two browsers against the real stack ───────────────────────────────────────
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: tablecompanion
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: table_companion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tablecompanion -d table_companion"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://tablecompanion:ci-only-not-a-secret@127.0.0.1:5432/table_companion
+      TC_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # The browser build is cached by its version, so a run that changes no dependency does
+      # not download Chromium again.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The suite builds its own world — its own database, its own API process, the built
+      # bundle — so there is nothing to start here. `retries: 0`; see e2e/README.md.
+      - name: End-to-end
+        run: npm run e2e
+
+      - name: Keep the traces of anything that failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  # ── The thing that actually ships ─────────────────────────────────────────────
+  image:
+    name: Container image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Built, then run against a real database, then asked whether it is alive and ready.
+      # An image that builds and cannot start is an image that fails at 3am instead of here.
+      - name: Build the image
+        run: docker build -t table-companion:ci .
+
+      - name: Start a database
+        run: |
+          docker network create tc-ci
+          docker run -d --name tc-db --network tc-ci \
+            -e POSTGRES_USER=tablecompanion \
+            -e POSTGRES_PASSWORD=ci-only-not-a-secret \
+            -e POSTGRES_DB=table_companion \
+            postgres:17-alpine
+          for i in $(seq 1 30); do
+            docker exec tc-db pg_isready -U tablecompanion -d table_companion && break
+            sleep 2
+          done
+
+      - name: Migrate, as a deployment would
+        run: |
+          docker run --rm --network tc-ci \
+            -e DATABASE_URL=postgres://tablecompanion:ci-only-not-a-secret@tc-db:5432/table_companion \
+            -e TC_ENV=staging \
+            table-companion:ci node server/migrate.ts
+
+      - name: Start it and ask how it is
+        run: |
+          docker run -d --name tc-app --network tc-ci -p 8787:8787 \
+            -e DATABASE_URL=postgres://tablecompanion:ci-only-not-a-secret@tc-db:5432/table_companion \
+            -e TC_ENV=staging \
+            table-companion:ci
+
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8787/health && break
+            sleep 2
+          done
+
+          echo "— health —"
+          curl -fsS http://127.0.0.1:8787/health
+          echo "— ready —"
+          curl -fsS http://127.0.0.1:8787/ready
+          echo "— metrics —"
+          curl -fsS http://127.0.0.1:8787/metrics | head -5
+          echo "— the bundle is served from the same origin —"
+          curl -fsS http://127.0.0.1:8787/ | grep -q '<div id="root"' && echo 'index.html ok'
+          echo "— and the API is under /api —"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/me)" = "401"
+
+      - name: A SIGTERM drains rather than kills
+        run: |
+          docker stop --timeout 30 tc-app
+          docker logs tc-app 2>&1 | tail -20
+          docker logs tc-app 2>&1 | grep -q 'server.draining' || (echo 'no drain in the log' && exit 1)
+          test "$(docker inspect -f '{{.State.ExitCode}}' tc-app)" = "0"
+
+      - name: Nothing private reached the logs
+        run: |
+          LOGS=$(docker logs tc-app 2>&1)
+          for forbidden in 'ci-only-not-a-secret' 'scrypt$' 'tc_session='; do
+            echo "$LOGS" | grep -q -- "$forbidden" && (echo "the log contains $forbidden" && exit 1)
+          done
+          echo 'the log is clean'
+
+      - name: Tidy up
+        if: always()
+        run: docker rm -f tc-app tc-db 2>/dev/null; docker network rm tc-ci 2>/dev/null; true

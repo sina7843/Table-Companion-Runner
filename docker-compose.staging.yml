@@ -1,0 +1,101 @@
+# A whole Table Companion, for staging or for trying the production shape locally.
+#
+# `docker-compose.yml` is the development database and nothing else. This is the deployment:
+# the application image, a database, and the migration step between them.
+#
+# **No credential is in this file.** Every secret comes from the environment, and the compose
+# file fails to start rather than defaulting to something — a compose file with a working
+# password in it is a compose file somebody deploys.
+#
+#   cp .env.example .env.staging        # then fill it in; it is gitignored
+#   docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --build
+#
+# Startup order is enforced here rather than documented: the database becomes healthy, the
+# migration container runs to completion, the rules catalogue is imported, and only then does
+# the application start. See DEPLOYMENT.md for what to do when a migration fails.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    volumes:
+      - table-companion-staging:/var/lib/postgresql/data
+    # Not published. The application reaches it over the compose network; nothing else needs to,
+    # and a database on a published port is a database somebody finds.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Migrations as their own container, run to completion, exactly once per deploy. Not on boot:
+  # two application instances starting together would race for the same lock, and a schema
+  # change is a step an operator watches rather than a side effect they hope happened.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['node', 'server/migrate.ts']
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      TC_ENV: ${TC_ENV:-staging}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  # The rules catalogue, imported once per deploy. A fresh database has migrations and nothing
+  # in the creature library until this runs — which TC-P09 discovered by pointing the
+  # end-to-end suite at a clean staging container and watching the encounter builder find no
+  # monsters. Reproducible and idempotent: the same bundles produce the same rows.
+  content:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['node', 'server/content/import.ts']
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      TC_ENV: ${TC_ENV:-staging}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: 'no'
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_REALTIME_URL: /api/events
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      TC_ENV: ${TC_ENV:-staging}
+      PORT: 8787
+      HOST: 0.0.0.0
+      TC_STATIC_DIR: /app/dist
+      TC_MIGRATE_ON_BOOT: 'false'
+      # Behind a load balancer or a reverse proxy that rewrites it. Off unless there is one:
+      # X-Forwarded-For is attacker-controlled otherwise, and it decides who a rate limit counts.
+      TC_TRUST_PROXY: ${TC_TRUST_PROXY:-false}
+      TC_RATE_LIMIT_SCALE: ${TC_RATE_LIMIT_SCALE:-1}
+      TC_SHUTDOWN_GRACE_MS: ${TC_SHUTDOWN_GRACE_MS:-15000}
+    ports:
+      - '${APP_BIND:-127.0.0.1}:${APP_PORT:-8787}:8787'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      content:
+        condition: service_completed_successfully
+    # Long enough for the drain in `main.ts` to finish; the default 10s would cut it off.
+    stop_grace_period: 30s
+
+volumes:
+  table-companion-staging:

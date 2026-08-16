@@ -1,18 +1,22 @@
 /**
  * Whether the app is actually talking to anything.
  *
- * Two honest signals, no invented ones: the browser's own online/offline events, and
- * whether the last write succeeded. There is no transport yet — TC-13 brings one — so this
- * deliberately does not pretend to know about latency, sockets or server health. What it
- * does know is enough for the three states the design specifies, and each of them carries
- * a word as well as a colour.
+ * Three honest signals, no invented ones: the browser's own online/offline events, whether the
+ * last write succeeded, and — since TC-P05 — what the event stream says about itself. None of
+ * them pretends to know about latency or server health. What they know is enough for the three
+ * states the design specifies, and each of them carries a word as well as a colour.
  *
- * `restored` is the moment it comes back. A DM who looked away needs to be told their
- * fight is current again; they do not need it animating at them, so the flag clears itself
- * after a few seconds and nothing loops.
+ * `restored` is the moment the connection comes back. `resyncing` is the narrower thing that
+ * happens when the stream could not say what was missed and the screens are re-reading. Both
+ * clear themselves after a few seconds — a DM who looked away needs to be told their fight is
+ * current again, and does not need it animating at them.
+ *
+ * Neither blocks anything. A screen stays usable while it reconnects: the writes it makes are
+ * commands against a version, so a stale one is refused by the server rather than by a banner
+ * that stopped somebody acting.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useChannelStatus } from '../domain';
+import { useChannelStatus, useRealtime, useTelemetry } from '../domain';
 
 export type ConnectionState = 'live' | 'reconnecting' | 'offline';
 
@@ -20,6 +24,13 @@ export interface Connection {
   state: ConnectionState;
   /** True briefly after a recovery, so a screen can say "back in sync" and then stop. */
   restored: boolean;
+  /**
+   * True briefly after the stream said it had fallen behind.
+   *
+   * Distinct from `restored`: the connection may never have dropped from this device's point
+   * of view, and what is stale is the screen rather than the socket.
+   */
+  resyncing: boolean;
   /** Call after a write lands. */
   reportSuccess: () => void;
   /** Call when a write fails. Failures are what "reconnecting" actually means here. */
@@ -37,6 +48,8 @@ export function useConnection(): Connection {
   const [online, setOnline] = useState(() => navigator.onLine);
   const [failing, setFailing] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
+  const resyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasDown = useRef(false);
@@ -55,9 +68,20 @@ export function useConnection(): Connection {
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
+      if (resyncTimer.current) clearTimeout(resyncTimer.current);
     },
     [],
   );
+
+  // The stream could not say what was missed, so every screen is re-reading. Say so, briefly.
+  // `useRealtime` delivers `sync.required` to every subscriber whatever kinds it asked for.
+  const telemetry = useTelemetry();
+  useRealtime([], () => {
+    setResyncing(true);
+    telemetry({ name: 'realtime_resynced' });
+    if (resyncTimer.current) clearTimeout(resyncTimer.current);
+    resyncTimer.current = setTimeout(() => setResyncing(false), RESTORED_MS);
+  });
 
   const state: ConnectionState =
     !online || channelStatus === 'offline'
@@ -83,5 +107,5 @@ export function useConnection(): Connection {
   const reportSuccess = useCallback(() => setFailing(false), []);
   const reportFailure = useCallback(() => setFailing(true), []);
 
-  return { state, restored, reportSuccess, reportFailure };
+  return { state, restored, resyncing, reportSuccess, reportFailure };
 }

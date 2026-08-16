@@ -62,6 +62,7 @@ import {
   useAsync,
   useRealtime,
   useRepositories,
+  useTelemetry,
   visibleRolls,
   type Character,
   type CombatInstance,
@@ -93,6 +94,7 @@ const ROLL_MODES = [
 export function PlayerCombat() {
   const { campaigns, characters, combats } = useRepositories();
   const connection = useConnection();
+  const telemetry = useTelemetry();
   const userId = useUserId();
 
   const [combat, setCombat] = useState<CombatInstance | null>(null);
@@ -111,10 +113,12 @@ export function PlayerCombat() {
     ]);
     if (!campaign) return null;
 
-    // This route IS the player's device, so the viewer is a player whatever the fixture
-    // session says — the signed-in fixture user happens to be the DM, and reading their
-    // role here would show this screen the unrevealed creatures a player must never see.
-    // TC-13's auth layer replaces the id; the role is a property of the surface.
+    // This route IS the player's device, so the viewer is a player whatever role the account
+    // holds elsewhere — one account is a DM in one campaign and a player in another, and
+    // reading the wrong one here would show this screen the unrevealed creatures a player
+    // must never see. The id is the session's; the role is a property of the surface. The
+    // server filters on its own answer to the same question, so this is the honest label on
+    // a screen rather than the thing keeping a secret.
     const viewer: Viewer = { userId, role: 'player' };
     const mine = roster.find((entry) => entry.ownerUserId === userId) ?? roster[0] ?? null;
 
@@ -152,6 +156,7 @@ export function PlayerCombat() {
       return outcome;
     } catch (error) {
       const stale = error instanceof ApiError && error.code === 'conflict';
+      if (stale) telemetry({ name: 'combat_conflict' });
       setFailure(
         stale
           ? 'The table moved on while you were deciding. Catching up.'
@@ -403,6 +408,11 @@ export function PlayerCombat() {
       {connection.restored && (
         <Banner tone="info" icon="check">
           Back in sync. Nothing you did was lost.
+        </Banner>
+      )}
+      {connection.resyncing && (
+        <Banner tone="info" icon="arrows-clockwise">
+          Catching up with the table.
         </Banner>
       )}
       {failure && (

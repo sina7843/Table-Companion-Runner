@@ -18,6 +18,8 @@ import type {
   ReviewGroup,
 } from '../Ruleset.ts';
 import type { CharacterDraft } from '../../types.ts';
+import * as content from './content.ts';
+import type { BackgroundDefinition, ClassDefinition, SpeciesDefinition } from './builderTypes.ts';
 import {
   ABILITY_KEYS,
   ABILITY_LABELS,
@@ -28,532 +30,26 @@ import {
 
 /* ── Content ────────────────────────────────────────────────────────────────── */
 
-export interface SpeciesDefinition {
-  key: string;
-  label: string;
-  description: string;
-  speed: number;
-  traits: string[];
-}
+/* ── Content ────────────────────────────────────────────────────────────────── */
 
-export const SPECIES: SpeciesDefinition[] = [
-  {
-    key: 'human',
-    label: 'Human',
-    description: 'Versatile and ambitious · Resourceful, Skilful',
-    speed: 30,
-    traits: ['Resourceful', 'Skilful', 'Versatile'],
-  },
-  {
-    key: 'elf',
-    label: 'Elf',
-    description: 'Keen senses and fey ancestry',
-    speed: 30,
-    traits: ['Darkvision', 'Fey Ancestry', 'Keen Senses', 'Trance'],
-  },
-  {
-    key: 'dwarf',
-    label: 'Dwarf',
-    description: 'Hardy, with stonecunning and darkvision',
-    speed: 30,
-    traits: ['Darkvision', 'Dwarven Resilience', 'Stonecunning'],
-  },
-  {
-    key: 'halfling',
-    label: 'Halfling',
-    description: 'Small, lucky and hard to pin down',
-    speed: 30,
-    traits: ['Brave', 'Halfling Nimbleness', 'Luck'],
-  },
-  {
-    key: 'dragonborn',
-    label: 'Dragonborn',
-    description: 'Draconic ancestry and a breath weapon',
-    speed: 30,
-    traits: ['Breath Weapon', 'Damage Resistance', 'Darkvision'],
-  },
-  {
-    key: 'gnome',
-    label: 'Gnome',
-    description: 'Inventive, with resistance to magic',
-    speed: 30,
-    traits: ['Darkvision', 'Gnomish Cunning'],
-  },
-  {
-    key: 'orc',
-    label: 'Orc',
-    description: 'Powerful build and relentless endurance',
-    speed: 30,
-    traits: ['Adrenaline Rush', 'Darkvision', 'Relentless Endurance'],
-  },
-  {
-    key: 'tiefling',
-    label: 'Tiefling',
-    description: 'Fiendish legacy and innate magic',
-    speed: 30,
-    traits: ['Darkvision', 'Fiendish Legacy', 'Otherworldly Presence'],
-  },
-];
+/**
+ * The catalogue, read rather than written.
+ *
+ * These were literals here until TC-P06 — a hand-maintained subset with no source, no licence
+ * and no way to update it but editing TypeScript. They are content records now, imported from
+ * an approved source by the pipeline and read through `content.ts`. The functions below are
+ * called rather than the constants they replaced, because a deployment can point the adapter at
+ * a different catalogue and everything downstream has to see the change.
+ */
+export type { BackgroundDefinition, ClassDefinition, SpeciesDefinition } from './builderTypes.ts';
 
-export interface BackgroundDefinition {
-  key: string;
-  label: string;
-  description: string;
-  /** 2024 rules: a background grants +2/+1 across two abilities. */
-  increases: { ability: string; amount: number }[];
-  skills: string[];
-  feature: string;
-}
-
-export const BACKGROUNDS: BackgroundDefinition[] = [
-  {
-    key: 'soldier',
-    label: 'Soldier',
-    description: 'Trained in a fighting company',
-    increases: [
-      { ability: 'str', amount: 2 },
-      { ability: 'con', amount: 1 },
-    ],
-    skills: ['Athletics', 'Intimidation'],
-    feature: 'Military Rank',
-  },
-  {
-    key: 'acolyte',
-    label: 'Acolyte',
-    description: 'Raised in service to a temple',
-    increases: [
-      { ability: 'wis', amount: 2 },
-      { ability: 'cha', amount: 1 },
-    ],
-    skills: ['Insight', 'Religion'],
-    feature: 'Shelter of the Faithful',
-  },
-  {
-    key: 'criminal',
-    label: 'Criminal',
-    description: 'A past worked in the shadows',
-    increases: [
-      { ability: 'dex', amount: 2 },
-      { ability: 'int', amount: 1 },
-    ],
-    skills: ['Sleight of Hand', 'Stealth'],
-    feature: 'Criminal Contact',
-  },
-  {
-    key: 'sage',
-    label: 'Sage',
-    description: 'Years spent among books',
-    increases: [
-      { ability: 'int', amount: 2 },
-      { ability: 'wis', amount: 1 },
-    ],
-    skills: ['Arcana', 'History'],
-    feature: 'Researcher',
-  },
-  {
-    key: 'charlatan',
-    label: 'Charlatan',
-    description: 'A talent for being believed',
-    increases: [
-      { ability: 'cha', amount: 2 },
-      { ability: 'dex', amount: 1 },
-    ],
-    skills: ['Deception', 'Sleight of Hand'],
-    feature: 'False Identity',
-  },
-  {
-    key: 'hermit',
-    label: 'Hermit',
-    description: 'Long isolation and one discovery',
-    increases: [
-      { ability: 'wis', amount: 2 },
-      { ability: 'con', amount: 1 },
-    ],
-    skills: ['Medicine', 'Survival'],
-    feature: 'Discovery',
-  },
-];
-
-export interface ClassDefinition {
-  key: string;
-  label: string;
-  description: string;
-  hitDie: number;
-  savingThrows: string[];
-  /** Skills this class may choose from. */
-  skillChoices: string[];
-  skillCount: number;
-  armour: string;
-  weapons: string;
-  /** Starting armour key, used to calculate armour class. */
-  startingArmour: string;
-  startingShield: boolean;
-  levelOneFeatures: string[];
-  subclassLevel: number;
-}
-
-export const CLASSES: ClassDefinition[] = [
-  {
-    key: 'fighter',
-    label: 'Fighter',
-    description: 'd10 · martial · no spells',
-    hitDie: 10,
-    savingThrows: ['Strength', 'Constitution'],
-    skillChoices: [
-      'Acrobatics',
-      'Animal Handling',
-      'Athletics',
-      'History',
-      'Insight',
-      'Intimidation',
-      'Perception',
-      'Survival',
-    ],
-    skillCount: 2,
-    armour: 'All armour, shields',
-    weapons: 'Simple and martial weapons',
-    startingArmour: 'chain-mail',
-    startingShield: true,
-    levelOneFeatures: ['Fighting Style', 'Second Wind'],
-    subclassLevel: 3,
-  },
-  {
-    key: 'barbarian',
-    label: 'Barbarian',
-    description: 'd12 · martial · no spells',
-    hitDie: 12,
-    savingThrows: ['Strength', 'Constitution'],
-    skillChoices: [
-      'Animal Handling',
-      'Athletics',
-      'Intimidation',
-      'Nature',
-      'Perception',
-      'Survival',
-    ],
-    skillCount: 2,
-    armour: 'Light and medium armour, shields',
-    weapons: 'Simple and martial weapons',
-    startingArmour: 'scale-mail',
-    startingShield: true,
-    levelOneFeatures: ['Rage', 'Unarmoured Defence'],
-    subclassLevel: 3,
-  },
-  {
-    key: 'rogue',
-    label: 'Rogue',
-    description: 'd8 · expertise · no spells',
-    hitDie: 8,
-    savingThrows: ['Dexterity', 'Intelligence'],
-    skillChoices: [
-      'Acrobatics',
-      'Athletics',
-      'Deception',
-      'Insight',
-      'Intimidation',
-      'Investigation',
-      'Perception',
-      'Persuasion',
-      'Sleight of Hand',
-      'Stealth',
-    ],
-    skillCount: 4,
-    armour: 'Light armour',
-    weapons: 'Simple weapons, hand crossbows, longswords, rapiers, shortswords',
-    startingArmour: 'studded-leather',
-    startingShield: false,
-    levelOneFeatures: ['Expertise', 'Sneak Attack', "Thieves' Cant"],
-    subclassLevel: 3,
-  },
-  {
-    key: 'cleric',
-    label: 'Cleric',
-    description: 'd8 · full caster',
-    hitDie: 8,
-    savingThrows: ['Wisdom', 'Charisma'],
-    skillChoices: ['History', 'Insight', 'Medicine', 'Persuasion', 'Religion'],
-    skillCount: 2,
-    armour: 'Light and medium armour, shields',
-    weapons: 'Simple weapons',
-    startingArmour: 'chain-mail',
-    startingShield: true,
-    levelOneFeatures: ['Divine Order', 'Spellcasting'],
-    subclassLevel: 3,
-  },
-  {
-    key: 'wizard',
-    label: 'Wizard',
-    description: 'd6 · full caster',
-    hitDie: 6,
-    savingThrows: ['Intelligence', 'Wisdom'],
-    skillChoices: [
-      'Arcana',
-      'History',
-      'Insight',
-      'Investigation',
-      'Medicine',
-      'Nature',
-      'Religion',
-    ],
-    skillCount: 2,
-    armour: 'No armour',
-    weapons: 'Simple weapons',
-    startingArmour: 'none',
-    startingShield: false,
-    levelOneFeatures: ['Arcane Recovery', 'Spellcasting'],
-    subclassLevel: 3,
-  },
-  {
-    key: 'ranger',
-    label: 'Ranger',
-    description: 'd10 · half caster',
-    hitDie: 10,
-    savingThrows: ['Strength', 'Dexterity'],
-    skillChoices: [
-      'Animal Handling',
-      'Athletics',
-      'Insight',
-      'Investigation',
-      'Nature',
-      'Perception',
-      'Stealth',
-      'Survival',
-    ],
-    skillCount: 3,
-    armour: 'Light and medium armour, shields',
-    weapons: 'Simple and martial weapons',
-    startingArmour: 'studded-leather',
-    startingShield: false,
-    levelOneFeatures: ['Favoured Enemy', 'Spellcasting', 'Weapon Mastery'],
-    subclassLevel: 3,
-  },
-  {
-    key: 'warlock',
-    label: 'Warlock',
-    description: 'd8 · pact magic',
-    hitDie: 8,
-    savingThrows: ['Wisdom', 'Charisma'],
-    skillChoices: [
-      'Arcana',
-      'Deception',
-      'History',
-      'Intimidation',
-      'Investigation',
-      'Nature',
-      'Religion',
-    ],
-    skillCount: 2,
-    armour: 'Light armour',
-    weapons: 'Simple weapons',
-    startingArmour: 'leather',
-    startingShield: false,
-    levelOneFeatures: ['Eldritch Invocations', 'Pact Magic'],
-    subclassLevel: 3,
-  },
-  {
-    key: 'druid',
-    label: 'Druid',
-    description: 'd8 · full caster',
-    hitDie: 8,
-    savingThrows: ['Intelligence', 'Wisdom'],
-    skillChoices: [
-      'Animal Handling',
-      'Arcana',
-      'Insight',
-      'Medicine',
-      'Nature',
-      'Perception',
-      'Religion',
-      'Survival',
-    ],
-    skillCount: 2,
-    armour: 'Light and medium armour, shields',
-    weapons: 'Simple weapons',
-    startingArmour: 'leather',
-    startingShield: false,
-    levelOneFeatures: ['Druidic', 'Primal Order', 'Spellcasting'],
-    subclassLevel: 3,
-  },
-];
-
-export const FIGHTING_STYLES: BuilderOption[] = [
-  { value: 'defence', label: 'Defence', description: '+1 armour class while wearing armour' },
-  {
-    value: 'duelling',
-    label: 'Duelling',
-    description: '+2 damage with a one-handed weapon and no second weapon',
-  },
-  {
-    value: 'great-weapon',
-    label: 'Great Weapon Fighting',
-    description: 'Reroll 1s and 2s on damage with a two-handed weapon',
-  },
-  { value: 'archery', label: 'Archery', description: '+2 to hit with ranged weapons' },
-];
-
-export const EQUIPMENT_PACKS: BuilderOption[] = [
-  {
-    value: 'dungeoneer',
-    label: "Dungeoneer's pack",
-    description: 'Rope, torches, rations, crowbar — 10 gp',
-  },
-  {
-    value: 'explorer',
-    label: "Explorer's pack",
-    description: 'Bedroll, mess kit, rations, waterskin — 10 gp',
-  },
-  { value: 'scholar', label: "Scholar's pack", description: 'Book, ink, parchment, lamp — 40 gp' },
-  {
-    value: 'priest',
-    label: "Priest's pack",
-    description: 'Holy water, incense, vestments, rations — 19 gp',
-  },
-];
-
-/** Cantrips and first-level spells, enough for a real caster at level 1. */
-export const SPELLS: Record<string, { cantrips: BuilderOption[]; first: BuilderOption[] }> = {
-  cleric: {
-    cantrips: [
-      { value: 'guidance', label: 'Guidance', description: 'Add 1d4 to one ability check' },
-      { value: 'sacred-flame', label: 'Sacred Flame', description: '1d8 radiant, Dexterity save' },
-      { value: 'thaumaturgy', label: 'Thaumaturgy', description: 'Minor wonders for one minute' },
-      { value: 'light', label: 'Light', description: 'An object sheds bright light' },
-    ],
-    first: [
-      {
-        value: 'cure-wounds',
-        label: 'Cure Wounds',
-        description: 'Heal 2d8 + spellcasting modifier',
-      },
-      {
-        value: 'bless',
-        label: 'Bless',
-        description: 'Three creatures add 1d4 to attacks and saves',
-      },
-      {
-        value: 'guiding-bolt',
-        label: 'Guiding Bolt',
-        description: '4d6 radiant, next attack has advantage',
-      },
-      {
-        value: 'shield-of-faith',
-        label: 'Shield of Faith',
-        description: '+2 armour class for ten minutes',
-      },
-    ],
-  },
-  wizard: {
-    cantrips: [
-      { value: 'fire-bolt', label: 'Fire Bolt', description: '1d10 fire at 120 feet' },
-      {
-        value: 'mage-hand',
-        label: 'Mage Hand',
-        description: 'A spectral hand carries and manipulates',
-      },
-      {
-        value: 'prestidigitation',
-        label: 'Prestidigitation',
-        description: 'Small harmless effects',
-      },
-      { value: 'ray-of-frost', label: 'Ray of Frost', description: '1d8 cold and reduced speed' },
-    ],
-    first: [
-      {
-        value: 'magic-missile',
-        label: 'Magic Missile',
-        description: 'Three darts, 1d4 + 1 each, never misses',
-      },
-      {
-        value: 'shield',
-        label: 'Shield',
-        description: 'Reaction: +5 armour class until your next turn',
-      },
-      { value: 'sleep', label: 'Sleep', description: 'Put 5d8 hit points of creatures to sleep' },
-      { value: 'detect-magic', label: 'Detect Magic', description: 'Sense magic within 30 feet' },
-    ],
-  },
-  druid: {
-    cantrips: [
-      { value: 'druidcraft', label: 'Druidcraft', description: 'Minor natural effects' },
-      { value: 'produce-flame', label: 'Produce Flame', description: 'Light, or 1d8 fire thrown' },
-      { value: 'shillelagh', label: 'Shillelagh', description: 'Your club strikes with Wisdom' },
-      { value: 'guidance', label: 'Guidance', description: 'Add 1d4 to one ability check' },
-    ],
-    first: [
-      { value: 'entangle', label: 'Entangle', description: 'Grasping weeds restrain creatures' },
-      {
-        value: 'healing-word',
-        label: 'Healing Word',
-        description: 'Bonus action: heal 2d4 at 60 feet',
-      },
-      {
-        value: 'faerie-fire',
-        label: 'Faerie Fire',
-        description: 'Outlined creatures grant advantage',
-      },
-      { value: 'thunderwave', label: 'Thunderwave', description: '2d8 thunder in a 15-foot cube' },
-    ],
-  },
-  warlock: {
-    cantrips: [
-      { value: 'eldritch-blast', label: 'Eldritch Blast', description: '1d10 force at 120 feet' },
-      { value: 'minor-illusion', label: 'Minor Illusion', description: 'A sound or an image' },
-      { value: 'chill-touch', label: 'Chill Touch', description: '1d10 necrotic, no healing' },
-      {
-        value: 'mage-hand',
-        label: 'Mage Hand',
-        description: 'A spectral hand carries and manipulates',
-      },
-    ],
-    first: [
-      {
-        value: 'hex',
-        label: 'Hex',
-        description: 'Extra 1d6 necrotic and one ability at disadvantage',
-      },
-      {
-        value: 'armour-of-agathys',
-        label: 'Armour of Agathys',
-        description: '5 temporary hit points and cold retaliation',
-      },
-      {
-        value: 'arms-of-hadar',
-        label: 'Arms of Hadar',
-        description: '2d6 necrotic to everything adjacent',
-      },
-      {
-        value: 'witch-bolt',
-        label: 'Witch Bolt',
-        description: '1d12 lightning, sustained each turn',
-      },
-    ],
-  },
-  ranger: {
-    cantrips: [],
-    first: [
-      {
-        value: 'hunters-mark',
-        label: "Hunter's Mark",
-        description: 'Extra 1d6 damage to a marked target',
-      },
-      {
-        value: 'cure-wounds',
-        label: 'Cure Wounds',
-        description: 'Heal 2d8 + spellcasting modifier',
-      },
-      {
-        value: 'ensnaring-strike',
-        label: 'Ensnaring Strike',
-        description: 'Thorns restrain a struck creature',
-      },
-      {
-        value: 'speak-with-animals',
-        label: 'Speak with Animals',
-        description: 'Converse with beasts',
-      },
-    ],
-  },
-};
+export const SPECIES = (): SpeciesDefinition[] => content.species();
+export const BACKGROUNDS = (): BackgroundDefinition[] => content.backgrounds();
+export const CLASSES = (): ClassDefinition[] => content.classes();
+export const FIGHTING_STYLES = (): BuilderOption[] => content.fightingStyles();
+export const EQUIPMENT_PACKS = (): BuilderOption[] => content.equipmentPacks();
+export const SPELLS = (): Record<string, { cantrips: BuilderOption[]; first: BuilderOption[] }> =>
+  content.spellsByClass();
 
 export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
 
@@ -582,15 +78,15 @@ export function answers(draft: CharacterDraft): DraftAnswers {
 }
 
 export function classOf(draft: CharacterDraft): ClassDefinition | undefined {
-  return CLASSES.find((entry) => entry.key === answers(draft).class);
+  return CLASSES().find((entry) => entry.key === answers(draft).class);
 }
 
 export function speciesOf(draft: CharacterDraft): SpeciesDefinition | undefined {
-  return SPECIES.find((entry) => entry.key === answers(draft).species);
+  return SPECIES().find((entry) => entry.key === answers(draft).species);
 }
 
 export function backgroundOf(draft: CharacterDraft): BackgroundDefinition | undefined {
-  return BACKGROUNDS.find((entry) => entry.key === answers(draft).background);
+  return BACKGROUNDS().find((entry) => entry.key === answers(draft).background);
 }
 
 /** Final ability scores: the assigned array plus the background's 2024 increases. */
@@ -738,7 +234,7 @@ export function draftStepForm(draft: CharacterDraft, stepId: string): BuilderSte
             kind: 'single-choice',
             required: true,
             columns: 2,
-            options: toOptions(SPECIES),
+            options: toOptions(SPECIES()),
           },
         ],
         grants: speciesOf(draft)
@@ -762,7 +258,7 @@ export function draftStepForm(draft: CharacterDraft, stepId: string): BuilderSte
             kind: 'single-choice',
             required: true,
             columns: 2,
-            options: toOptions(BACKGROUNDS),
+            options: toOptions(BACKGROUNDS()),
           },
         ],
         grants: backgroundOf(draft)
@@ -796,7 +292,7 @@ export function draftStepForm(draft: CharacterDraft, stepId: string): BuilderSte
             kind: 'single-choice',
             required: true,
             columns: 3,
-            options: toOptions(CLASSES),
+            options: toOptions(CLASSES()),
           },
           ...(current.class === 'fighter' ? [] : ([] as BuilderField[])),
         ],
@@ -814,7 +310,7 @@ export function draftStepForm(draft: CharacterDraft, stepId: string): BuilderSte
             label: 'Fighting style',
             kind: 'single-choice',
             required: true,
-            options: FIGHTING_STYLES,
+            options: FIGHTING_STYLES(),
           },
         ],
       };
@@ -874,7 +370,7 @@ export function draftStepForm(draft: CharacterDraft, stepId: string): BuilderSte
 
     case 'spells': {
       const kind = casterKind(current.class);
-      const list = current.class ? SPELLS[current.class] : undefined;
+      const list = current.class ? SPELLS()[current.class] : undefined;
       if (!kind || !list) return null;
 
       const fields: BuilderField[] = [];
@@ -959,7 +455,7 @@ export function draftStepForm(draft: CharacterDraft, stepId: string): BuilderSte
             kind: 'single-choice',
             required: true,
             columns: 2,
-            options: EQUIPMENT_PACKS,
+            options: EQUIPMENT_PACKS(),
           },
         ],
         grants: klass
@@ -1082,7 +578,7 @@ export function applyChoice(
 
   if (fieldKey === 'background') {
     // Background skills are granted, so a duplicate class pick would be wasted.
-    const granted = BACKGROUNDS.find((entry) => entry.key === value)?.skills ?? [];
+    const granted = BACKGROUNDS().find((entry) => entry.key === value)?.skills ?? [];
     const skills = Array.isArray(next.skills) ? (next.skills as string[]) : [];
     next.skills = skills.filter((skill) => !granted.includes(skill));
   }
@@ -1114,7 +610,7 @@ export function reviewGroups(draft: CharacterDraft): ReviewGroup[] {
         {
           label: 'Class',
           value: klass
-            ? `${klass.label} 1${current.fightingStyle ? ` · ${FIGHTING_STYLES.find((style) => style.value === current.fightingStyle)?.label}` : ''}`
+            ? `${klass.label} 1${current.fightingStyle ? ` · ${FIGHTING_STYLES().find((style) => style.value === current.fightingStyle)?.label}` : ''}`
             : '—',
         },
       ],
@@ -1180,7 +676,7 @@ export function reviewGroups(draft: CharacterDraft): ReviewGroup[] {
         },
         {
           label: 'Pack',
-          value: EQUIPMENT_PACKS.find((pack) => pack.value === current.equipment)?.label ?? '—',
+          value: EQUIPMENT_PACKS().find((pack) => pack.value === current.equipment)?.label ?? '—',
         },
       ],
     },
@@ -1188,7 +684,7 @@ export function reviewGroups(draft: CharacterDraft): ReviewGroup[] {
 
   const spellStep = draftSteps(draft).some((step) => step.id === 'spells');
   if (spellStep) {
-    const list = current.class ? SPELLS[current.class] : undefined;
+    const list = current.class ? SPELLS()[current.class] : undefined;
     const label = (value: string) =>
       [...(list?.cantrips ?? []), ...(list?.first ?? [])].find((entry) => entry.value === value)
         ?.label ?? value;

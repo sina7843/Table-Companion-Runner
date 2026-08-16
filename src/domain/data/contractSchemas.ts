@@ -416,6 +416,19 @@ export const combatSchema = (strict: boolean): Schema<CombatInstance> =>
       participants: arrayOf(combatParticipant(strict), { max: MAX.participants }),
       startedAt: optional(timestamp()),
       endedAt: optional(timestamp()),
+      /*
+       * The optimistic-concurrency version.
+       *
+       * Absent here until TC-P08, and a response schema drops what it does not declare — so
+       * every combat the browser parsed came back without one, `expectedVersion: version ?? 0`
+       * sent 0 every time, and the *second* command of any session was refused as stale
+       * forever. Every server-side test passed throughout: they never went through this
+       * schema. It took two browsers driving a real fight to see it.
+       *
+       * Optional because `CombatInstance` types it optional — a fixture-built fight has no
+       * version and does not need one.
+       */
+      version: optional(number({ int: true, min: 0, max: 2_000_000_000 })),
     },
     { strict },
   );
@@ -515,6 +528,18 @@ export const signUpSchema = object(
 );
 
 /** A body that must be present and must be empty — a POST that carries only its path. */
+/**
+ * What an account holder may change about themselves.
+ *
+ * Deliberately one field. An email change is a re-verification flow and a password change is
+ * a credential flow; neither is Phase 1, and neither should arrive as an over-post on this
+ * route — `strict` is what refuses them rather than a silent drop.
+ */
+export const updateSelfSchema = object(
+  { displayName: string({ nonEmpty: true, max: 80 }) },
+  { strict: true },
+);
+
 export const emptyBodySchema = object({}, { strict: true });
 
 export const createCampaignSchema: Schema<CreateCampaignInput> = object(

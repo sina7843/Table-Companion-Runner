@@ -10,7 +10,9 @@
  * armour class are computed by the adapter at read time, so the fixtures cannot drift out
  * of step with the rules.
  */
-import { toMonsters } from './monsterLibrary.ts';
+// The creature library is content now, not a literal in this file's neighbour. `Monster` is a
+// core shape, so reading it back out of a content record crosses no seam.
+import { libraryMonsters } from '../content/monsters.ts';
 import {
   id,
   type Campaign,
@@ -274,7 +276,7 @@ if (quill) quill.pendingLevelUp = true;
  * distinction matters for trust rather than for navigation.
  */
 export const MONSTERS: Monster[] = [
-  ...toMonsters(),
+  ...libraryMonsters(),
   {
     id: id<'Monster'>('m-cragmaw-ambusher'),
     systemId: SYSTEM_ID,

@@ -97,23 +97,46 @@ test('resource state travels with the action rather than a DM’s memory', async
 });
 
 test('spells are a group like any other, with their tier on each entry', async () => {
-  const flayer = await monster('Mind Flayer');
-  const spells = rules.monsterActionGroups(flayer).find((group) => group.key === 'spells');
+  // Built rather than fetched. The only shipped caster used to be a creature the SRD does not
+  // licence, and TC-P06 removed it — but the behaviour under test is the adapter's, not that
+  // creature's: a spell group is an action group like any other, and its tiers survive.
+  const base = await monster('Succubus');
+  const caster: Monster = {
+    ...base,
+    actionGroups: [
+      ...base.actionGroups,
+      {
+        key: 'spells',
+        label: 'Innate Spellcasting',
+        note: 'Charisma, DC 15',
+        entries: [
+          { name: 'Detect thoughts', description: 'Reads a surface thought.', tier: 'At will' },
+          {
+            name: 'Etherealness',
+            description: 'Steps onto the Ethereal Plane.',
+            tier: '1 per day',
+          },
+        ],
+      },
+    ],
+  };
+
+  const spells = rules.monsterActionGroups(caster).find((group) => group.key === 'spells');
 
   assert.ok(spells, 'a caster creature has a spell group');
-  assert.equal(spells.note, 'Intelligence, DC 15');
+  assert.equal(spells.note, 'Charisma, DC 15');
   assert.ok(spells.entries.every((entry) => entry.tier !== undefined));
   assert.ok(spells.entries.some((entry) => entry.tier === 'At will'));
   assert.ok(spells.entries.some((entry) => entry.tier === '1 per day'));
 });
 
 test('a creature with many actions stays one flat pass, not a nested walk', async () => {
-  const beholder = await monster('Beholder');
+  const beholder = await monster('Adult Black Dragon');
   const groups = rules.monsterActionGroups(beholder);
   const total = groups.reduce((sum, group) => sum + group.entries.length, 0);
 
   // The eye-ray creature is the volume case the sheet has to stay readable under.
-  assert.ok(total >= 8, 'the Beholder should carry its full ray list');
+  assert.ok(total >= 8, 'a high-CR dragon should carry its full action list');
   assert.ok(groups.every((group) => Array.isArray(group.entries)));
 });
 

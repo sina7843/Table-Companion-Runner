@@ -31,12 +31,15 @@ import {
   type IconName,
 } from '../../design-system';
 import { DMPage } from '../../app/DMShell';
+import { useAutosave } from '../../app/useAutosave';
+import { SaveStatus } from '../../app/SaveStatus';
 import {
   useUserId,
   id,
   requireRuleset,
   useAsync,
   useRepositories,
+  useTelemetry,
   type Monster,
   type MonsterAction,
   type MonsterId,
@@ -122,8 +125,7 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
   const [monster, setMonster] = useState<Monster | null>(null);
   const [source, setSource] = useState<Monster | null>(null);
   const [open, setOpen] = useState<string[]>([]);
-  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [failure, setFailure] = useState<string | null>(null);
+
   const [editingAction, setEditingAction] = useState<{
     index: number;
     draft: MonsterAction;
@@ -176,35 +178,26 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
   // A new creature is inserted once and updated from then on — calling create on every
   // save would push a fresh copy into the library each time.
   const created = useRef(mode !== 'create');
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const telemetry = useTelemetry();
+  const save = useAutosave<Monster>(
+    async (next) => {
+      const written = created.current ? await monsters.save(next) : await monsters.create(next);
+      created.current = true;
+      return written;
+    },
+    {
+      onFailure: () => telemetry({ name: 'save_failed', kind: 'monster' }),
+      onRecovery: () => telemetry({ name: 'save_recovered', kind: 'monster' }),
+    },
+  );
+
   const persist = useCallback(
     (next: Monster) => {
       const normalised = ruleset.normaliseMonster(next);
       setMonster(normalised);
-      setSaving('saving');
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        const write = created.current ? monsters.save(normalised) : monsters.create(normalised);
-        void write.then(
-          () => {
-            created.current = true;
-            setSaving('saved');
-          },
-          (error: unknown) => {
-            setSaving('idle');
-            setFailure(error instanceof Error ? error.message : 'That change was not saved.');
-          },
-        );
-      }, 500);
+      save.save(normalised);
     },
-    [monsters, ruleset],
-  );
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
+    [ruleset, save],
   );
 
   if (loaded.status === 'loading' || !monster) {
@@ -292,17 +285,7 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
       title={monster.name || 'New creature'}
       actions={
         <>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--font-size-11)',
-              color: 'var(--color-text-tertiary)',
-              whiteSpace: 'nowrap',
-            }}
-            aria-live="polite"
-          >
-            {saving === 'saving' ? 'Saving…' : saving === 'saved' ? 'Saved' : 'Not saved yet'}
-          </span>
+          <SaveStatus save={save} label="Autosaved" />
           <Button
             variant="tertiary"
             size="sm"
@@ -344,9 +327,17 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
             gap: 'var(--space-24)',
           }}
         >
-          {failure && (
-            <Alert tone="danger" title="That change was not saved">
-              {failure} Your edits are still on screen.
+          {save.status === 'failed' && (
+            <Alert
+              tone="danger"
+              title="That change was not saved"
+              actions={
+                <Button size="sm" variant="secondary" onClick={save.retry}>
+                  Try again
+                </Button>
+              }
+            >
+              {save.error} Your edits are still on screen, and the next change sends this one again.
             </Alert>
           )}
 

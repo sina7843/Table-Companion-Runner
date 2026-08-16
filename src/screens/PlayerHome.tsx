@@ -8,12 +8,14 @@ import {
   ConnectionStatus,
   EmptyState,
   HPBar,
+  IconButton,
   SectionHeader,
   Skeleton,
   Stat,
   type ConditionTone,
 } from '../design-system';
 import { PlayerPage } from '../app/PlayerShell';
+import { useConnection } from '../app/useConnection';
 import {
   requireRuleset,
   useAsync,
@@ -113,6 +115,7 @@ function LiveBlock({ combat, character }: { combat: CombatInstance; character: C
  */
 export function PlayerHome() {
   const { users, characters, combats, campaigns } = useRepositories();
+  const connection = useConnection();
 
   const state = useAsync(async () => {
     const user = await users.current();
@@ -149,7 +152,7 @@ export function PlayerHome() {
             icon="cloud-slash"
             title="Could not load your character"
             actions={
-              <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>
+              <Button size="sm" variant="secondary" onClick={state.reload}>
                 Try again
               </Button>
             }
@@ -207,7 +210,20 @@ export function PlayerHome() {
   const armourClass = ruleset.deriveCharacter(character).find((value) => value.key === 'ac');
 
   return (
-    <PlayerPage eyebrow={user.displayName} title="Home" actions={<ConnectionStatus state="live" />}>
+    <PlayerPage
+      eyebrow={user.displayName}
+      title="Home"
+      actions={
+        <>
+          <ConnectionStatus state={connection.state} />
+          {/*
+            Not in the bottom bar — five destinations is the design's thumb-reach limit — so
+            the account lives here, at the top of the one screen every player starts on.
+          */}
+          <IconButton icon="user-circle" label="Account" as={Link} to="/dm/account" />
+        </>
+      }
+    >
       {live && <LiveBlock combat={live} character={character} />}
 
       <div style={{ padding: 'var(--space-16) var(--space-16) 0' }}>

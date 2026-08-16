@@ -40,6 +40,7 @@ import {
   rollSchema,
   signInSchema,
   signUpSchema,
+  updateSelfSchema,
 } from '../src/domain/data/contractSchemas.ts';
 import type { Schema } from '../src/domain/data/schema.ts';
 import type { RateClass } from './rateLimit.ts';
@@ -240,6 +241,12 @@ export const ROUTES: readonly Route[] = [
     },
   },
   { method: 'GET', pattern: '/me', handler: (ctx) => ctx.repos.users.current() },
+  {
+    method: 'PUT',
+    pattern: '/me',
+    body: updateSelfSchema,
+    handler: (ctx) => ctx.repos.users.updateSelf(body<{ displayName: string }>(ctx)),
+  },
   {
     method: 'GET',
     pattern: '/users',

@@ -1,20 +1,29 @@
 import { lazy, type ComponentType, type ReactNode } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
+import { Alert, Button } from '../design-system';
 import { useSession } from '../domain';
 import { DMShell } from './DMShell';
 import { PlayerShell } from './PlayerShell';
 
 /**
- * Sends a signed-out visitor to the door.
+ * Sends a signed-out visitor to the door, and remembers which door they were at.
  *
  * A convenience, not a control. Every route behind it reads through repositories the server
  * has already scoped to the caller, and a signed-out caller is answered 401 whatever this
  * component decides — so removing it would make the app unpleasant, not insecure. It exists
  * because a wall of "you do not have access" is a worse answer than a sign-in form.
+ *
+ * Since TC-P07 it carries `from`. A session ending mid-session is the common case now that
+ * sessions expire, and coming back to the campaign you were reading rather than to the DM
+ * home is the difference between an interruption and a detour. The sign-in screen refuses
+ * anything that is not a same-origin path, so this cannot be aimed off-site.
  */
 function RequireSession({ children }: { children: ReactNode }) {
   const { status } = useSession();
-  if (status === 'signed-out') return <Navigate to="/" replace />;
+  const location = useLocation();
+  if (status === 'signed-out') {
+    return <Navigate to="/" replace state={{ from: location.pathname + location.search }} />;
+  }
   return <>{children}</>;
 }
 
@@ -73,6 +82,41 @@ const PlayerDice = named(() => import('../screens'), 'PlayerDice');
 const PlayerHome = named(() => import('../screens'), 'PlayerHome');
 const PlayerParty = named(() => import('../screens'), 'PlayerParty');
 const SignIn = named(() => import('../screens'), 'SignIn');
+const SignUp = named(() => import('../screens'), 'SignUp');
+const AccountSettings = named(() => import('../screens'), 'AccountSettings');
+
+/**
+ * What a route shows when loading it fails.
+ *
+ * Every route module is fetched on demand, so a dropped connection at the wrong moment is a
+ * route that cannot render — and until TC-P08 that fell through to react-router's own
+ * developer message, which tells a person at a table to add an `errorElement`. Nothing was
+ * lost when it happened; the chunk simply never arrived, and the recovery is to ask again.
+ *
+ * Deliberately plain: this renders when the application's own code could not be loaded, so it
+ * assumes nothing beyond the stylesheet.
+ */
+function RouteError() {
+  return (
+    <div className="tc-appsurface" data-density="comfortable">
+      <main id="main" className="tc-page" style={{ maxWidth: 480, margin: '10vh auto' }}>
+        <Alert
+          tone="danger"
+          icon="cloud-slash"
+          title="This screen could not be loaded"
+          actions={
+            <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>
+              Try again
+            </Button>
+          }
+        >
+          The connection dropped while the page was loading. Nothing has been lost — everything you
+          have saved is on the server.
+        </Alert>
+      </main>
+    </div>
+  );
+}
 
 /**
  * The Phase 1 route graph.
@@ -82,82 +126,86 @@ const SignIn = named(() => import('../screens'), 'SignIn');
  * bottom navigation. Entry routes sit outside both — a player arriving from an invite
  * link should see their character, not a shell they have no use for yet.
  */
-export const router = createBrowserRouter([
-  { path: '/', element: <SignIn /> },
-  { path: '/join', element: <JoinCampaign /> },
+export const router = createBrowserRouter(
+  [
+    { path: '/', element: <SignIn /> },
+    { path: '/signup', element: <SignUp /> },
+    { path: '/join', element: <JoinCampaign /> },
 
-  // The builder is a focused task rather than a destination, so it sits outside both
-  // shells — the design gives it the whole viewport on desktop and on mobile alike.
-  { path: '/builder', element: <BuilderScreen /> },
-  { path: '/builder/:draftId', element: <BuilderScreen /> },
+    // The builder is a focused task rather than a destination, so it sits outside both
+    // shells — the design gives it the whole viewport on desktop and on mobile alike.
+    { path: '/builder', element: <BuilderScreen /> },
+    { path: '/builder/:draftId', element: <BuilderScreen /> },
 
-  // The sheet and its sub-flows take the whole viewport on both shapes, as the design
-  // gives them: a player reading their sheet mid-fight wants no chrome around it.
-  { path: '/play/sheet', element: <CharacterSheet /> },
-  { path: '/play/sheet/:characterId', element: <CharacterSheet /> },
-  { path: '/play/sheet/:characterId/privacy', element: <CharacterPrivacy /> },
-  { path: '/play/sheet/:characterId/edit', element: <CharacterEdit /> },
-  { path: '/play/sheet/:characterId/level-up', element: <LevelUp /> },
-  { path: '/dm/characters/:characterId', element: <CharacterSheet /> },
-  { path: '/campaigns/new', element: <NewCampaign /> },
+    // The sheet and its sub-flows take the whole viewport on both shapes, as the design
+    // gives them: a player reading their sheet mid-fight wants no chrome around it.
+    { path: '/play/sheet', element: <CharacterSheet /> },
+    { path: '/play/sheet/:characterId', element: <CharacterSheet /> },
+    { path: '/play/sheet/:characterId/privacy', element: <CharacterPrivacy /> },
+    { path: '/play/sheet/:characterId/edit', element: <CharacterEdit /> },
+    { path: '/play/sheet/:characterId/level-up', element: <LevelUp /> },
+    { path: '/dm/characters/:characterId', element: <CharacterSheet /> },
+    { path: '/campaigns/new', element: <NewCampaign /> },
 
-  {
-    path: '/dm',
-    element: (
-      <RequireSession>
-        <DMShell />
-      </RequireSession>
-    ),
-    children: [
-      { index: true, element: <DMHome /> },
-      { path: 'combat', element: <CombatScreen /> },
-      { path: 'combat/:combatId', element: <CombatScreen /> },
-      { path: 'encounters', element: <EncounterLibrary /> },
-      { path: 'encounters/new', element: <EncounterBuilder mode="create" /> },
-      { path: 'encounters/:encounterId', element: <EncounterDetail /> },
-      { path: 'encounters/:encounterId/edit', element: <EncounterBuilder mode="edit" /> },
-      { path: 'characters', element: <DMCharacters /> },
+    {
+      path: '/dm',
+      element: (
+        <RequireSession>
+          <DMShell />
+        </RequireSession>
+      ),
+      children: [
+        { index: true, element: <DMHome /> },
+        { path: 'combat', element: <CombatScreen /> },
+        { path: 'combat/:combatId', element: <CombatScreen /> },
+        { path: 'encounters', element: <EncounterLibrary /> },
+        { path: 'encounters/new', element: <EncounterBuilder mode="create" /> },
+        { path: 'encounters/:encounterId', element: <EncounterDetail /> },
+        { path: 'encounters/:encounterId/edit', element: <EncounterBuilder mode="edit" /> },
+        { path: 'characters', element: <DMCharacters /> },
+        { path: 'account', element: <AccountSettings /> },
 
-      { path: 'monsters', element: <MonsterLibrary /> },
-      { path: 'monsters/new', element: <MonsterEditor mode="create" /> },
-      { path: 'monsters/:monsterId', element: <MonsterPage /> },
-      { path: 'monsters/:monsterId/clone', element: <MonsterEditor mode="clone" /> },
-      { path: 'monsters/:monsterId/edit', element: <MonsterEditor mode="edit" /> },
-      { path: 'campaigns', element: <CampaignList /> },
-      {
-        path: 'campaigns/:campaignId',
-        element: <CampaignLayout />,
-        children: [
-          { index: true, element: <CampaignOverview /> },
-          { path: 'party', element: <CampaignParty /> },
-          { path: 'encounters', element: <CampaignEncounters /> },
-          { path: 'combats', element: <CampaignCombats /> },
-          { path: 'settings', element: <CampaignSettings /> },
-        ],
-      },
-    ],
-  },
+        { path: 'monsters', element: <MonsterLibrary /> },
+        { path: 'monsters/new', element: <MonsterEditor mode="create" /> },
+        { path: 'monsters/:monsterId', element: <MonsterPage /> },
+        { path: 'monsters/:monsterId/clone', element: <MonsterEditor mode="clone" /> },
+        { path: 'monsters/:monsterId/edit', element: <MonsterEditor mode="edit" /> },
+        { path: 'campaigns', element: <CampaignList /> },
+        {
+          path: 'campaigns/:campaignId',
+          element: <CampaignLayout />,
+          children: [
+            { index: true, element: <CampaignOverview /> },
+            { path: 'party', element: <CampaignParty /> },
+            { path: 'encounters', element: <CampaignEncounters /> },
+            { path: 'combats', element: <CampaignCombats /> },
+            { path: 'settings', element: <CampaignSettings /> },
+          ],
+        },
+      ],
+    },
 
-  {
-    path: '/play',
-    element: (
-      <RequireSession>
-        <PlayerShell />
-      </RequireSession>
-    ),
-    children: [
-      { index: true, element: <PlayerHome /> },
+    {
+      path: '/play',
+      element: (
+        <RequireSession>
+          <PlayerShell />
+        </RequireSession>
+      ),
+      children: [
+        { index: true, element: <PlayerHome /> },
 
-      { path: 'combat', element: <PlayerCombat /> },
-      { path: 'dice', element: <PlayerDice /> },
-      { path: 'party', element: <PlayerParty /> },
-      { path: 'characters', element: <PlayerCharacters /> },
-    ],
-  },
+        { path: 'combat', element: <PlayerCombat /> },
+        { path: 'dice', element: <PlayerDice /> },
+        { path: 'party', element: <PlayerParty /> },
+        { path: 'characters', element: <PlayerCharacters /> },
+      ],
+    },
 
-  // Internal fidelity-checking surface. Not linked from the product.
-  { path: '/dev/showcase', element: <Showcase /> },
+    // Internal fidelity-checking surface. Not linked from the product.
+    { path: '/dev/showcase', element: <Showcase /> },
 
-  { path: '/signin', element: <Navigate to="/" replace /> },
-  { path: '*', element: <NotFound /> },
-]);
+    { path: '/signin', element: <Navigate to="/" replace /> },
+    { path: '*', element: <NotFound /> },
+  ].map((route) => ({ errorElement: <RouteError />, ...route })),
+);

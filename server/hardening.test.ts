@@ -15,7 +15,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer, type Server } from 'node:http';
+import { createServer, request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createDatabase, type Database } from './db.ts';
 import { migrate } from './migrate.ts';
@@ -243,9 +243,41 @@ test('a validation message never quotes back what it rejected', { skip }, async 
 
 test('a payload over the size limit is refused by name', { skip }, async () => {
   const huge = JSON.stringify({ email: 'a@b.test', password: 'x'.repeat(2 * 1024 * 1024) });
-  const answer = await call('POST', '/auth/sign-in', { raw: huge });
+
+  // Sent over a raw request rather than `fetch`, because the behaviour being asserted is that
+  // the server answers *before* it has read the body — which means the write side can be reset
+  // under the caller's feet while the answer is already on its way back. `fetch` surfaces that
+  // as a rejected promise and loses the response; a raw request lets the write fail and still
+  // reads what the server said. The assertion below is unchanged and no weaker for it.
+  const answer = await new Promise<{ status: number; text: string }>((resolve, reject) => {
+    const url = new URL(`${base}/auth/sign-in`);
+    const attempt = request(
+      {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname,
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
+      },
+      (response) => {
+        let text = '';
+        response.setEncoding('utf8');
+        response.on('data', (chunk: string) => (text += chunk));
+        response.on('end', () => resolve({ status: response.statusCode ?? 0, text }));
+      },
+    );
+    // The refusal closes the socket, so the unsent remainder of a 2 MB body errors here. That
+    // is the server doing the right thing, not a failure to report.
+    attempt.on('error', () => {});
+    attempt.setTimeout(10_000, () => reject(new Error('the server never answered')));
+    attempt.end(huge);
+  });
+
   assert.equal(answer.status, 413);
-  assert.equal(errorOf(answer).code, 'payload_too_large');
+  assert.equal(
+    (JSON.parse(answer.text) as { error: { code: string } }).error.code,
+    'payload_too_large',
+  );
 });
 
 /* ── Auth, not-found, conflict ──────────────────────────────────────────────── */

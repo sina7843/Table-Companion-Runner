@@ -22,8 +22,11 @@ per-prompt implementation choices in `DECISIONS.md`.
 | Lint       | oxlint                        |
 | Format     | Prettier                      |
 | Tests      | `node --test` (no framework)  |
+| End to end | Playwright (devDependency)    |
 
-`react-router-dom` and `pg` are the only runtime dependencies. There is no state library, no
+`react-router-dom` and `pg` are the only runtime dependencies, and `@playwright/test` is the
+only tooling dependency that is not a linter, a formatter or a compiler — browser end-to-end
+coverage cannot be written without a browser driver. There is no state library, no
 data-fetching library, no CSS framework, no test framework, no web framework and no ORM: state
 is React state behind repository interfaces, the server is 40 enumerated routes over Node's own
 HTTP module, migrations are SQL files, and the test harness is Node's own runner over TypeScript
@@ -62,8 +65,16 @@ The dev server listens on http://localhost:5173.
 | `npm run server:dev`   | The backend with `--watch`                       |
 | `npm run db:migrate`   | Applies pending SQL migrations                   |
 | `npm run db:seed`      | Loads the demo world; insert-only, never destructive |
+| `npm run content:import` | Imports the rules bundles under `content/` into storage |
+| `npm run e2e`          | End-to-end: two browsers, real backend, real database |
+| `npm run e2e:ui`       | The same, in Playwright's UI                     |
+| `npm run db:check`     | Applies nothing; exits 1 if a migration is pending |
+| `npm run check:secrets` | Nothing secret is committed                     |
+| `npm run check:package` | The delivery package is intact (not a CI gate)  |
 
 Run `npm run typecheck`, `npm run test`, `npm run lint` and `npm run build` before committing.
+`npm run e2e` needs a browser once — `npx playwright install chromium` — and a database; see
+[e2e/README.md](e2e/README.md).
 
 ## Using the design system
 
@@ -181,8 +192,8 @@ implementations, selected by `VITE_REALTIME_URL`:
 
 | Value | Channel | Notes |
 | --- | --- | --- |
-| unset, browser | `createLocalChannel` | `BroadcastChannel`; keeps a DM tab and a player tab in step |
-| set | `createSocketChannel` | WebSocket with backoff; reports `live` / `reconnecting` / `offline` |
+| unset, browser | `createLocalChannel` | `BroadcastChannel` — the explicit development adapter. Keeps a DM tab and a player tab in step, and reaches nothing else |
+| set | `createEventStreamChannel` | The production one: an authenticated server-sent event stream. Reports `live` / `reconnecting` / `offline` |
 | no browser | `createNullChannel` | Always `live`, delivers nothing — for tests |
 
 Events are notifications, not payloads: a receiver is told *what changed* and re-reads through
@@ -192,6 +203,74 @@ its own event; `useRealtime(kinds, handler)` subscribes a screen to the ones it 
 
 The HTTP half of that contract is implemented — see **Backend** below. Wiring the frontend to it
 is one environment variable and no code change, which is what the seam was for.
+
+### Sessions, and what happens when they end
+
+A session ends on the server's clock. The cookie is HttpOnly by design, so nothing here can
+read an expiry or predict one — the app finds out the way a person would, from the first call
+that comes back `unauthenticated`.
+
+[sessionExpiry.ts](src/domain/data/sessionExpiry.ts) reports that once, from the one place that
+sees every response. `SessionProvider` **re-reads the identity** rather than assuming the
+session is gone, because one refused request is evidence and not proof. Only then is the app
+signed out with `expired` set, and the sign-in screen says *why* somebody is looking at it
+rather than appearing over their work unexplained.
+
+`auth.*` is excluded: a wrong password is a 401 about a credential, not about a session.
+`RequireSession` carries `from`, and [returnPath.ts](src/app/returnPath.ts) honours only a
+same-origin path — the moment right after typing a password is the moment a redirect is least
+likely to be read.
+
+### Saving, and not losing work
+
+Three screens edit a document rather than submit a form: the character builder, the encounter
+builder and the homebrew monster editor. All three go through
+[useAutosave.ts](src/app/useAutosave.ts), and **a failed write is never reported as a saved
+one** — the builder used to do exactly that.
+
+| | |
+| --- | --- |
+| A failed edit is **kept** | It stays pending; the next edit and Try again both carry it |
+| Leaving **flushes** | Every exit path writes what is queued — Create, Start, Done, unmount |
+| Closing the tab **warns** | `beforeunload`, armed only while there is something to lose |
+| A late response **settles nothing** | It cannot report `Saved` about a value that is no longer current |
+
+It never retries on its own: a screen nobody is looking at retrying in a loop is how a failing
+deployment becomes a busy one.
+
+Refresh safety is not a local cache. Both builders create their record on the server before the
+first keystroke, so autosave has an id and a reload lands on the thing that exists; a combat is
+a command against a version, so a refresh returns the authoritative fight.
+
+### Telemetry
+
+A boundary, and by default nothing behind it. [telemetry.ts](src/domain/telemetry.ts) declares a
+**closed union** of events and `noopSink`; this build supplies no provider, no network call and
+no identifier. An open `track(name, props)` becomes invasive one careless call at a time,
+because the easiest thing to reach for at a call site is whatever is in scope — so every event
+names what happened and never who or what it happened to.
+
+### The rules catalogue
+
+Species, classes, backgrounds, spells, equipment and creatures are **imported content**, not
+literals in a source file. [src/domain/content/](src/domain/content/) is the generic half: a
+`ContentRecord` states its system, its category, its name and its source, and puts everything
+else in a `data` bag the core never reads. That bag is what lets one table hold a D&D species and
+a Pathfinder ancestry without a schema change.
+
+```bash
+npm run content:import          # content/srd-5.1 → normalised storage
+```
+
+[ruleset/dnd5e/content.ts](src/domain/ruleset/dnd5e/content.ts) is the only place the D&D shapes
+and the generic model meet — it filters the library by `systemId` and reads each bag back as the
+shape the builder expects. `useContentLibrary` points the adapter at what a deployment imported
+rather than what was bundled.
+
+**Only content whose licence permits redistribution is imported into production**, and the
+importer enforces that rather than a README asking nicely. The verdict on every source is in
+[licenses.ts](src/domain/content/licenses.ts); the boundary, the SRD-vs-5e.tools decision and the
+steps for adding another ruleset are in [content/README.md](content/README.md).
 
 ## Backend
 
@@ -223,6 +302,7 @@ shape a SameSite session cookie will need when TC-P02 adds authentication.
 | [server/store.ts](server/store.ts) | `Repositories` over SQL — the twin of `fixtureRepositories.ts` |
 | [server/rateLimit.ts](server/rateLimit.ts) | Abuse control: a fixed window, per account or address |
 | [server/log.ts](server/log.ts) | Structured logs, and the rule about what may go in one |
+| [server/broadcast.ts](server/broadcast.ts) | The realtime hub: rooms, audiences, replay window |
 | [server/authorize.ts](server/authorize.ts) | Every authorization rule, in one wrapper |
 | [server/auth.ts](server/auth.ts) | Passwords, sessions, cookies, CSRF. `node:crypto` only |
 | [server/combatService.ts](server/combatService.ts) | One combat command: lock, version, compute, audit |
@@ -250,6 +330,11 @@ Real as of TC-P02, and the server is the authority.
 and never reaches JavaScript, so there is nothing in the browser bundle to leak. Expiry slides
 on use. `GET /me` is both "who am I" and "am I still signed in". Sign-in answers the same
 sentence for a wrong password and an unknown address, and takes the same time either way.
+
+**Changing your own account.** `PUT /me` is scoped by the session, not by anything the caller
+sent: no id in the path, none in the body, and the schema is strict — so
+`{ displayName, id: <someone else> }` is a 400 with the field named rather than a field quietly
+ignored. Email and password are refused there too; each is its own flow and neither is Phase 1.
 
 **Everything else needs a session.** Three routes are anonymous — sign in, sign up, sign out —
 and a route is protected by having said nothing. [auth.test.ts](server/auth.test.ts) walks the
@@ -382,6 +467,31 @@ Who may issue what is a question about the command, in
 against creatures, targets, and ends their own turn; lifecycle, turn order, initiative,
 overrides, the roster and undo are the DM's.
 
+### Realtime
+
+`GET /events` is a server-sent event stream — not a WebSocket, because an event here is a
+notification and never a payload. The traffic is one-way, and `EventSource` already does
+reconnect, `Last-Event-ID` replay and cookie authentication as platform behaviour.
+
+Point the app at it by setting the realtime variable to `/api/events`, which the Vite dev-server
+proxy forwards to the backend. See `.env.example`.
+
+| Concern | Behaviour |
+| --- | --- |
+| Authentication | The session cookie, before a byte is written. No session is a 401 |
+| Subscription | **Granted, not requested** — the campaigns you are a member of. `?campaignId=` may narrow, never widen; naming one you are not in is a 403 |
+| Audience | Decided per event. **A secret roll is not announced to a player at all**; an encounter edit is DM-only |
+| Ordering | Published only after `COMMIT`. [withServerEvents](server/broadcast.ts) wraps the authorized repositories outermost, so a subscriber cannot read state a transaction rolled back |
+| Reconnect | The browser's, at the interval the server states. `Last-Event-ID` replays exactly what was missed |
+| A gap too wide | `event: resync` → a `sync.required` domain event → every screen re-reads. Never a partial history |
+| Heartbeat | `: ping` every 25s, so a proxy does not close an idle stream |
+
+The stream is never the source of truth. Events carry no state, so duplicate and out-of-order
+delivery are two reads with the same answer, and the database is what a client recovers *to*.
+
+With the realtime variable unset, `createLocalChannel` keeps two tabs on one machine in step —
+the development adapter, and honest about reaching nothing else.
+
 ### What the backend is not yet
 
 - **A free-form attack roll is still evaluated on the client** and lands through
@@ -411,6 +521,56 @@ branch nobody can reach is a branch nobody has checked, so append `?scenario=` t
 
 For example: http://localhost:5173/dm?scenario=first-time. These are the real code paths, not
 mock screens.
+
+## End to end
+
+Two independent browsers — a DM at desktop and a player on a phone, with separate cookie jars —
+driving the built bundle against the real backend, real PostgreSQL and the real event stream.
+Never two tabs: a suite that shares a session cannot tell "the player sees it" from "the DM sees
+it", which is the only question a multiplayer product's tests are really asking.
+
+```bash
+npx playwright install chromium   # once
+npm run e2e
+```
+
+It builds its own world: a database of its own (`DATABASE_URL`'s name with `_e2e` appended,
+dropped and rebuilt each run — never the developer's), the API on its own port, and the bundle
+served same-origin. `retries: 0`, in CI too, because a retry count is how a suite stops being
+able to tell you it is flaky.
+
+Every privacy claim is checked in four places — the API payload, the DOM, the realtime stream
+and the server's logs — because client-side hiding is not a security pass.
+
+[e2e/README.md](e2e/README.md) has the rest, including every intermittent failure the suite
+produced while it was written and what each one turned out to be.
+
+## Deploying
+
+One container serves the built bundle and the API same-origin, and talks to one PostgreSQL
+database. That is the whole topology.
+
+```bash
+docker build -t table-companion .
+docker run --rm -e DATABASE_URL=… -e TC_ENV=staging table-companion node server/migrate.ts
+docker run --rm -e DATABASE_URL=… -e TC_ENV=staging table-companion node server/content/import.ts
+docker run -d -p 8787:8787 -e DATABASE_URL=… -e TC_ENV=staging table-companion
+```
+
+| | |
+| --- | --- |
+| `GET /health` | Liveness. A 503 means *restart me* |
+| `GET /ready` | Readiness — schema current, not draining. A 503 means *stop sending traffic* |
+| `GET /metrics` | Prometheus text. Counts only, with bounded labels |
+
+**There is one secret**, `DATABASE_URL`, and `redact()` in `server/log.ts` refuses to write a
+credential to a log line whatever it is called. Everything else — the four environments, the
+startup order, migrations, backup, restore and rollback — is in
+[DEPLOYMENT.md](DEPLOYMENT.md).
+
+Every commit is validated by [.github/workflows/ci.yml](.github/workflows/ci.yml): checks, tests
+against a real PostgreSQL, the browser suite, and an image that is built, migrated, run, probed
+and sent a `SIGTERM` to prove it drains.
 
 ## Environment
 
@@ -476,11 +636,15 @@ src/
     panelContext.tsx    useContextPanel() — every screen shares one panel
     nav.ts              Navigation model from the design's IA
     useMediaQuery.ts    Drives the density and sidebar-collapse attributes
+    useAutosave.ts      One autosave for the three screens that edit a document
+    SaveStatus.tsx      The one line that says whether the work is safe
+    returnPath.ts       Where a signed-out visitor was going, validated
     shell.css           Shell layout; tokens only, no new visual values
   screens/
     DMHome.tsx          DM home — live combat band, work columns, recall
     PlayerHome.tsx      Player home — the fight, the character, one offer
-    entry.tsx           Sign in, join by invite, create a campaign
+    entry.tsx           Sign in, sign up, join by invite, create a campaign
+    account.tsx         Display name, the data boundary, sign out
     index.tsx           DM characters, player dice/party/characters; re-export barrel
     campaign/           Campaign list, overview, party, encounters, combats, settings
     builder/            The guided character builder (generic shell + field renderers)
@@ -491,7 +655,9 @@ src/
     player/             The player's mobile combat screen and its turn logic
   domain/
     types.ts            Core entities — names no D&D concept
+    telemetry.ts        A closed event union and a no-op sink. No provider ships
     combat/             Combat commands, and the pure transforms they run
+    content/            The rules catalogue: records, sources, licences — system-agnostic
     permissions.ts      Visibility rules (a UI guard, not a security boundary)
     ruleset/            The game-system seam; dnd5e is the first adapter
     data/               Repository interfaces, fixtures, HTTP client, realtime, session
@@ -515,12 +681,25 @@ server/
   authorize.ts          Every authorization rule, in one wrapper
   rateLimit.ts          Fixed-window abuse control
   log.ts                Structured logs, and what may not go in one
+  broadcast.ts          The realtime hub: rooms, audiences, replay
   auth.ts               Passwords, sessions, cookies, CSRF
   combatService.ts      One combat command, executed authoritatively
   routes.ts             One entry per apiContract.ts route
   http.ts               Route matching, JSON, error mapping
   seed.ts               The demo world as development data
+  content/import.ts     The content pipeline — the only place a source's shape is parsed
   *.test.ts             Routing (no database) and integration (needs one)
+
+e2e/
+  README.md             How the stack is built, and every flake that was fixed
+  stack.ts              The database, the API process, and the restart a test performs
+  helpers.ts            Sign up, sign in, and read the API as one of the browsers
+  *.spec.ts             Smoke, golden path, resilience, accessibility
+
+content/
+  README.md             The legal boundary, and how another ruleset plugs in
+  srd-5.1/*.json        Approved and shipped — CC BY 4.0
+  quarantine/*.json     Not shippable, kept visible. The importer refuses it
 ```
 
 ## Handoff
@@ -549,22 +728,37 @@ and tests.
   fails when a `Ruleset` method has no test anywhere.
 - **No navigation without a route.** [routes.test.ts](src/app/routes.test.ts) fails when a
   sidebar or bottom-bar destination has nothing behind it.
+- **No screen that only one person can use.** [a11y.spec.ts](e2e/a11y.spec.ts) walks eleven
+  screens at three viewports and fails on a missing heading, an unlabelled control or a touch
+  target under 44px.
 
 ### Known limitations
 
-- **No account-creation screen.** The server signs people up; the approved design draws no
-  surface that asks it to. TC-P07.
-- **No realtime server.** The socket channel is written and typed but has only ever spoken to
-  another browser tab over `BroadcastChannel`. TC-P05.
-- **No content ingest.** Monsters are real SRD stat blocks hand-authored into the ingest shape.
-  There are no spells and no items, which is why the design's Spells and Items sidebar sections
-  are absent.
+- **No password change, email change or account deletion.** Each is its own flow — a credential
+  flow, a re-verification flow, a data-erasure flow — and `PUT /me` refuses those fields rather
+  than accepting and ignoring them. All three are named on the account screen.
+- **No per-member presence.** The party table used to draw "Live" against every player; the app
+  has no way to know that, so the badge was removed rather than made plausible.
+- **No offline queue.** Offline refuses a write and says so. Replaying queued writes later would
+  need conflict resolution the server deliberately does not offer.
+- **No spell or item screens.** The catalogue holds spells; nothing draws them, which is why the
+  design's Spells and Items sidebar sections are absent.
+- **The SRD creature list has not been checked name by name.** 48 creatures are marked `srd-5.1`
+  on the strength of being SRD creatures. `content/README.md` carries that as an operator task
+  before launch.
 - **No DOM in tests.** `node --test` with type stripping is the whole harness, so hooks and
   layout are covered by testing the pure logic beneath them and, where that is not possible, by
   asserting rules read from source. Those files say so in their own headers. The manual pass this
   leaves is listed at the end of `DECISIONS.md`.
 - **One DM per campaign, one campaign per player.** Both are Phase 1 simplifications from
   `Requirements.md`, not gaps.
+- **Four audited follow-ups.** TC-P10's release decision is **READY WITH NON-BLOCKING
+  FOLLOW-UPS**: exercise `Secure` cookies against a TLS host, close the client-evaluated attack
+  roll, stop shipping fixture bytes (and fail loudly rather than falling back to them), and drop
+  `/dev/showcase` from a production build. Evidence in `IMPLEMENTATION_STATUS.md`.
+- **One server instance.** The rate limiter and the realtime hub are per-process, so a DM on one
+  instance and a player on another would never see each other's events. `DEPLOYMENT.md` names
+  the fix — a shared bus over PostgreSQL `LISTEN`/`NOTIFY` — and why it is not built yet.
 
 ### Next recommended work
 
@@ -579,11 +773,19 @@ Golden Path are in `IMPLEMENTATION_STATUS.md`. In short:
    codes, request ids, structured logs, rate limits and pagination bounds.
 4. ~~**Server-authoritative combat.**~~ Done — TC-P04. Commands instead of a whole record, a
    checked version, recognised retries, an auditable event per change and safe undo.
-5. **The realtime server** behind `VITE_REALTIME_URL`. The client already handles reconnect,
-   backoff and state restoration; it has never spoken to a peer that was not another browser tab.
-   TC-P05.
-6. **The 5e.tools ingest.** The `Monster` shape, the `origin: 'library' | 'homebrew'` split and
-   the unowned-library constraint are already what a pipeline would write into. TC-P06.
-7. **A DOM test environment**, if the project wants component-level tests. That is a real
+5. ~~**The realtime server.**~~ Done — TC-P05. An authenticated server-sent event stream,
+   scoped per campaign, filtered per recipient, with replay and an honest resync.
+6. ~~**The content ingest.**~~ Done — TC-P06, from the SRD rather than 5e.tools, which is a
+   licence boundary and not an engineering one. See [content/README.md](content/README.md).
+7. ~~**Account and operational states.**~~ Done — TC-P07. Sign-up, account settings, sign-out, a
+   session that says when it ended, and autosave that never reports a failed write as saved.
+8. ~~**Two independent clients, end to end.**~~ Done — TC-P08. A DM and a player in separate
+   browsers against the real stack, with adversarial API coverage and an accessibility smoke.
+   It found four defects, including one that had made every combat command after the first fail
+   since TC-P04. See [e2e/README.md](e2e/README.md).
+9. ~~**CI, deployment and observability.**~~ Done — TC-P09. Four CI jobs, one container, health
+   and readiness, metrics, enforced log redaction, and [DEPLOYMENT.md](DEPLOYMENT.md). The
+   Golden Path was run against a clean staging container, which found one last defect.
+10. **A DOM test environment**, if the project wants component-level tests. That is a real
    dependency decision, not a refactor — see the test-stack note in `DECISIONS.md` (TC-16) for
    what it would and would not buy.

@@ -12,7 +12,6 @@ import {
   Avatar,
   Badge,
   Button,
-  ConnectionStatus,
   EmptyState,
   Icon,
   IconButton,
@@ -295,8 +294,14 @@ export function CampaignOverview() {
                   trailing={
                     member.role === 'dm' ? (
                       <Badge tone="accent">DM</Badge>
-                    ) : (
-                      <ConnectionStatus state="live" />
+                    ) : character ? undefined : (
+                      // Per-member presence is not something this product knows. It used to
+                      // draw "Live" against every player, which was a fixture-era assumption
+                      // that stayed true only because nothing could contradict it — the
+                      // realtime hub tracks connections, not who is at the table. What is
+                      // real about a member is whether they have a character yet, so that is
+                      // what the row says.
+                      <Badge tone="neutral">No character</Badge>
                     )
                   }
                 />

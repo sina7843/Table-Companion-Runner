@@ -25,6 +25,7 @@ import {
   useAsync,
   useRealtime,
   useRepositories,
+  useTelemetry,
   type CombatInstance,
   type CombatInstanceId,
   type Monster,
@@ -41,6 +42,7 @@ export function CombatScreen() {
   const { campaigns, characters, combats, encounters, monsters } = useRepositories();
 
   const connection = useConnection();
+  const telemetry = useTelemetry();
   const userId = useUserId();
   const [combat, setCombat] = useState<CombatInstance | null>(null);
   const [busy, setBusy] = useState(false);
@@ -128,6 +130,7 @@ export function CombatScreen() {
       // is still the last one the authority confirmed. A `conflict` means somebody else
       // moved first, and re-reading is the recovery.
       const stale = error instanceof ApiError && error.code === 'conflict';
+      if (stale) telemetry({ name: 'combat_conflict' });
       setFailure(
         stale
           ? 'Somebody else changed this fight first. Reloading it.'
@@ -227,6 +230,19 @@ export function CombatScreen() {
         <div className="tc-page" style={{ paddingBottom: 0 }}>
           <Alert tone="success" icon="check">
             Back in sync. Everything you changed while it was down has been saved.
+          </Alert>
+        </div>
+      )}
+      {/*
+        Distinct from a reconnect: the connection may never have dropped here, and what was
+        stale was the screen. It says so and does not stop anyone acting — a command carries
+        the version it was built from, so a stale one is refused by the table rather than by
+        a banner that made somebody wait.
+      */}
+      {!failure && connection.resyncing && (
+        <div className="tc-page" style={{ paddingBottom: 0 }}>
+          <Alert tone="info" icon="arrows-clockwise">
+            Catching up with the table. This fight is being read again.
           </Alert>
         </div>
       )}

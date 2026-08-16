@@ -28,9 +28,12 @@ import {
   TextInput,
 } from '../../design-system';
 import { BP, useMediaQuery } from '../../app/useMediaQuery';
+import { useAutosave } from '../../app/useAutosave';
+import { SaveStatus } from '../../app/SaveStatus';
 import {
   useUserId,
   requireRuleset,
+  useTelemetry,
   useAsync,
   useRepositories,
   type BuilderIssue,
@@ -258,7 +261,6 @@ export function BuilderScreen() {
   const isDesktop = useMediaQuery(BP.lg);
 
   const [draft, setDraft] = useState<CharacterDraft | null>(null);
-  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showIssues, setShowIssues] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -290,29 +292,25 @@ export function BuilderScreen() {
 
   const ruleset = useMemo(() => (draft ? requireRuleset(draft.systemId) : null), [draft]);
 
-  // Autosave. Debounced so typing a backstory does not write on every keystroke, and
-  // keyed on the draft so a stale timer cannot resurrect an older version.
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Autosave.
+  //
+  // This used to report a failed write as `Saved`, which is the one thing a builder must
+  // never do — somebody answering eight questions has to be able to trust that line. The
+  // shared hook keeps a failed draft pending, so the next answer and Try again both carry it,
+  // and warns before the tab closes on work the server has not taken.
+  const telemetry = useTelemetry();
+  const save = useAutosave<CharacterDraft>((next) => drafts.save(next), {
+    debounceMs: 400,
+    onFailure: () => telemetry({ name: 'save_failed', kind: 'character-draft' }),
+    onRecovery: () => telemetry({ name: 'save_recovered', kind: 'character-draft' }),
+  });
+
   const persist = useCallback(
     (next: CharacterDraft) => {
       setDraft(next);
-      setSaving('saving');
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        void drafts.save(next).then(
-          () => setSaving('saved'),
-          () => setSaving('idle'),
-        );
-      }, 400);
+      save.save(next);
     },
-    [drafts],
-  );
-
-  useEffect(
-    () => () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    },
-    [],
+    [save],
   );
 
   // The live summary, and what moved since the last step.
@@ -397,6 +395,9 @@ export function BuilderScreen() {
     setCreating(true);
     setFailure(null);
     try {
+      // Whatever is still queued is written before the draft becomes a character: the last
+      // answer somebody gave must not be the one answer the character does not have.
+      await save.flush();
       const character = ruleset!.draftToCharacter(draft!);
       await drafts.finalise(draft!.id, character);
       navigate(character.campaignId ? `/dm/campaigns/${character.campaignId}/party` : '/play');
@@ -417,9 +418,6 @@ export function BuilderScreen() {
       stepsLeft={stepsLeft}
     />
   );
-
-  const savedLabel =
-    saving === 'saving' ? 'Saving…' : saving === 'saved' ? 'Saved just now' : 'Saved';
 
   const footer = (
     <>
@@ -638,16 +636,7 @@ export function BuilderScreen() {
                 borderTop: '1px solid var(--color-border-subtle)',
               }}
             >
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--font-size-11)',
-                  color: 'var(--color-text-tertiary)',
-                }}
-                aria-live="polite"
-              >
-                {savedLabel}
-              </span>
+              <SaveStatus save={save} label="Autosaved" />
             </div>
           </div>
 
@@ -757,16 +746,7 @@ export function BuilderScreen() {
             >
               Step {index + 1} of {steps.length}
             </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--font-size-11)',
-                color: 'var(--color-text-tertiary)',
-              }}
-              aria-live="polite"
-            >
-              {savedLabel}
-            </span>
+            <SaveStatus save={save} label="Autosaved" />
           </div>
 
           {/* The desktop rail becomes a progress bar; the same data, a tenth of the height. */}

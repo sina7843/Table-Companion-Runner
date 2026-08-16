@@ -224,7 +224,7 @@ export function DMHome() {
             icon="cloud-slash"
             title="Could not load your campaigns"
             actions={
-              <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>
+              <Button size="sm" variant="secondary" onClick={state.reload}>
                 Try again
               </Button>
             }

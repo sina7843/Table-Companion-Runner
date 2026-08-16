@@ -67,6 +67,29 @@ export async function migrate(db: Db): Promise<MigrationResult> {
   return result;
 }
 
+/**
+ * What has not been applied yet, without applying anything.
+ *
+ * This is what makes a migration an explicit deployment step rather than a side effect of a
+ * process starting: a release can ask "is the schema behind?" before it routes traffic, and a
+ * readiness check can answer "not yet" instead of serving against a shape the code does not
+ * expect. It creates the bookkeeping table if it is missing — reading is not a write anybody
+ * has to think about — and touches nothing else.
+ */
+export async function pendingMigrations(db: Db): Promise<string[]> {
+  await db.query(`
+    create table if not exists schema_migrations (
+      name       text primary key,
+      applied_at timestamptz not null default now()
+    )
+  `);
+
+  const done = new Set(
+    (await db.query<{ name: string }>('select name from schema_migrations')).map((row) => row.name),
+  );
+  return (await readMigrations()).map((entry) => entry.name).filter((name) => !done.has(name));
+}
+
 /** True when this file was started directly, rather than imported by the server or a test. */
 function isEntrypoint(): boolean {
   const invoked = process.argv[1];
@@ -76,13 +99,28 @@ function isEntrypoint(): boolean {
 if (isEntrypoint()) {
   const config = readConfig();
   const db = createDatabase(config.databaseUrl);
+
+  // `--check` applies nothing and exits non-zero when the schema is behind, which is what a
+  // deployment gate and a CI job both want: a question with an exit code.
+  const check = process.argv.includes('--check');
+
   try {
-    const { applied, skipped } = await migrate(db);
-    process.stdout.write(
-      applied.length > 0
-        ? `Applied ${applied.length} migration(s): ${applied.join(', ')}\n`
-        : `Nothing to apply; ${skipped.length} migration(s) already in place.\n`,
-    );
+    if (check) {
+      const pending = await pendingMigrations(db);
+      process.stdout.write(
+        pending.length > 0
+          ? `${pending.length} migration(s) pending: ${pending.join(', ')}\n`
+          : 'Schema is up to date.\n',
+      );
+      if (pending.length > 0) process.exitCode = 1;
+    } else {
+      const { applied, skipped } = await migrate(db);
+      process.stdout.write(
+        applied.length > 0
+          ? `Applied ${applied.length} migration(s): ${applied.join(', ')}\n`
+          : `Nothing to apply; ${skipped.length} migration(s) already in place.\n`,
+      );
+    }
   } finally {
     await db.close();
   }

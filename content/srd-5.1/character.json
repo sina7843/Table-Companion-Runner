@@ -1,0 +1,1053 @@
+{
+  "source": {
+    "id": "srd-5.1",
+    "name": "System Reference Document 5.1",
+    "publisher": "Wizards of the Coast LLC",
+    "version": "5.1",
+    "url": "https://dnd.wizards.com/resources/systems-reference-document",
+    "license": {
+      "id": "cc-by-4.0",
+      "name": "Creative Commons Attribution 4.0 International",
+      "url": "https://creativecommons.org/licenses/by/4.0/",
+      "redistributable": true,
+      "attribution": "This work includes material from the System Reference Document 5.1 (\"SRD 5.1\") by Wizards of the Coast LLC, available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+    }
+  },
+  "records": [
+    {
+      "kind": "background",
+      "key": "acolyte",
+      "systemId": "dnd5e-2024",
+      "name": "Acolyte",
+      "data": {
+        "key": "acolyte",
+        "label": "Acolyte",
+        "description": "Raised in service to a temple",
+        "increases": [
+          {
+            "ability": "wis",
+            "amount": 2
+          },
+          {
+            "ability": "cha",
+            "amount": 1
+          }
+        ],
+        "skills": ["Insight", "Religion"],
+        "feature": "Shelter of the Faithful"
+      }
+    },
+    {
+      "kind": "background",
+      "key": "charlatan",
+      "systemId": "dnd5e-2024",
+      "name": "Charlatan",
+      "data": {
+        "key": "charlatan",
+        "label": "Charlatan",
+        "description": "A talent for being believed",
+        "increases": [
+          {
+            "ability": "cha",
+            "amount": 2
+          },
+          {
+            "ability": "dex",
+            "amount": 1
+          }
+        ],
+        "skills": ["Deception", "Sleight of Hand"],
+        "feature": "False Identity"
+      }
+    },
+    {
+      "kind": "background",
+      "key": "criminal",
+      "systemId": "dnd5e-2024",
+      "name": "Criminal",
+      "data": {
+        "key": "criminal",
+        "label": "Criminal",
+        "description": "A past worked in the shadows",
+        "increases": [
+          {
+            "ability": "dex",
+            "amount": 2
+          },
+          {
+            "ability": "int",
+            "amount": 1
+          }
+        ],
+        "skills": ["Sleight of Hand", "Stealth"],
+        "feature": "Criminal Contact"
+      }
+    },
+    {
+      "kind": "background",
+      "key": "hermit",
+      "systemId": "dnd5e-2024",
+      "name": "Hermit",
+      "data": {
+        "key": "hermit",
+        "label": "Hermit",
+        "description": "Long isolation and one discovery",
+        "increases": [
+          {
+            "ability": "wis",
+            "amount": 2
+          },
+          {
+            "ability": "con",
+            "amount": 1
+          }
+        ],
+        "skills": ["Medicine", "Survival"],
+        "feature": "Discovery"
+      }
+    },
+    {
+      "kind": "background",
+      "key": "sage",
+      "systemId": "dnd5e-2024",
+      "name": "Sage",
+      "data": {
+        "key": "sage",
+        "label": "Sage",
+        "description": "Years spent among books",
+        "increases": [
+          {
+            "ability": "int",
+            "amount": 2
+          },
+          {
+            "ability": "wis",
+            "amount": 1
+          }
+        ],
+        "skills": ["Arcana", "History"],
+        "feature": "Researcher"
+      }
+    },
+    {
+      "kind": "background",
+      "key": "soldier",
+      "systemId": "dnd5e-2024",
+      "name": "Soldier",
+      "data": {
+        "key": "soldier",
+        "label": "Soldier",
+        "description": "Trained in a fighting company",
+        "increases": [
+          {
+            "ability": "str",
+            "amount": 2
+          },
+          {
+            "ability": "con",
+            "amount": 1
+          }
+        ],
+        "skills": ["Athletics", "Intimidation"],
+        "feature": "Military Rank"
+      }
+    },
+    {
+      "kind": "class",
+      "key": "barbarian",
+      "systemId": "dnd5e-2024",
+      "name": "Barbarian",
+      "data": {
+        "key": "barbarian",
+        "label": "Barbarian",
+        "description": "d12 · martial · no spells",
+        "hitDie": 12,
+        "savingThrows": ["Strength", "Constitution"],
+        "skillChoices": [
+          "Animal Handling",
+          "Athletics",
+          "Intimidation",
+          "Nature",
+          "Perception",
+          "Survival"
+        ],
+        "skillCount": 2,
+        "armour": "Light and medium armour, shields",
+        "weapons": "Simple and martial weapons",
+        "startingArmour": "scale-mail",
+        "startingShield": true,
+        "levelOneFeatures": ["Rage", "Unarmoured Defence"],
+        "subclassLevel": 3
+      }
+    },
+    {
+      "kind": "class",
+      "key": "cleric",
+      "systemId": "dnd5e-2024",
+      "name": "Cleric",
+      "data": {
+        "key": "cleric",
+        "label": "Cleric",
+        "description": "d8 · full caster",
+        "hitDie": 8,
+        "savingThrows": ["Wisdom", "Charisma"],
+        "skillChoices": ["History", "Insight", "Medicine", "Persuasion", "Religion"],
+        "skillCount": 2,
+        "armour": "Light and medium armour, shields",
+        "weapons": "Simple weapons",
+        "startingArmour": "chain-mail",
+        "startingShield": true,
+        "levelOneFeatures": ["Divine Order", "Spellcasting"],
+        "subclassLevel": 3
+      }
+    },
+    {
+      "kind": "class",
+      "key": "druid",
+      "systemId": "dnd5e-2024",
+      "name": "Druid",
+      "data": {
+        "key": "druid",
+        "label": "Druid",
+        "description": "d8 · full caster",
+        "hitDie": 8,
+        "savingThrows": ["Intelligence", "Wisdom"],
+        "skillChoices": [
+          "Animal Handling",
+          "Arcana",
+          "Insight",
+          "Medicine",
+          "Nature",
+          "Perception",
+          "Religion",
+          "Survival"
+        ],
+        "skillCount": 2,
+        "armour": "Light and medium armour, shields",
+        "weapons": "Simple weapons",
+        "startingArmour": "leather",
+        "startingShield": false,
+        "levelOneFeatures": ["Druidic", "Primal Order", "Spellcasting"],
+        "subclassLevel": 3
+      }
+    },
+    {
+      "kind": "class",
+      "key": "fighter",
+      "systemId": "dnd5e-2024",
+      "name": "Fighter",
+      "data": {
+        "key": "fighter",
+        "label": "Fighter",
+        "description": "d10 · martial · no spells",
+        "hitDie": 10,
+        "savingThrows": ["Strength", "Constitution"],
+        "skillChoices": [
+          "Acrobatics",
+          "Animal Handling",
+          "Athletics",
+          "History",
+          "Insight",
+          "Intimidation",
+          "Perception",
+          "Survival"
+        ],
+        "skillCount": 2,
+        "armour": "All armour, shields",
+        "weapons": "Simple and martial weapons",
+        "startingArmour": "chain-mail",
+        "startingShield": true,
+        "levelOneFeatures": ["Fighting Style", "Second Wind"],
+        "subclassLevel": 3
+      }
+    },
+    {
+      "kind": "class",
+      "key": "ranger",
+      "systemId": "dnd5e-2024",
+      "name": "Ranger",
+      "data": {
+        "key": "ranger",
+        "label": "Ranger",
+        "description": "d10 · half caster",
+        "hitDie": 10,
+        "savingThrows": ["Strength", "Dexterity"],
+        "skillChoices": [
+          "Animal Handling",
+          "Athletics",
+          "Insight",
+          "Investigation",
+          "Nature",
+          "Perception",
+          "Stealth",
+          "Survival"
+        ],
+        "skillCount": 3,
+        "armour": "Light and medium armour, shields",
+        "weapons": "Simple and martial weapons",
+        "startingArmour": "studded-leather",
+        "startingShield": false,
+        "levelOneFeatures": ["Favoured Enemy", "Spellcasting", "Weapon Mastery"],
+        "subclassLevel": 3
+      }
+    },
+    {
+      "kind": "class",
+      "key": "rogue",
+      "systemId": "dnd5e-2024",
+      "name": "Rogue",
+      "data": {
+        "key": "rogue",
+        "label": "Rogue",
+        "description": "d8 · expertise · no spells",
+        "hitDie": 8,
+        "savingThrows": ["Dexterity", "Intelligence"],
+        "skillChoices": [
+          "Acrobatics",
+          "Athletics",
+          "Deception",
+          "Insight",
+          "Intimidation",
+          "Investigation",
+          "Perception",
+          "Persuasion",
+          "Sleight of Hand",
+          "Stealth"
+        ],
+        "skillCount": 4,
+        "armour": "Light armour",
+        "weapons": "Simple weapons, hand crossbows, longswords, rapiers, shortswords",
+        "startingArmour": "studded-leather",
+        "startingShield": false,
+        "levelOneFeatures": ["Expertise", "Sneak Attack", "Thieves' Cant"],
+        "subclassLevel": 3
+      }
+    },
+    {
+      "kind": "class",
+      "key": "warlock",
+      "systemId": "dnd5e-2024",
+      "name": "Warlock",
+      "data": {
+        "key": "warlock",
+        "label": "Warlock",
+        "description": "d8 · pact magic",
+        "hitDie": 8,
+        "savingThrows": ["Wisdom", "Charisma"],
+        "skillChoices": [
+          "Arcana",
+          "Deception",
+          "History",
+          "Intimidation",
+          "Investigation",
+          "Nature",
+          "Religion"
+        ],
+        "skillCount": 2,
+        "armour": "Light armour",
+        "weapons": "Simple weapons",
+        "startingArmour": "leather",
+        "startingShield": false,
+        "levelOneFeatures": ["Eldritch Invocations", "Pact Magic"],
+        "subclassLevel": 3
+      }
+    },
+    {
+      "kind": "class",
+      "key": "wizard",
+      "systemId": "dnd5e-2024",
+      "name": "Wizard",
+      "data": {
+        "key": "wizard",
+        "label": "Wizard",
+        "description": "d6 · full caster",
+        "hitDie": 6,
+        "savingThrows": ["Intelligence", "Wisdom"],
+        "skillChoices": [
+          "Arcana",
+          "History",
+          "Insight",
+          "Investigation",
+          "Medicine",
+          "Nature",
+          "Religion"
+        ],
+        "skillCount": 2,
+        "armour": "No armour",
+        "weapons": "Simple weapons",
+        "startingArmour": "none",
+        "startingShield": false,
+        "levelOneFeatures": ["Arcane Recovery", "Spellcasting"],
+        "subclassLevel": 3
+      }
+    },
+    {
+      "kind": "equipment",
+      "key": "pack-dungeoneer",
+      "systemId": "dnd5e-2024",
+      "name": "Dungeoneer's pack",
+      "data": {
+        "value": "dungeoneer",
+        "label": "Dungeoneer's pack",
+        "description": "Rope, torches, rations, crowbar — 10 gp",
+        "category": "starting-pack"
+      }
+    },
+    {
+      "kind": "equipment",
+      "key": "pack-explorer",
+      "systemId": "dnd5e-2024",
+      "name": "Explorer's pack",
+      "data": {
+        "value": "explorer",
+        "label": "Explorer's pack",
+        "description": "Bedroll, mess kit, rations, waterskin — 10 gp",
+        "category": "starting-pack"
+      }
+    },
+    {
+      "kind": "equipment",
+      "key": "pack-priest",
+      "systemId": "dnd5e-2024",
+      "name": "Priest's pack",
+      "data": {
+        "value": "priest",
+        "label": "Priest's pack",
+        "description": "Holy water, incense, vestments, rations — 19 gp",
+        "category": "starting-pack"
+      }
+    },
+    {
+      "kind": "equipment",
+      "key": "pack-scholar",
+      "systemId": "dnd5e-2024",
+      "name": "Scholar's pack",
+      "data": {
+        "value": "scholar",
+        "label": "Scholar's pack",
+        "description": "Book, ink, parchment, lamp — 40 gp",
+        "category": "starting-pack"
+      }
+    },
+    {
+      "kind": "other",
+      "key": "fighting-style-archery",
+      "systemId": "dnd5e-2024",
+      "name": "Archery",
+      "data": {
+        "value": "archery",
+        "label": "Archery",
+        "description": "+2 to hit with ranged weapons",
+        "category": "fighting-style"
+      }
+    },
+    {
+      "kind": "other",
+      "key": "fighting-style-defence",
+      "systemId": "dnd5e-2024",
+      "name": "Defence",
+      "data": {
+        "value": "defence",
+        "label": "Defence",
+        "description": "+1 armour class while wearing armour",
+        "category": "fighting-style"
+      }
+    },
+    {
+      "kind": "other",
+      "key": "fighting-style-duelling",
+      "systemId": "dnd5e-2024",
+      "name": "Duelling",
+      "data": {
+        "value": "duelling",
+        "label": "Duelling",
+        "description": "+2 damage with a one-handed weapon and no second weapon",
+        "category": "fighting-style"
+      }
+    },
+    {
+      "kind": "other",
+      "key": "fighting-style-great-weapon",
+      "systemId": "dnd5e-2024",
+      "name": "Great Weapon Fighting",
+      "data": {
+        "value": "great-weapon",
+        "label": "Great Weapon Fighting",
+        "description": "Reroll 1s and 2s on damage with a two-handed weapon",
+        "category": "fighting-style"
+      }
+    },
+    {
+      "kind": "species",
+      "key": "dragonborn",
+      "systemId": "dnd5e-2024",
+      "name": "Dragonborn",
+      "data": {
+        "key": "dragonborn",
+        "label": "Dragonborn",
+        "description": "Draconic ancestry and a breath weapon",
+        "speed": 30,
+        "traits": ["Breath Weapon", "Damage Resistance", "Darkvision"]
+      }
+    },
+    {
+      "kind": "species",
+      "key": "dwarf",
+      "systemId": "dnd5e-2024",
+      "name": "Dwarf",
+      "data": {
+        "key": "dwarf",
+        "label": "Dwarf",
+        "description": "Hardy, with stonecunning and darkvision",
+        "speed": 30,
+        "traits": ["Darkvision", "Dwarven Resilience", "Stonecunning"]
+      }
+    },
+    {
+      "kind": "species",
+      "key": "elf",
+      "systemId": "dnd5e-2024",
+      "name": "Elf",
+      "data": {
+        "key": "elf",
+        "label": "Elf",
+        "description": "Keen senses and fey ancestry",
+        "speed": 30,
+        "traits": ["Darkvision", "Fey Ancestry", "Keen Senses", "Trance"]
+      }
+    },
+    {
+      "kind": "species",
+      "key": "gnome",
+      "systemId": "dnd5e-2024",
+      "name": "Gnome",
+      "data": {
+        "key": "gnome",
+        "label": "Gnome",
+        "description": "Inventive, with resistance to magic",
+        "speed": 30,
+        "traits": ["Darkvision", "Gnomish Cunning"]
+      }
+    },
+    {
+      "kind": "species",
+      "key": "halfling",
+      "systemId": "dnd5e-2024",
+      "name": "Halfling",
+      "data": {
+        "key": "halfling",
+        "label": "Halfling",
+        "description": "Small, lucky and hard to pin down",
+        "speed": 30,
+        "traits": ["Brave", "Halfling Nimbleness", "Luck"]
+      }
+    },
+    {
+      "kind": "species",
+      "key": "human",
+      "systemId": "dnd5e-2024",
+      "name": "Human",
+      "data": {
+        "key": "human",
+        "label": "Human",
+        "description": "Versatile and ambitious · Resourceful, Skilful",
+        "speed": 30,
+        "traits": ["Resourceful", "Skilful", "Versatile"]
+      }
+    },
+    {
+      "kind": "species",
+      "key": "orc",
+      "systemId": "dnd5e-2024",
+      "name": "Orc",
+      "data": {
+        "key": "orc",
+        "label": "Orc",
+        "description": "Powerful build and relentless endurance",
+        "speed": 30,
+        "traits": ["Adrenaline Rush", "Darkvision", "Relentless Endurance"]
+      }
+    },
+    {
+      "kind": "species",
+      "key": "tiefling",
+      "systemId": "dnd5e-2024",
+      "name": "Tiefling",
+      "data": {
+        "key": "tiefling",
+        "label": "Tiefling",
+        "description": "Fiendish legacy and innate magic",
+        "speed": 30,
+        "traits": ["Darkvision", "Fiendish Legacy", "Otherworldly Presence"]
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "cleric-cantrips-guidance",
+      "systemId": "dnd5e-2024",
+      "name": "Guidance",
+      "data": {
+        "value": "guidance",
+        "label": "Guidance",
+        "description": "Add 1d4 to one ability check",
+        "classId": "cleric",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "cleric-cantrips-light",
+      "systemId": "dnd5e-2024",
+      "name": "Light",
+      "data": {
+        "value": "light",
+        "label": "Light",
+        "description": "An object sheds bright light",
+        "classId": "cleric",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "cleric-cantrips-sacred-flame",
+      "systemId": "dnd5e-2024",
+      "name": "Sacred Flame",
+      "data": {
+        "value": "sacred-flame",
+        "label": "Sacred Flame",
+        "description": "1d8 radiant, Dexterity save",
+        "classId": "cleric",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "cleric-cantrips-thaumaturgy",
+      "systemId": "dnd5e-2024",
+      "name": "Thaumaturgy",
+      "data": {
+        "value": "thaumaturgy",
+        "label": "Thaumaturgy",
+        "description": "Minor wonders for one minute",
+        "classId": "cleric",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "cleric-first-bless",
+      "systemId": "dnd5e-2024",
+      "name": "Bless",
+      "data": {
+        "value": "bless",
+        "label": "Bless",
+        "description": "Three creatures add 1d4 to attacks and saves",
+        "classId": "cleric",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "cleric-first-cure-wounds",
+      "systemId": "dnd5e-2024",
+      "name": "Cure Wounds",
+      "data": {
+        "value": "cure-wounds",
+        "label": "Cure Wounds",
+        "description": "Heal 2d8 + spellcasting modifier",
+        "classId": "cleric",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "cleric-first-guiding-bolt",
+      "systemId": "dnd5e-2024",
+      "name": "Guiding Bolt",
+      "data": {
+        "value": "guiding-bolt",
+        "label": "Guiding Bolt",
+        "description": "4d6 radiant, next attack has advantage",
+        "classId": "cleric",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "cleric-first-shield-of-faith",
+      "systemId": "dnd5e-2024",
+      "name": "Shield of Faith",
+      "data": {
+        "value": "shield-of-faith",
+        "label": "Shield of Faith",
+        "description": "+2 armour class for ten minutes",
+        "classId": "cleric",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "druid-cantrips-druidcraft",
+      "systemId": "dnd5e-2024",
+      "name": "Druidcraft",
+      "data": {
+        "value": "druidcraft",
+        "label": "Druidcraft",
+        "description": "Minor natural effects",
+        "classId": "druid",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "druid-cantrips-guidance",
+      "systemId": "dnd5e-2024",
+      "name": "Guidance",
+      "data": {
+        "value": "guidance",
+        "label": "Guidance",
+        "description": "Add 1d4 to one ability check",
+        "classId": "druid",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "druid-cantrips-produce-flame",
+      "systemId": "dnd5e-2024",
+      "name": "Produce Flame",
+      "data": {
+        "value": "produce-flame",
+        "label": "Produce Flame",
+        "description": "Light, or 1d8 fire thrown",
+        "classId": "druid",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "druid-cantrips-shillelagh",
+      "systemId": "dnd5e-2024",
+      "name": "Shillelagh",
+      "data": {
+        "value": "shillelagh",
+        "label": "Shillelagh",
+        "description": "Your club strikes with Wisdom",
+        "classId": "druid",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "druid-first-entangle",
+      "systemId": "dnd5e-2024",
+      "name": "Entangle",
+      "data": {
+        "value": "entangle",
+        "label": "Entangle",
+        "description": "Grasping weeds restrain creatures",
+        "classId": "druid",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "druid-first-faerie-fire",
+      "systemId": "dnd5e-2024",
+      "name": "Faerie Fire",
+      "data": {
+        "value": "faerie-fire",
+        "label": "Faerie Fire",
+        "description": "Outlined creatures grant advantage",
+        "classId": "druid",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "druid-first-healing-word",
+      "systemId": "dnd5e-2024",
+      "name": "Healing Word",
+      "data": {
+        "value": "healing-word",
+        "label": "Healing Word",
+        "description": "Bonus action: heal 2d4 at 60 feet",
+        "classId": "druid",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "druid-first-thunderwave",
+      "systemId": "dnd5e-2024",
+      "name": "Thunderwave",
+      "data": {
+        "value": "thunderwave",
+        "label": "Thunderwave",
+        "description": "2d8 thunder in a 15-foot cube",
+        "classId": "druid",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "ranger-first-cure-wounds",
+      "systemId": "dnd5e-2024",
+      "name": "Cure Wounds",
+      "data": {
+        "value": "cure-wounds",
+        "label": "Cure Wounds",
+        "description": "Heal 2d8 + spellcasting modifier",
+        "classId": "ranger",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "ranger-first-ensnaring-strike",
+      "systemId": "dnd5e-2024",
+      "name": "Ensnaring Strike",
+      "data": {
+        "value": "ensnaring-strike",
+        "label": "Ensnaring Strike",
+        "description": "Thorns restrain a struck creature",
+        "classId": "ranger",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "ranger-first-hunters-mark",
+      "systemId": "dnd5e-2024",
+      "name": "Hunter's Mark",
+      "data": {
+        "value": "hunters-mark",
+        "label": "Hunter's Mark",
+        "description": "Extra 1d6 damage to a marked target",
+        "classId": "ranger",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "ranger-first-speak-with-animals",
+      "systemId": "dnd5e-2024",
+      "name": "Speak with Animals",
+      "data": {
+        "value": "speak-with-animals",
+        "label": "Speak with Animals",
+        "description": "Converse with beasts",
+        "classId": "ranger",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "warlock-cantrips-chill-touch",
+      "systemId": "dnd5e-2024",
+      "name": "Chill Touch",
+      "data": {
+        "value": "chill-touch",
+        "label": "Chill Touch",
+        "description": "1d10 necrotic, no healing",
+        "classId": "warlock",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "warlock-cantrips-eldritch-blast",
+      "systemId": "dnd5e-2024",
+      "name": "Eldritch Blast",
+      "data": {
+        "value": "eldritch-blast",
+        "label": "Eldritch Blast",
+        "description": "1d10 force at 120 feet",
+        "classId": "warlock",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "warlock-cantrips-mage-hand",
+      "systemId": "dnd5e-2024",
+      "name": "Mage Hand",
+      "data": {
+        "value": "mage-hand",
+        "label": "Mage Hand",
+        "description": "A spectral hand carries and manipulates",
+        "classId": "warlock",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "warlock-cantrips-minor-illusion",
+      "systemId": "dnd5e-2024",
+      "name": "Minor Illusion",
+      "data": {
+        "value": "minor-illusion",
+        "label": "Minor Illusion",
+        "description": "A sound or an image",
+        "classId": "warlock",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "warlock-first-armour-of-agathys",
+      "systemId": "dnd5e-2024",
+      "name": "Armour of Agathys",
+      "data": {
+        "value": "armour-of-agathys",
+        "label": "Armour of Agathys",
+        "description": "5 temporary hit points and cold retaliation",
+        "classId": "warlock",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "warlock-first-arms-of-hadar",
+      "systemId": "dnd5e-2024",
+      "name": "Arms of Hadar",
+      "data": {
+        "value": "arms-of-hadar",
+        "label": "Arms of Hadar",
+        "description": "2d6 necrotic to everything adjacent",
+        "classId": "warlock",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "warlock-first-hex",
+      "systemId": "dnd5e-2024",
+      "name": "Hex",
+      "data": {
+        "value": "hex",
+        "label": "Hex",
+        "description": "Extra 1d6 necrotic and one ability at disadvantage",
+        "classId": "warlock",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "warlock-first-witch-bolt",
+      "systemId": "dnd5e-2024",
+      "name": "Witch Bolt",
+      "data": {
+        "value": "witch-bolt",
+        "label": "Witch Bolt",
+        "description": "1d12 lightning, sustained each turn",
+        "classId": "warlock",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "wizard-cantrips-fire-bolt",
+      "systemId": "dnd5e-2024",
+      "name": "Fire Bolt",
+      "data": {
+        "value": "fire-bolt",
+        "label": "Fire Bolt",
+        "description": "1d10 fire at 120 feet",
+        "classId": "wizard",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "wizard-cantrips-mage-hand",
+      "systemId": "dnd5e-2024",
+      "name": "Mage Hand",
+      "data": {
+        "value": "mage-hand",
+        "label": "Mage Hand",
+        "description": "A spectral hand carries and manipulates",
+        "classId": "wizard",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "wizard-cantrips-prestidigitation",
+      "systemId": "dnd5e-2024",
+      "name": "Prestidigitation",
+      "data": {
+        "value": "prestidigitation",
+        "label": "Prestidigitation",
+        "description": "Small harmless effects",
+        "classId": "wizard",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "wizard-cantrips-ray-of-frost",
+      "systemId": "dnd5e-2024",
+      "name": "Ray of Frost",
+      "data": {
+        "value": "ray-of-frost",
+        "label": "Ray of Frost",
+        "description": "1d8 cold and reduced speed",
+        "classId": "wizard",
+        "tier": "cantrips"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "wizard-first-detect-magic",
+      "systemId": "dnd5e-2024",
+      "name": "Detect Magic",
+      "data": {
+        "value": "detect-magic",
+        "label": "Detect Magic",
+        "description": "Sense magic within 30 feet",
+        "classId": "wizard",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "wizard-first-magic-missile",
+      "systemId": "dnd5e-2024",
+      "name": "Magic Missile",
+      "data": {
+        "value": "magic-missile",
+        "label": "Magic Missile",
+        "description": "Three darts, 1d4 + 1 each, never misses",
+        "classId": "wizard",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "wizard-first-shield",
+      "systemId": "dnd5e-2024",
+      "name": "Shield",
+      "data": {
+        "value": "shield",
+        "label": "Shield",
+        "description": "Reaction: +5 armour class until your next turn",
+        "classId": "wizard",
+        "tier": "first"
+      }
+    },
+    {
+      "kind": "spell",
+      "key": "wizard-first-sleep",
+      "systemId": "dnd5e-2024",
+      "name": "Sleep",
+      "data": {
+        "value": "sleep",
+        "label": "Sleep",
+        "description": "Put 5d8 hit points of creatures to sleep",
+        "classId": "wizard",
+        "tier": "first"
+      }
+    }
+  ]
+}

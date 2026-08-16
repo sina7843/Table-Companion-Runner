@@ -290,6 +290,13 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
         const wanted = new Set<string>(userIds);
         return resolve(USERS.filter((user) => wanted.has(user.id)));
       },
+      updateSelf: (input: { displayName: string }) => {
+        const index = USERS.findIndex((user) => user.id === CURRENT_USER_ID);
+        if (index < 0) return Promise.reject(new Error('Not signed in.'));
+        const next: User = { ...USERS[index]!, displayName: input.displayName.trim() };
+        USERS[index] = next;
+        return resolve(next);
+      },
     },
 
     gameSystems: {

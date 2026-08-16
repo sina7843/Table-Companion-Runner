@@ -12,7 +12,7 @@
  */
 import { createFixtureRepositories, type FixtureScenario } from './fixtureRepositories.ts';
 import { createHttpRepositories } from './httpRepositories.ts';
-import { createLocalChannel, createSocketChannel, type RealtimeChannel } from './realtime.ts';
+import { createEventStreamChannel, createLocalChannel, type RealtimeChannel } from './realtime.ts';
 import { withRealtime } from './withRealtime.ts';
 import type { Repositories } from './repositories.ts';
 
@@ -51,11 +51,12 @@ export interface DataSourceOptions {
 export function createDataSource(options: DataSourceOptions = {}): DataSource {
   const env = options.env ?? readEnv();
 
-  // A socket only exists when someone configured one. Otherwise the local channel is a
-  // real channel that happens to reach only this machine — which is enough for a DM tab
-  // and a player tab to stay in step, and is not a pretend one.
+  // A stream only exists when someone configured one. Otherwise the local channel is the
+  // explicit development adapter: a real channel that happens to reach only this machine,
+  // which is enough for a DM tab and a player tab to stay in step and is not a pretend one.
+  // The two differ in `authority` as well as in transport — see `withRealtime`.
   const channel = env.VITE_REALTIME_URL
-    ? createSocketChannel(env.VITE_REALTIME_URL)
+    ? createEventStreamChannel(env.VITE_REALTIME_URL)
     : createLocalChannel();
 
   if (env.VITE_API_BASE_URL) {

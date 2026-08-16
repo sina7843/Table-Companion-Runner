@@ -33,6 +33,9 @@ export const API_ROUTES = {
   'auth.signUp': { method: 'POST', path: () => '/auth/sign-up' },
   'auth.signOut': { method: 'POST', path: () => '/auth/sign-out' },
   'users.current': { method: 'GET', path: () => '/me' },
+  // The only account field a person can change. Self-scoped by the path rather than by a
+  // body field, so there is no id for a caller to swap for somebody else's.
+  'users.updateSelf': { method: 'PUT', path: () => '/me' },
   'users.byId': { method: 'GET', path: (userId: string) => `/users/${userId}` },
   'users.byIds': { method: 'GET', path: (ids: string) => `/users?ids=${ids}` },
 
@@ -121,6 +124,20 @@ export const API_ROUTES = {
     method: 'POST',
     path: (combatId: string) => `/combats/${combatId}/commands`,
   },
+
+  /* ── Realtime ───────────────────────────────────────────────────────────── */
+  //
+  // `GET /events` is a server-sent event stream rather than a JSON route, so it is not in this
+  // table: it is opened by `EventSource` with the session cookie, not by the request helper,
+  // and it answers with `text/event-stream` until the client goes away. It is documented here
+  // because it is part of the same contract.
+  //
+  //   GET /events[?campaignId=…]   → 200 text/event-stream · 401 · 403
+  //   headers: Last-Event-ID       → replay of what was missed, or an `event: resync`
+  //
+  // Every frame is a `DomainEvent` — a notification, never a payload. Nothing is announced
+  // before the transaction that caused it committed, and nothing is announced to an account
+  // that may not see it. `VITE_REALTIME_URL` says where it is.
 
   /* ── Rolls ──────────────────────────────────────────────────────────────── */
   'rolls.listForCombat': {

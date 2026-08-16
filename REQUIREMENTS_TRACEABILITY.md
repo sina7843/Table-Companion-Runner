@@ -11,7 +11,7 @@ named part of it is not built. **Blocked** — not built, with the blocker named
 
 | # | Requirement | Routes | Implementation | Tests | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Authentication / Users | `/`, `/join` | [entry.tsx](src/screens/entry.tsx), [SessionProvider.tsx](src/domain/data/SessionProvider.tsx), [server/auth.ts](server/auth.ts), [server/authorize.ts](server/authorize.ts) | [auth.test.ts](server/auth.test.ts), [authorize.test.ts](server/authorize.test.ts) | Done — TC-P02. Scrypt credentials, HttpOnly SameSite=Strict session cookies, invite redemption, and every `permissions.ts` rule enforced server-side. No account-creation *screen*: the endpoint exists and the approved design draws no surface for it (TC-P07). |
+| 1 | Authentication / Users | `/`, `/join` | [entry.tsx](src/screens/entry.tsx), [account.tsx](src/screens/account.tsx), [SessionProvider.tsx](src/domain/data/SessionProvider.tsx), [sessionExpiry.ts](src/domain/data/sessionExpiry.ts), [server/auth.ts](server/auth.ts), [server/authorize.ts](server/authorize.ts) | [auth.test.ts](server/auth.test.ts), [authorize.test.ts](server/authorize.test.ts), [account.test.ts](server/account.test.ts), [account.test.ts](src/domain/account.test.ts) | Done — TC-P02. Scrypt credentials, HttpOnly SameSite=Strict session cookies, invite redemption, and every `permissions.ts` rule enforced server-side. Account lifecycle completed at TC-P07: `/signup` creates an account, `/dm/account` renames and signs out through `PUT /me`, and a session that ends is detected, explained and returned from. |
 | 2 | Game System selection | `/builder` step 1, `/campaigns/new` | [registry.ts](src/domain/ruleset/registry.ts), [gameSystems](src/domain/data/fixtureRepositories.ts) | [domain.test.ts](src/domain/domain.test.ts), [rulesetContract.test.ts](src/domain/rulesetContract.test.ts) | Done |
 | 3 | Campaigns | `/dm/campaigns`, `/dm/campaigns/:id`, `/campaigns/new` | [CampaignLayout.tsx](src/screens/campaign/CampaignLayout.tsx), [CampaignScreens.tsx](src/screens/campaign/CampaignScreens.tsx) | [domain.test.ts](src/domain/domain.test.ts) | Done |
 | 4 | Party management | `/dm/campaigns/:id/party`, `/dm/characters`, `/play/party` | `CampaignParty`, `PartyTable`, [shared.tsx](src/screens/campaign/shared.tsx) (`buildPartyRows`, `partyColumns`), `PlayerParty` | [domain.test.ts](src/domain/domain.test.ts) | Done |
@@ -45,9 +45,29 @@ named part of it is not built. **Blocked** — not built, with the blocker named
 | 32 | Secret DM rolls | `/dm/combat/:id` | `useCombatLog` secret list, [permissions.ts](src/domain/permissions.ts) (`isPlayerVisibleRoll`, `visibleRolls`) | [rolls.test.ts](src/domain/rolls.test.ts) — asserts the DM split and the player filter cannot diverge | Done |
 | 33 | Combat log | both combat routes | [useCombatLog.tsx](src/screens/combat/useCombatLog.tsx), `RollLog` in [CombatRunner.tsx](src/screens/combat/CombatRunner.tsx) | [rolls.test.ts](src/domain/rolls.test.ts) | Done |
 | 34 | DM edit / override / undo | `/dm/combat/:id` | [actions.ts](src/screens/combat/actions.ts) (`revertHealth`), targeted undo in `CombatRunner` | [actions.test.ts](src/screens/combat/actions.test.ts) | Done |
-| 35 | Data sourced from 5e.tools for D&D | `/dm/monsters` | [fixtures.ts](src/domain/data/fixtures.ts) — hand-authored SRD stat blocks in the ingest shape | [library.test.ts](src/domain/library.test.ts) | **Blocked** — no ingest pipeline. The library reads real stat blocks from fixtures, not from 5e.tools. See Known limitations. |
-| 36 | Autosave | builder, encounter builder, monster editor | flush-based autosave in [EncounterBuilder.tsx](src/screens/encounters/EncounterBuilder.tsx), [MonsterEditor.tsx](src/screens/monsters/MonsterEditor.tsx), [BuilderScreen.tsx](src/screens/builder/BuilderScreen.tsx) | [composition.test.ts](src/screens/encounters/composition.test.ts) | Done |
-| 37 | Graceful reconnect and state recovery | both combat routes | [useConnection.ts](src/app/useConnection.ts), `ConnectionStatus`, restored banner | [connection.test.ts](src/app/connection.test.ts) | Done |
+| 35 | Data sourced from 5e.tools for D&D | `/dm/monsters` | [content/](content/) bundles → [server/content/import.ts](server/content/import.ts) → `content_records`; read back through [ruleset/dnd5e/content.ts](src/domain/ruleset/dnd5e/content.ts) | [content.test.ts](src/domain/content/content.test.ts), [import.test.ts](server/content/import.test.ts) | **Met differently, and documented** — TC-P06. There is a real ingest pipeline, and the source is the SRD 5.1 under CC BY 4.0 rather than 5e.tools, which no licence permits redistributing. The blocker is recorded in [content/README.md](content/README.md) and enforced by the importer. |
+| 36 | Autosave | builder, encounter builder, monster editor | one [useAutosave.ts](src/app/useAutosave.ts) behind all three, with [SaveStatus.tsx](src/app/SaveStatus.tsx) | [autosave.test.ts](src/app/autosave.test.ts), [states.test.ts](src/app/states.test.ts) | Done — and at TC-P07 a failed save stopped reporting `Saved`. The edit is kept, the failure is said, and the retry sends the same value. |
+| 37 | Graceful reconnect and state recovery | both combat routes | [useConnection.ts](src/app/useConnection.ts), `ConnectionStatus`, restored banner, and the shell status region | [connection.test.ts](src/app/connection.test.ts), [states.test.ts](src/app/states.test.ts) | Done — and at TC-P07 every screen stopped asserting a connection state it could not know. |
+
+## Production readiness
+
+Audited at TC-P10 against a container built from the `Dockerfile`, an empty database migrated
+and imported through it, and two independent browsers. Every §6 row above is backed by real
+authentication, server-side authorization, PostgreSQL persistence and runtime validation; the
+combat and roll rows are additionally backed by an authenticated event stream.
+
+| | Evidence |
+| --- | --- |
+| Golden Path, two independent clients | 35 passed, 2 skipped by name, 0 failed, against the production stack |
+| Refresh | Same version, active participant and round |
+| Backend restart | Same version, round, active participant, hit points; one roll, not two |
+| Concurrency | Two commands on one version → `200` and `409`; the fight moved by exactly one |
+| Privacy | Absent from the player's API payload, stream, DOM, the server's 617 log lines and `/metrics` |
+| Requirement 35 (5e.tools) | Met differently and documented — SRD 5.1 under CC BY 4.0, enforced by the importer |
+
+The one §6 capability with a stated limit is the free-form attack roll, which the client still
+evaluates. TC-P10 audited it as non-blocking: it is bounded to creatures, so it is a cheating
+vector rather than an escalation or a leak. See `IMPLEMENTATION_STATUS.md` (F-2).
 
 ## §18 Information architecture
 

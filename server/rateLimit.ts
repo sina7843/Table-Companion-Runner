@@ -54,6 +54,26 @@ export const RATE_RULES = {
 
 export type RateClass = keyof typeof RATE_RULES;
 
+/**
+ * Scales every limit, for a deployment where one address is many people.
+ *
+ * The limiter counts an anonymous caller by address, which is the only thing it can know
+ * about them — so a company behind one NAT, a university, a conference network or a test
+ * suite all look like one very busy person. That is a real deployment property rather than a
+ * test inconvenience, and the honest answer is a knob with a safe default rather than either
+ * a limit nobody can raise or a limit nobody enforces.
+ *
+ * It scales the count and never the window: the shape of the protection stays the same.
+ */
+export function scaleRules(scale: number): Record<RateClass, RateRule> {
+  const factor = Number.isFinite(scale) && scale >= 1 ? Math.floor(scale) : 1;
+  const scaled = {} as Record<RateClass, RateRule>;
+  for (const [name, rule] of Object.entries(RATE_RULES) as [RateClass, RateRule][]) {
+    scaled[name] = { limit: rule.limit * factor, windowMs: rule.windowMs };
+  }
+  return scaled;
+}
+
 export interface RateLimiter {
   check(key: string, rule: RateRule): RateVerdict;
   /** Drops expired windows. Called on a timer by the owner, and by tests directly. */

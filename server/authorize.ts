@@ -216,6 +216,10 @@ export function createAuthorizedRepositories(
         const allowed = await visibleUserIds();
         return repos.users.byIds(userIds.filter((userId) => allowed.has(userId)));
       },
+      // Nothing to check: the store scopes the write to the session, and the route carries
+      // no id a caller could aim elsewhere. Listed rather than spread so a future field on
+      // this call cannot arrive here unreviewed.
+      updateSelf: (input: { displayName: string }) => repos.users.updateSelf(input),
     },
 
     gameSystems: repos.gameSystems,

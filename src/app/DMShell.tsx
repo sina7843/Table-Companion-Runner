@@ -134,7 +134,7 @@ export function DMPage({ eyebrow, title, actions, subbar, children }: DMPageProp
       <header className="tc-topbar">
         <div className="tc-topbar__titles">
           {eyebrow && <span className="tc-topbar__eyebrow">{eyebrow}</span>}
-          <span className="tc-topbar__title">{title}</span>
+          <h1 className="tc-topbar__title">{title}</h1>
         </div>
         {actions}
         <Button variant="secondary" size="sm">

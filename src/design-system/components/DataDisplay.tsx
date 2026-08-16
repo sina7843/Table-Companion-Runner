@@ -8,6 +8,12 @@ export interface SectionHeaderProps {
   actions?: ReactNode;
   /** A glyph before the title. The design uses one where a section names a kind of thing. */
   icon?: IconName;
+  /**
+   * Which heading this section is. A section title is a heading whatever it looks like —
+   * without one a screen reader has no structure to navigate, and the design's own
+   * hierarchy stops existing the moment you cannot see it.
+   */
+  level?: 2 | 3 | 4;
   /** Sub-sections drop to the sans face and a single hairline rule. */
   sub?: boolean;
   className?: string;
@@ -24,15 +30,20 @@ export function SectionHeader({
   actions,
   icon,
   sub,
+  level,
   className,
 }: SectionHeaderProps) {
+  // A sub-section sits under a section, so it defaults one level deeper. Every style comes
+  // from the class; the tag only carries the structure.
+  const Heading = `h${level ?? (sub ? 3 : 2)}` as 'h2' | 'h3' | 'h4';
+
   return (
     <div className={cx('tc-section', sub && 'tc-section--sub', className)}>
-      <span className="tc-section__title">
+      <Heading className="tc-section__title">
         {icon && <Icon name={icon} />}
         {eyebrow && <span className="tc-section__eyebrow">{eyebrow}</span>}
         {title}
-      </span>
+      </Heading>
       {actions && <span className="tc-section__actions">{actions}</span>}
     </div>
   );

@@ -336,7 +336,7 @@ export function PlayerCombat() {
       {down ? (
         <header className="tc-mobile__header tc-turnband tc-turnband--down">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="tc-turnband__title">Unconscious — 0 HP</div>
+            <h1 className="tc-turnband__title">Unconscious — 0 HP</h1>
             <div className="tc-turnband__sub">
               Round {combat.round} · {myTurn ? 'your turn · roll a death saving throw' : 'waiting'}
             </div>
@@ -345,7 +345,7 @@ export function PlayerCombat() {
       ) : myTurn ? (
         <header className="tc-mobile__header tc-turnband">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="tc-turnband__title">Your turn</div>
+            <h1 className="tc-turnband__title">Your turn</h1>
             <div className="tc-turnband__sub">
               Round {combat.round} · {character?.name ?? 'You'} · turn {index + 1} of {order.length}
             </div>
@@ -358,7 +358,7 @@ export function PlayerCombat() {
         <header className="tc-mobile__header">
           <div className="tc-topbar__titles">
             <span className="tc-topbar__eyebrow">{combat.name}</span>
-            <span className="tc-topbar__title">Combat</span>
+            <h1 className="tc-topbar__title">Combat</h1>
           </div>
           <ConnectionStatus state={connection.state} />
         </header>

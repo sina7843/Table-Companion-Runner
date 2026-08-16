@@ -157,7 +157,7 @@ export function EmptyState({ icon, title, description, actions, className }: Emp
   return (
     <div className={cx('tc-empty', className)}>
       {icon && <Icon name={icon} />}
-      <span className="tc-empty__title">{title}</span>
+      <h2 className="tc-empty__title">{title}</h2>
       {description && <span className="tc-empty__desc">{description}</span>}
       {actions && <div className="tc-empty__actions">{actions}</div>}
     </div>

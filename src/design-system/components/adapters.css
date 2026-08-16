@@ -76,3 +76,62 @@ button.tc-chip.tc-chip--static {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* The bottom sheet is a native <dialog> for the same reasons Modal and Drawer are, so it
+   needs the same user-agent neutralisation. Without this it renders with the UA's padding,
+   groove border, canvas background and max-height, all of which fight .tc-sheet's own
+   geometry — and with no scrim behind it at all. */
+dialog.tc-sheet {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  max-width: none;
+  overflow: visible;
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+}
+
+dialog.tc-sheet::backdrop {
+  background: var(--color-surface-scrim);
+  backdrop-filter: blur(2px);
+  animation: tc-fade var(--motion-overlay);
+}
+
+dialog.tc-sheet:not([open]) {
+  display: none;
+}
+
+/* ── Hover is not an input method every device has ─────────────────────────────
+
+   The approved table hides its row actions until the row is hovered or focused. On a
+   pointer that is a considered reveal; on a touch screen there is no hover state to
+   enter, so the DM's tablet showed empty action columns — Start combat, Duplicate and
+   the overflow menu were unreachable without a keyboard.
+
+   `hover: none` is the honest test: it asks the device, not the viewport width, and a
+   laptop with a touchscreen keeps the reveal because it still has a pointer. Opacity
+   only — the layout, the spacing and the visual language are unchanged. */
+@media (hover: none) {
+  .tc-table__rowactions {
+    opacity: 1;
+  }
+
+  /* Same shape of problem, smaller stakes: an action's roll buttons sit at 72% until
+     hovered, which on touch is where they permanently stay. */
+  .tc-action__rolls {
+    opacity: 1;
+  }
+}
+
+/* A long name must ellipsis, not overflow.
+
+   `.tc-init__name` sets white-space, overflow and text-overflow, but it is a flex
+   container — text-overflow does not reach a flex child, and a button child will not
+   shrink below its content without min-width. A twenty-character monster name therefore
+   pushed the state flag and the initiative column out of the row. */
+.tc-init__name > button {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

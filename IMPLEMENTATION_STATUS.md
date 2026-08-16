@@ -1246,3 +1246,59 @@ and compiles every new module.
 
 No backend is included — this is the boundary, not an implementation of the other side. No
 provider was chosen and no credential is read anywhere.
+
+## TC-14 — Responsive, accessibility and input pass
+
+### Defects found and fixed
+
+1. **Hover-only row actions** — `.tc-table__rowactions` at `opacity: 0` until hover made
+   Start combat, Duplicate and the overflow menu unreachable on touch, in both the encounter
+   and monster libraries. Revealed under `@media (hover: none)` in `adapters.css`.
+   `.tc-action__rolls` had the same shape and got the same escape.
+2. **The bottom sheet had no user-agent reset** — `Sheet` shipped in TC-12 without the
+   `dialog.tc-*` neutralisation `Modal` and `Drawer` have, so it rendered with the browser's
+   padding, border, background and `max-height`, and no scrim.
+3. **Long names broke the initiative row** — the name button had no `min-width: 0`, so
+   `text-overflow` never applied and the row overflowed instead of ellipsing.
+4. **No headings anywhere** — one `<h3>` in the application. Page titles are `<h1>`,
+   `SectionHeader` renders `h2`/`h3` with an overridable `level`, `EmptyState` renders `h2`;
+   user-agent heading styling is zeroed in `shell.css`.
+5. **The monster editor squeezed its form on a tablet** — the 400px preview is now
+   `flex: 1 1 340px` and wraps, matching the encounter builder and detail.
+
+### Verified rather than assumed
+
+Global focus ring covers every focusable element type. `touch-targets.css` enforces the 44px
+floor at touch density, with expanded hit areas for controls too small to grow. Both shells
+have a `main` landmark and a skip link; both navs are named `nav` elements. Reduced motion
+zeroes the duration tokens and stops all three looping animations. Every coloured state also
+renders a word. Overlays are native `<dialog>`s, so focus trap, Escape and focus return come
+from the platform; the context panel, which is deliberately not a dialog, restores focus by
+hand.
+
+### Tests — 209, all passing (12 new in `src/design-system/accessibility.test.ts`)
+
+Icon-only controls having names; `IconButton.label` being required, not optional; nothing
+revealed by hover alone — derived by enumerating every `opacity: 0` rule in the vendored CSS
+and requiring a touch escape for each one a `:hover` selector reveals; the escape querying
+the device rather than the viewport; page, section and empty-state titles being headings; the
+heading tags carrying no user-agent styling; both shells exposing a main landmark and a skip
+link; all three overlays going through the one native-dialog helper; every rendered dialog
+class having a reset and a backdrop, derived from `Overlay.tsx`; the context panel restoring
+focus; reduced motion stopping every looping animation; and the row-state and connection maps
+each pairing a colour with a word.
+
+The hover check was mutation-verified: removing the fix fails it.
+
+### Checks run
+
+`npm run typecheck`, `npm run lint`, `npm run test` (209 passing), `npm run format:check`,
+`npm run build`. Dev server serves DM combat, both libraries, the monster editor, a
+20+-action creature, an empty state and player combat.
+
+### Not done
+
+Contrast ratios, rendered focus order and real thumb comfort are measurements this repository
+cannot take — there is no browser automation installed. The tokens follow the approved
+palette and the floors are enforced in CSS, but none of that is a measurement, and this pass
+does not claim otherwise.

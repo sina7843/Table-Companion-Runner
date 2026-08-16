@@ -328,7 +328,11 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
         </>
       }
     >
-      <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
+      {/*
+        Wraps rather than shrinks: below roughly a tablet the preview drops under the form
+        instead of squeezing the fields a DM is actually typing into.
+      */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', height: '100%', minHeight: 0 }}>
         <div
           style={{
             flex: 1,
@@ -664,8 +668,9 @@ export function MonsterEditor({ mode }: { mode: 'create' | 'clone' | 'edit' }) {
         {/* Live preview: the real sheet, recomputed on every keystroke. */}
         <aside
           style={{
-            flex: 'none',
-            width: 400,
+            flex: '1 1 340px',
+            maxWidth: 400,
+            minWidth: 0,
             borderLeft: '1px solid var(--color-border-default)',
             background: 'var(--color-surface-primary)',
             overflowY: 'auto',

@@ -333,3 +333,30 @@
   background: var(--color-surface-secondary);
   border-bottom: 1px solid var(--color-border-default);
 }
+
+/* ── Heading semantics without heading styling ──────────────────────────────
+   Page and section titles are h1/h2/h3 so a screen reader has a structure to
+   navigate — the design's hierarchy is real whether or not you can see it. The
+   user agent's own heading margins and font sizes would fight the approved type
+   scale, so they are zeroed here and every visual value stays with its class. */
+h1.tc-topbar__title,
+h1.tc-turnband__title,
+h2.tc-section__title,
+h3.tc-section__title,
+h4.tc-section__title,
+h2.tc-empty__title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+/* Those three carry their own size from the class, so `inherit` must not win over it. */
+h1.tc-topbar__title {
+  font-size: var(--text-section-title-size);
+  font-weight: 700;
+}
+h1.tc-turnband__title {
+  font-size: var(--font-size-16);
+  font-weight: 700;
+}

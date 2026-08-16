@@ -1064,3 +1064,69 @@ online/offline events, which is the honest answer when nothing is deployed.
 **A React-shaped bug fixed on the way.** `useRealtime` matched wanted event kinds by
 substring over a joined string, which would fire a handler for any kind that happened to be
 a prefix of a wanted one. It matches whole values now.
+
+## TC-14 — Responsive, accessibility and input pass
+
+**Every fix went into the adapter layer, not the vendored CSS.** The approved design system
+is the visual contract; `adapters.css` already existed for exactly this — structural and
+affordance corrections that introduce no colour, type, spacing or shape of their own. Four
+of the five fixes are there, and each one states in a comment what it is answering.
+
+**The hover-only reveal was the acceptance criterion, and it was real.** `.tc-table__rowactions`
+ships at `opacity: 0` until the row is hovered or focused. On a pointer that is a considered
+reveal; on the DM's tablet there is no hover state to enter, so Start combat, Duplicate and
+the overflow menu were invisible and unreachable without a keyboard — on the encounter
+library and the monster library both. The escape is `@media (hover: none)`, which asks the
+device rather than the viewport: a laptop with a touchscreen keeps the reveal because it
+still has a pointer, and a wide tablet loses it because it does not. A width query would
+have got both cases backwards. `.tc-action__rolls` had the same shape at lower stakes and
+got the same treatment.
+
+**The bottom sheet was shipping with browser styling over it.** `Sheet` arrived in TC-12 as
+a native `<dialog>` but was never added to the user-agent reset that `Modal` and `Drawer`
+have, so it rendered with the UA's padding, groove border, canvas background and
+`max-height`, and with no scrim behind it at all. A test now derives the list of overlay
+classes from `Overlay.tsx` itself, so the next dialog cannot be added without one.
+
+**A long name broke the initiative row.** `.tc-init__name` sets `overflow: hidden` and
+`text-overflow: ellipsis`, but it is a flex container — `text-overflow` does not reach a
+flex child, and the name became a `<button>` in TC-11a so that it could carry the keyboard
+path. Without `min-width: 0` it refused to shrink, and a long creature name pushed the state
+flag and the initiative column out of the row.
+
+**There were no headings anywhere.** Every page title was a `<span class="tc-topbar__title">`
+and every section title a `<span class="tc-section__title">` — one `<h3>` in the whole
+application. A screen-reader user had no structure to navigate at all. Page titles are now
+`<h1>`, `SectionHeader` renders `h2`/`h3` (a sub-section defaults one level deeper) with an
+overridable `level`, and `EmptyState`'s title is an `<h2>` because on an empty screen it is
+usually the only thing there. The user agent's heading margins and font sizes are zeroed in
+`shell.css` so the approved type scale is untouched — which is why the semantics could not
+be added before that reset existed.
+
+**What was already right, and was checked rather than assumed.** The global focus ring in
+`base.css` covers `a`, `button`, `input`, `select`, `textarea` and `[tabindex]`, which is
+every focusable thing this application renders. `touch-targets.css` from TC-01 already
+enforces the 44px floor at touch density, including expanded hit areas for controls too
+small to grow. Both shells have a `main` landmark and a skip link; `Sidebar` and `BottomNav`
+are `nav` elements with names. Reduced motion zeroes the duration tokens and switches off
+the three looping animations by name. Every state that carries a colour also carries a word
+— `Turn`, `Down`, `Out`, `Live`, `Reconnecting`, `Offline`, and every difficulty badge.
+
+**The monster editor now wraps instead of squeezing.** Its preview column was `flex: none;
+width: 400`, which on a tablet took 400px of a 968px workspace away from the fields a DM is
+typing into. It is `flex: 1 1 340px` with a wrap, matching what the encounter detail and
+builder already do.
+
+**The pass is pinned by a test that bites.** `accessibility.test.ts` derives what it checks
+from the source rather than restating it: the hover check enumerates every `opacity: 0` rule
+in the vendored CSS, finds the ones a `:hover` selector reveals, and requires each to have a
+`hover: none` escape. Removing the fix fails it — verified by removing the fix. The same
+shape covers overlay resets, looping animations, headings, landmarks, focus return and the
+colour-plus-word maps. Twelve checks, none of which need a browser, which is what makes them
+runnable in this project at all.
+
+**What a static check cannot answer.** Contrast ratios, real focus order through a rendered
+tree, and whether a 44px target is actually comfortable under a thumb are all measurements
+this repository has no way to take — there is no browser automation installed. The tokens
+were designed against the approved palette and the floors are enforced in CSS, but none of
+that is the same as having measured it, and this pass does not claim to have.

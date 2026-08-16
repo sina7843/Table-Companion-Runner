@@ -164,7 +164,6 @@ export const router = createBrowserRouter(
         { path: 'encounters/:encounterId/edit', element: <EncounterBuilder mode="edit" /> },
         { path: 'characters', element: <DMCharacters /> },
         { path: 'account', element: <AccountSettings /> },
-
         { path: 'monsters', element: <MonsterLibrary /> },
         { path: 'monsters/new', element: <MonsterEditor mode="create" /> },
         { path: 'monsters/:monsterId', element: <MonsterPage /> },
@@ -194,7 +193,6 @@ export const router = createBrowserRouter(
       ),
       children: [
         { index: true, element: <PlayerHome /> },
-
         { path: 'combat', element: <PlayerCombat /> },
         { path: 'dice', element: <PlayerDice /> },
         { path: 'party', element: <PlayerParty /> },
@@ -202,8 +200,9 @@ export const router = createBrowserRouter(
       ],
     },
 
-    // Internal fidelity-checking surface. Not linked from the product.
-    { path: '/dev/showcase', element: <Showcase /> },
+    // Internal fidelity-checking surface. It exists in development only and is absent from
+    // a production route graph, so a deployment does not carry a public diagnostics page.
+    ...(import.meta.env.DEV ? [{ path: '/dev/showcase', element: <Showcase /> }] : []),
 
     { path: '/signin', element: <Navigate to="/" replace /> },
     { path: '*', element: <NotFound /> },

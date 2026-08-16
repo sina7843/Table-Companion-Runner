@@ -37,9 +37,13 @@ function readEnv(): Env {
   const env = import.meta.env as unknown as Record<string, string | boolean | undefined>;
   return {
     VITE_API_BASE_URL:
-      typeof env.VITE_API_BASE_URL === 'string' ? env.VITE_API_BASE_URL.trim() || undefined : undefined,
+      typeof env.VITE_API_BASE_URL === 'string'
+        ? env.VITE_API_BASE_URL.trim() || undefined
+        : undefined,
     VITE_REALTIME_URL:
-      typeof env.VITE_REALTIME_URL === 'string' ? env.VITE_REALTIME_URL.trim() || undefined : undefined,
+      typeof env.VITE_REALTIME_URL === 'string'
+        ? env.VITE_REALTIME_URL.trim() || undefined
+        : undefined,
     PROD: env.PROD === true,
   };
 }

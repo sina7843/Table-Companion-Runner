@@ -13,7 +13,12 @@
  * The `?scenario=` worlds are built by filtering these same arrays, so a write made in
  * one scenario is visible in another until the page reloads.
  */
-import { listGameSystems } from '../ruleset/registry.ts';
+import { listGameSystems, requireRuleset } from '../ruleset/registry.ts';
+import {
+  applyCommand,
+  restoreParticipant,
+  type ParticipantRestore,
+} from '../combat/commands.ts';
 import { id } from '../types.ts';
 import type {
   Campaign,
@@ -46,11 +51,34 @@ import {
   USERS,
 } from './fixtures.ts';
 import type {
+  CombatCommandInput,
+  CombatCommandOutcome,
   CreateCampaignInput,
   CreateDraftInput,
   MonsterQuery,
   Repositories,
 } from './repositories.ts';
+
+/**
+ * The audit history, fixture-side.
+ *
+ * Module scope for the same reason the fixture arrays are: writes survive navigation and not a
+ * reload. Undo and replay read it, so both behave the way they do against a real server.
+ */
+interface FixtureEvent {
+  seq: number;
+  commandId: string;
+  undo: ParticipantRestore | null;
+  summary: string;
+  undoneBy?: number;
+}
+const fixtureCombatEvents: Record<string, FixtureEvent[]> = {};
+
+/** Which ruleset a fight is run under. The campaign says; the fixtures have exactly one. */
+function campaignSystemFor(combat: CombatInstance) {
+  const campaign = ALL_CAMPAIGNS.find((entry) => entry.id === combat.campaignId);
+  return campaign?.systemId ?? listGameSystems()[0]!.id;
+}
 
 /**
  * Which world the fixtures describe.
@@ -237,6 +265,24 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
   const ACTIVITY = bare ? [] : ALL_ACTIVITY;
 
   return {
+    // Fixtures have no credentials and check none. This is a development mode: signing in
+    // hands back the demo world's user so the entry screens are usable without a server, and
+    // it is emphatically not an authentication implementation. The real one is server-side
+    // and there is no client half of it to double as this.
+    auth: {
+      signIn: () =>
+        resolve(
+          USERS.find((user) => user.id === CURRENT_USER_ID) ??
+            ({ id: CURRENT_USER_ID, displayName: 'Unknown' } satisfies User),
+        ),
+      signUp: (input: { displayName: string }) => {
+        const created: User = { id: id<'User'>(`u-${nextId()}`), displayName: input.displayName };
+        USERS.push(created);
+        return resolve(created);
+      },
+      signOut: () => resolve(undefined),
+    },
+
     users: {
       current: () =>
         resolve(
@@ -274,6 +320,17 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
           createdAt: new Date().toISOString(),
         };
         ALL_CAMPAIGNS.push(campaign);
+        return resolve(campaign);
+      },
+      acceptInvite: (code: string) => {
+        const wanted = code.trim().toUpperCase();
+        const campaign = ALL_CAMPAIGNS.find((entry) => entry.inviteCode.toUpperCase() === wanted);
+        if (!campaign) {
+          return Promise.reject(new Error('That invite code does not match a campaign.'));
+        }
+        if (!campaign.members.some((member) => member.userId === CURRENT_USER_ID)) {
+          campaign.members.push({ userId: CURRENT_USER_ID, role: 'player' });
+        }
         return resolve(campaign);
       },
     },
@@ -465,14 +522,73 @@ export function createFixtureRepositories(options: FixtureOptions = {}): Reposit
         return resolve(found ? copyCombat(found) : null);
       },
 
-      save: (combat: CombatInstance) => {
-        const index = ALL_COMBATS.findIndex((entry) => entry.id === combat.id);
-        if (index < 0) return Promise.reject(new Error('That combat no longer exists.'));
-        // Note what is absent: no write to ALL_ENCOUNTERS. Runtime state has no path back
-        // to the template, which is the guarantee the whole feature rests on.
-        const saved = copyCombat(combat);
-        ALL_COMBATS[index] = saved;
-        return resolve(copyCombat(saved));
+      /**
+       * The same command reducer the server runs, over an array.
+       *
+       * Deliberately not a simpler stand-in: a fixture whose combat rules differ from the
+       * server's is a fixture that teaches a screen the wrong thing. Version, replay and
+       * stale-version behaviour are all real here too, so the screens exercise the same
+       * paths with no server at all.
+       *
+       * Note what is absent: no write to `ALL_ENCOUNTERS`. Runtime state has no path back to
+       * the template, which is the guarantee the whole feature rests on.
+       */
+      command: (input: CombatCommandInput) => {
+        const index = ALL_COMBATS.findIndex((entry) => entry.id === input.combatId);
+        const stored = ALL_COMBATS[index];
+        if (index < 0 || !stored) {
+          return Promise.reject(new Error('That combat no longer exists.'));
+        }
+
+        const history = (fixtureCombatEvents[input.combatId] ??= []);
+        const already = history.find((entry) => entry.commandId === input.commandId);
+        if (already) return resolve({ combat: copyCombat(stored), seq: already.seq, replayed: true });
+
+        const version = stored.version ?? 0;
+        if (input.expectedVersion !== version) {
+          return Promise.reject(
+            new Error('This fight has moved on since you last saw it. Refresh and try again.'),
+          );
+        }
+
+        try {
+          const seq = history.length + 1;
+          let next: CombatInstance;
+          let undo: ParticipantRestore | null = null;
+          let summary: string;
+          let extra: Partial<CombatCommandOutcome> = {};
+
+          const intent = input.command;
+          if (intent.kind === 'undo') {
+            const target = history.find((entry) => entry.seq === intent.seq);
+            if (!target?.undo) throw new Error('That change cannot be undone.');
+            if (target.undoneBy !== undefined) throw new Error('That change has already been undone.');
+            next = restoreParticipant(stored, target.undo);
+            summary = `Undid: ${target.summary}`;
+            target.undoneBy = seq;
+          } else {
+            const result = applyCommand(stored, intent, {
+              rules: requireRuleset(campaignSystemFor(stored)),
+              now: new Date().toISOString(),
+              random: Math.random,
+              attributesFor: () => [],
+            });
+            next = result.combat;
+            undo = result.undo;
+            summary = result.summary;
+            extra = {
+              ...(result.concentration ? { concentration: result.concentration } : {}),
+              ...(result.deathSave ? { deathSave: result.deathSave } : {}),
+            };
+          }
+
+          const saved = copyCombat({ ...next, version: version + 1 });
+          ALL_COMBATS[index] = saved;
+          history.push({ seq, commandId: input.commandId, undo, summary });
+          return resolve({ combat: copyCombat(saved), seq, summary, ...extra });
+        } catch (error) {
+          return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+        }
       },
 
       startFromTemplate: (encounterId: EncounterTemplateId) => {

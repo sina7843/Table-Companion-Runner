@@ -28,7 +28,7 @@ import {
 import { CombatEnded } from './CombatEnded';
 import { CombatRunner } from './CombatRunner';
 import { CombatSetup } from './CombatSetup';
-import { reopenCombat } from './actions';
+import type { CombatCommand } from '../../domain/combat/commands';
 
 export function CombatScreen() {
   const { combatId } = useParams();
@@ -82,39 +82,55 @@ export function CombatScreen() {
   // Runtime edits write straight through: initiative and who is present are not a draft,
   // and a debounce here would mean a fight that started before its roster was saved.
   const inFlight = useRef(0);
-  /** The newest state, kept so a recovery re-sends what the failed write was carrying. */
-  const pending = useRef<CombatInstance | null>(null);
+  /** The command a failed write was carrying, so Try again re-sends the same one. */
+  const pending = useRef<CombatCommand | null>(null);
 
-  const write = (next: CombatInstance) => {
+  /**
+   * Every change to a fight, since TC-P04.
+   *
+   * The screen states an intent and the server answers with the authoritative fight. It no
+   * longer computes the new state, because it is no longer the only device that might be
+   * computing one. A `commandId` is minted per attempt-group, so a retry after a dropped
+   * response is recognised rather than applied twice, and `version` is what the server checks
+   * before it applies anything.
+   */
+  const send = (command: CombatCommand, commandId = crypto.randomUUID()) => {
+    const current = combat;
+    if (!current) return;
+
     setBusy(true);
     inFlight.current += 1;
-    pending.current = next;
+    pending.current = command;
 
-    void combats.save(next).then(
-      () => {
-        inFlight.current -= 1;
-        if (inFlight.current === 0) setBusy(false);
-        pending.current = null;
-        setFailure(null);
-        connection.reportSuccess();
-      },
-      (error: unknown) => {
-        inFlight.current -= 1;
-        if (inFlight.current === 0) setBusy(false);
-        // The fight is not lost: local state still holds it, and Try again re-sends.
-        setFailure(error instanceof Error ? error.message : 'That change was not saved.');
-        connection.reportFailure();
-      },
-    );
-  };
-
-  const change = (next: CombatInstance) => {
-    setCombat(next);
-    write(next);
+    void combats
+      .command({
+        combatId: current.id,
+        commandId,
+        expectedVersion: current.version ?? 0,
+        command,
+      })
+      .then(
+        (outcome) => {
+          inFlight.current -= 1;
+          if (inFlight.current === 0) setBusy(false);
+          pending.current = null;
+          setCombat(outcome.combat);
+          setFailure(null);
+          connection.reportSuccess();
+        },
+        (error: unknown) => {
+          inFlight.current -= 1;
+          if (inFlight.current === 0) setBusy(false);
+          // Nothing local was changed optimistically, so nothing is lost — the fight on
+          // screen is still the last one the server confirmed.
+          setFailure(error instanceof Error ? error.message : 'That change was not saved.');
+          connection.reportFailure();
+        },
+      );
   };
 
   const retry = () => {
-    if (pending.current) write(pending.current);
+    if (pending.current) send(pending.current);
   };
 
   if (loaded.status === 'loading') {
@@ -213,7 +229,7 @@ export function CombatScreen() {
           template={loaded.data.template}
           characters={loaded.data.characters}
           monsters={loaded.data.monsters}
-          onChange={change}
+          onCommand={send}
           busy={busy}
         />
       </>
@@ -230,7 +246,7 @@ export function CombatScreen() {
           campaign={loaded.data.campaign}
           characters={loaded.data.characters}
           monsters={loaded.data.monsters}
-          onChange={change}
+          onCommand={send}
           busy={busy}
         />
       </>
@@ -245,7 +261,7 @@ export function CombatScreen() {
         campaign={loaded.data.campaign}
         template={loaded.data.template}
         systemId={loaded.data.systemId}
-        onReopen={() => change(reopenCombat(combat))}
+        onReopen={() => send({ kind: 'combat.reopen' })}
         busy={busy}
       />
     </>

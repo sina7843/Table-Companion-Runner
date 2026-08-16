@@ -40,8 +40,8 @@ import {
 import { PlayerPage } from '../../app/PlayerShell';
 import { useConnection } from '../../app/useConnection';
 import { useCombatLog } from '../combat/useCombatLog';
-import { applyDeathSave, applyHealth, setTargeted, targetedParticipant } from '../combat/actions';
-import { activeParticipant, nextParticipant, nextTurn, turnIndex } from '../combat/turns';
+import { applyDeathSave, applyHealth, setTargeted, targetedParticipant } from '../../domain/combat/actions';
+import { activeParticipant, nextParticipant, nextTurn, turnIndex } from '../../domain/combat/turns';
 import {
   ACTIONS_ON_THE_THUMB,
   breakdownOf,

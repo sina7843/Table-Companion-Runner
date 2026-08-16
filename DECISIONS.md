@@ -1327,3 +1327,367 @@ stopped being true. The second was a three-line stub. Both are now written from 
 than from memory, and every file path in the traceability table was checked to exist — three
 were wrong on the first pass (`domain/sheet.ts`, `domain/library.ts`, `domain/homebrew.ts` are
 all somewhere else) and are corrected.
+
+---
+
+## TC-P00 — Production architecture decisions
+
+The active prompt asks for architecture decisions to be recorded in `IMPLEMENTATION_DECISIONS.md`
+before implementation. That file is protected by `.claude/hooks/protect-files.mjs` and refuses an
+automated edit, which is correct — it is the approved decision record and should change by hand.
+The decisions are therefore recorded here, in the file whose own header says to append
+implementation decisions when the active prompt requires one. If they are to be promoted into
+`IMPLEMENTATION_DECISIONS.md` as items 19–29, that is a manual edit for the user to make; nothing
+below contradicts items 1–18.
+
+**Decision P1: the server is the authority.** The client is a view and an editor, never a decider.
+Every permission, every combat mutation, every dice result and every id is settled server-side.
+`src/domain/permissions.ts` keeps its header saying it is a UI guard and gains a server twin
+rather than being promoted into one. The evidence this closes: a player's device currently
+evaluates its own visibility rules over a payload that already contains the DM's secrets.
+
+**Decision P2: the backend is Node + TypeScript, in this repository.** It implements
+`src/domain/data/apiContract.ts` and shares `src/domain/types.ts` as the wire format. That is the
+contract's own rule — reads return domain shapes verbatim, and a second DTO shape is a second
+place for the two to drift. It also lets the server run the *same* pure transforms the client
+already has (`turns.ts`, `actions.ts`, `setup.ts`, the ruleset adapters) instead of a second
+implementation of the rules, which is the failure mode that makes authoritative servers expensive.
+A separate language or repository buys nothing here and costs the shared domain model.
+
+This is an addition, not the framework rewrite `IMPLEMENTATION_DECISIONS.md` #17 forbids. The
+existing frontend, design system, domain model and ruleset abstractions are preserved unchanged.
+
+**Decision P3: PostgreSQL, owned solely by the server.** Versioned migrations, applied by the
+server's own runner. No client holds a connection string and no `VITE_*` variable names one —
+Vite inlines those into the browser bundle, so that is a hard rule, not a preference. Fixtures are
+demoted to an explicit development mode and are never production storage.
+
+**Decision P4: ruleset-specific data stays in JSONB.** `systemData`, `attributes`, `actionGroups`
+and the other opaque bags are stored as JSON, so no D&D column reaches a generic table. This is
+`IMPLEMENTATION_DECISIONS.md` #1 carried into the schema: D&D 5e is the first ruleset, not the
+database. The boundary test that walks every source file has no equivalent in SQL, so the rule
+has to be a decision rather than an assertion.
+
+**Decision P5: ingested library content is a separate ownership boundary from user campaign
+data** — separate tables and separate write paths, so an ingest run cannot touch a campaign. This
+is #6 in the approved decisions, and `repositories.ts` already splits the interfaces this way; the
+store must match.
+
+**Decision P6: authentication is an httpOnly, SameSite session cookie issued by the server.** A
+bearer token cannot live in a `VITE_*` variable for the reason in P3, and the client already
+declines to obtain or store a credential — `ApiConfig.authorization` exists only to forward what a
+host hands it, and that stays true. Note the consequence: `httpRepositories.ts` sends
+`credentials: 'same-origin'`, so a cross-origin API needs that line changed and CORS configured.
+That must be a deliberate decision in TC-P02, not something discovered when the first request
+arrives without a cookie.
+
+**Decision P7: authorization filters before delivery, not after.** A player's request and a
+player's socket must not receive `dm-only` participants, unrevealed creatures, secret rolls or
+hidden character sections at all. Filtering on the receiving device is a rendering decision, and a
+rendering decision is not a security boundary — the unrevealed Cragmaw Ambusher is currently
+absent from the player's *rendered list* while sitting in the player's *network response*.
+
+**Decision P8: combat moves off whole-record writes; single-writer documents keep them.** The
+idempotent full-record `PUT` policy in `repositories.ts` is correct where one client owns the
+document under autosave — encounters, monsters, drafts — and it stands. Combat has two writers,
+today with no version and no `If-Match`, and a player's device `PUT`s the entire fight including
+everyone's hit points and the hidden roster. Combat therefore needs intent-shaped mutations plus a
+server-checked version, so a stale or unentitled client is rejected rather than silently winning.
+
+This is the largest client-visible change in the sequence. It belongs in TC-P04 as one deliberate
+change, not smeared across the earlier prompts.
+
+**Decision P9: runtime validation at both edges, from one shared schema.** Request bodies are
+validated at the server edge and response bodies at the client edge, replacing
+`return (await response.json()) as T`. A TypeScript type is erased at runtime; a cast is a claim,
+not a check.
+
+**Decision P10: realtime stays notification-shaped.** Events say what changed and the receiver
+re-reads through the repository; they never carry state. That property is why a stale event
+cannot write stale data, and it survives a real server unchanged — so the seam is kept and the
+server is added behind it. The server owns the socket, scopes fan-out per campaign, stamps
+`origin` itself rather than trusting a client string, and applies the same per-viewer filtering as
+P7.
+
+**Decision P11: production readiness is claimed only by the Golden Path**, run against real
+persistence with at least two independent authenticated clients. A passing test suite, a working
+fixture flow or a rendered screen is not evidence of production readiness for any capability. The
+TC-P00 baseline is a live demonstration of the distinction: 241 tests pass, every check is green,
+and zero capabilities are production-backed.
+
+---
+
+## TC-P01 — Backend and PostgreSQL foundation
+
+**No web framework.** `node:http` plus a forty-line matcher. The API surface is 40 routes
+enumerated in `apiContract.ts`, with no middleware stack, no content negotiation, no template
+engine and no file uploads — so Express or Fastify would be a dependency bought for a route
+matcher and a JSON writer. This repository already declined a state library, a data-fetching
+library, a CSS framework and a test framework on exactly that reasoning, and the argument does
+not get weaker on the server. The cost is owning `matchRoute`, which is one function with six
+tests, one of which asserts the table's order carries no meaning.
+
+The two things a framework would have given that are worth naming: a body-size limit and a
+consistent error shape. Both are in `http.ts`, deliberately, in about fifteen lines.
+
+**No ORM and no migration tool.** Migrations are `.sql` files applied in filename order inside
+one transaction each and recorded by name — thirty lines in `migrate.ts`. An ORM would also have
+meant a second definition of every entity, when the whole point of the contract's "reads return
+domain shapes verbatim" rule is that there is exactly one. The store writes SQL and maps rows;
+what reaches the database is what is written in the file.
+
+**`pg` is the one new runtime dependency.** Node has no PostgreSQL client and the wire protocol
+is not something to hand-roll. It is imported in one file.
+
+**The server shares `src/domain/types.ts` rather than restating it.** `apiContract.ts` states
+that the domain types *are* the wire format and that a DTO layer would be a second place for the
+two to drift. Putting the backend in this repository is what makes that true rather than
+aspirational — and it lets the server run the same pure transforms and ruleset adapters the
+client already has when TC-P04 makes it authoritative, instead of a second implementation of the
+rules that has to be kept in step.
+
+**Promoted columns for what the server constrains; JSONB for everything else.** The rule applied
+per column was: does the server need to constrain, own, join or filter on this? Ids, ownership,
+campaign membership, status, round, origin and challenge rank are columns. `attributes`,
+`systemData`, `actionGroups`, `derived`, `facets`, builder `choices` and an encounter's roster
+are JSONB. `domain.test.ts` walks every source file to keep D&D out of the core; there is no
+equivalent test for SQL, so this had to be a decision that the schema then documents in place.
+
+**`combat_participants` is a table now, written as a set.** The current contract is a whole-record
+`PUT`, so the store deletes and re-inserts the roster inside one transaction. Storing the roster
+as JSON on the combat would have been less code today and a migration under a live product
+tomorrow, because TC-P04 has to authorize and update one participant at a time. The table is the
+cheap half of that change made early; the write pattern is the half that waits.
+
+**`combats.version` is maintained and not checked.** Incrementing it costs nothing and means
+TC-P04 inherits a column with a true value in every row rather than a backfill. Checking it is a
+contract change — a client that sends a stale version has to be told, and both combat screens
+have to handle being told — and that belongs in the prompt that owns concurrency, not smeared
+into this one.
+
+**`combat_events` is written from the first day.** A history table nothing writes to is a table
+nobody has tested. One row per fight write, in the same transaction as the write, keeps it honest
+and gives TC-P05's reconnect-recovery something real to read.
+
+**Same-origin in development, via the Vite proxy, rather than CORS.** `httpRepositories.ts` sends
+`credentials: 'same-origin'`. Configuring CORS would have meant changing that line and then
+changing it back when TC-P02 introduces a SameSite session cookie, which only travels on a
+same-site request anyway. Proxying `/api` from the dev server is four lines in `vite.config.ts`,
+needs no CORS code at all, and is the shape authentication already wants. TC-P00 listed this as a
+decision to take deliberately rather than discover on the first cookie-less request.
+
+**The fixtures stay, and stop being storage.** `createFixtureRepositories` is untouched: an
+unconfigured `npm run dev` still runs the whole UI with no server, which is what makes the design
+work reviewable on its own. What changed is its status in the documents, and that the same world
+is now loadable into PostgreSQL as development data. The seed is insert-only on every statement —
+no delete, no truncate, no reset — because a developer running `npm run db:seed` twice must not
+lose what they were working on.
+
+**Library monsters are inserted only by the seed, and the database enforces it.** A check
+constraint refuses a library row with an owner, and the store's `create` and `save` always write
+homebrew. Requirement §6.6 says ingestion must stay isolated from user campaign data;
+`repositories.ts` split the interfaces, and this is the same split where it can actually be
+enforced.
+
+**Integration tests build their own schema.** `tc_test` is dropped and recreated at the start of
+the run, which is the only destructive statement anywhere in the repository and can only ever
+reach a schema these tests own. With `DATABASE_URL` unset all eighteen skip, so the suite stays
+green on a machine with no database — a test that cannot run must say so rather than fail.
+
+**A dropped connection is logged, not thrown.** Found by restarting PostgreSQL under a running
+server and watching the process die: `pg` reports a dropped idle client as an `error` event on
+the pool, and an unhandled one is an uncaught exception. A database restart must not be an API
+outage. This is the one place in this slice where the lazy version was wrong.
+
+---
+
+## TC-P02 — Authentication and server authorization
+
+**Sessions are opaque cookies, not JWTs.** A session is 32 random bytes; the database stores its
+SHA-256 and the browser holds the original in an `HttpOnly`, `SameSite=Strict` cookie. A JWT
+would have bought statelessness and cost the ability to revoke — and revocation is the operation
+this product actually needs, because "sign out" and "change your password" both mean *end that
+session now*. Looking a token up is one indexed read on a request that is already going to the
+database. Nothing in the browser bundle can read the cookie, so there is no client-side token to
+store, refresh, or leak into a log.
+
+**Sliding expiry, no refresh endpoint.** `GET /me` is what every screen already calls to learn
+who it is serving, and answering it is where the session gets renewed. A separate refresh call
+is a call a client can forget to make. The row is touched at most once a day rather than once a
+request, because a write per read is how a session table becomes the hottest table in the
+database.
+
+**scrypt from `node:crypto`, not bcrypt or argon2.** Both would be dependencies for a KDF the
+standard library already ships, with a memory-hard construction and a constant-time comparison
+beside it. The digest stores its own parameters, so raising the cost later does not invalidate
+anybody's password.
+
+**A wrong password and an unknown address are the same answer, and take the same time.** The
+unknown-address path deliberately burns a real scrypt verification against a throwaway hash.
+Without it, the two answers differ by two orders of magnitude in latency and the sign-in form is
+a list of who has an account here. Sign-*up* does still say when an address is taken, because a
+sign-up form that cannot say so is unusable; the real fix is email verification and it is
+TC-P07's.
+
+**Authorization is one wrapper, not forty checks.** `createAuthorizedRepositories` decorates the
+store with the caller's identity, and `http.ts` hands a route handler nothing else. The
+alternative — a check at the top of each handler — is forty places to be right and one place to
+be wrong, and the wrong one is invisible in review because it is an absence. This is the shape
+`withRealtime.ts` already uses on the client for a different concern, so it is not a new idea in
+this codebase either.
+
+The route table did not change. That is the test of whether the seam was in the right place.
+
+**A signed-out caller gets a proxy that refuses everything.** Rather than a hand-written object
+of rejections, so a repository added later is refused by having said nothing. Same reasoning as
+`Route.anonymous`: the default is closed, and staying closed should not require remembering.
+
+**Filtering happens before serialisation, using the client's own rules module.** The server
+imports `src/domain/permissions.ts` — the file whose header used to say it was not a security
+boundary. It still is not: the client's copy decides what to *draw*. But there is exactly one
+statement of "what is a secret roll", and both sides read it. A second predicate is precisely
+how these things leak, and this is the arrangement where a second one cannot quietly appear.
+
+**Where the contract says `T | null`, a forbidden record reads as `null`.** Not 403. A 403 on
+`GET /campaigns/:id` confirms the campaign exists, which is a slow enumeration of the whole
+database. `null` is indistinguishable from "no such record", so probing ids tells an attacker
+nothing at all. Lists and writes still answer 403, because there is nothing to be coy about.
+
+**Character redaction is coarse, and marked.** `sectionVisibility` hides *tabs*, but the data
+behind them lives in `systemData`, a bag the core deliberately cannot interpret. So hiding one
+ruleset-backed section drops the whole bag rather than part of it. That over-redacts: a
+party-mate who hides their inventory shows co-players only the always-shared block. Precise
+redaction needs a `Ruleset.redactCharacter(character, hidden)` seam, because only the adapter
+knows which keys feed which section — and adding a seam method mid-security-slice is how a
+security slice becomes a refactor. No player screen reads another player's ruleset data today,
+so the cost is currently zero and the note is in the file.
+
+**Player combat writes are judged as a diff.** The contract is still a whole-record `PUT` until
+TC-P04, so the server cannot ask what the client *meant* — only what it *changed*. The policy is
+deliberately blunt and refuses on the first thing a player may not touch: a refusal costs a
+player one action they can repeat, a missing check costs the table the fight.
+
+Two things fell out of writing it that are worth recording, because both were bugs the first
+time:
+
+1. The player's copy of a fight legitimately omits the combatants they cannot see. So the
+   submitted roster is compared against *what that viewer was shown*, not against the stored
+   one — and a mismatch is refused rather than merged away.
+2. The policy must judge what the client **claimed**, not a version already trimmed back to
+   what is allowed. Trimming first turns every refusal into a silent no-op that answers 200,
+   which is worse than either allowing or refusing: the client believes it succeeded.
+
+**No CORS, on purpose.** The topology is same-origin — Vite proxies `/api` in development and a
+deployment serves both from one origin — so there is no cross-origin caller to permit, and the
+safest CORS configuration is the one that does not exist. CSRF is handled by `SameSite=Strict`
+(the browser never attaches the cookie cross-site at all) plus a `Sec-Fetch-Site` check with an
+`Origin` allowlist behind it. `TC_ALLOWED_ORIGINS` refuses `*` at startup, because there is no
+such thing as a safe wildcard beside a credentialed cookie.
+
+**`TC_DEV_USER_ID` is refused rather than ignored.** It was TC-P01's shim and TC-P02 replaced
+it. Silently ignoring it would leave a deployment believing it had configured something; the
+server now fails to start and says what to do instead.
+
+**No account-creation screen was invented.** `POST /auth/sign-up` exists, is tested, and no
+Phase 1 surface calls it — the approved design draws sign-in and join-by-invite and nothing
+else, and TC-P07 owns account lifecycle. Building a screen the design does not have, inside the
+prompt that was asked for authentication, is how a sequence stops being reviewable.
+
+---
+
+## TC-P03 — API contract runtime validation and hardening
+
+**Hand-written combinators, not a validation dependency.** Zod would have been the obvious
+answer and it is a real dependency with a large surface, a version to track and a bundle cost on
+a client that already ships to a phone. What is actually needed is a few dozen fixed shapes with
+bounds, and that is two hundred lines with no transitive anything. The rule stated in the file
+is the one that keeps it honest: it is not a general-purpose validation library and must not
+grow into one — if a schema needs something these cannot express, the shape is probably wrong.
+
+**The schemas live in `src/domain/data/`, not in `server/`.** The client validates responses and
+the server validates requests, and they are the same shapes. A second schema module would be a
+second place to drift, which is precisely the argument that made `types.ts` the wire format
+rather than introducing a DTO layer.
+
+**Requests strict, responses lenient.** The asymmetry is deliberate and it is not Postel's law
+being invoked as a slogan. A strict request refuses an over-post, which is how a field nobody
+meant to accept gets written; there is no cost to refusing, because a well-behaved client never
+sends one. A strict *response* would mean a server one deploy ahead of a browser tab breaks that
+tab over a field it does not use — a self-inflicted outage during every rollout. So an unknown
+response key is dropped.
+
+The property both rely on is the same: the validated object is rebuilt key by key from the
+schema, so an unknown key cannot survive even where it was not an error. That is what lets
+`ctx.body` be trusted by a route handler without a second check.
+
+**Nothing security-sensitive is coerced.** `visibility` and `origin` are checked as values, and
+a value outside the set is refused rather than defaulted to the safe one — a default is a
+decision made silently, and the caller should be told they sent something meaningless. Passwords
+are bounded and otherwise untouched: not trimmed, not normalised, not lower-cased. The only safe
+transformation of a secret is none.
+
+**Error codes are the contract; messages are not.** A screen that branches on a failure branches
+on `code`. That is what lets the sentence be improved, translated or reworded without breaking a
+caller, and it is why there are nine codes rather than thirty — a code exists when a caller could
+reasonably do something different because of it, and everything else is `internal`.
+
+`details` names fields and never values. A validation message that quotes what it rejected will
+eventually quote a password into an error a user pastes into a support ticket.
+
+**A record you may not have reads as `null`, not `403`.** Kept from TC-P02 and worth restating
+now that there is a code for everything: a 403 on `GET /campaigns/:id` confirms the campaign
+exists, and that is a slow enumeration of the database. Lists and writes answer 403 because
+there is nothing to be coy about there.
+
+**Logs carry the route pattern, never the path.** `/campaigns/:campaignId` tells an operator
+everything they need. The resolved path carries an id, an invite code or a search term, and a
+log file is the least controlled copy of any of those. The same reasoning excludes the query
+string and the body outright rather than trying to redact them field by field — a redaction list
+is a list somebody forgets to extend.
+
+**Rate limits are keyed by account first, address second.** Keying only by address throttles
+everyone behind one hotel network together and does nothing about a botnet that has already
+signed in. Keying only by account cannot protect sign-in, which has no account yet. Both, chosen
+by whether there is a session, is the one that holds in both directions.
+
+Fixed window rather than sliding: a caller can spend two windows' worth of requests across a
+boundary, and for "stop credential stuffing and runaway retries" that does not matter. A sliding
+log would fix it and cost a timestamp array per key.
+
+**In-memory, and said so in the file.** Per-process counters are wrong the moment there are two
+processes. That is a real ceiling with a known fix — a shared counter — and it belongs with the
+horizontal-scaling work rather than as speculative infrastructure built before there is a second
+instance to need it.
+
+**`monsters.list` is capped even when no limit was asked for.** An unpaged list endpoint is one
+whose cost is decided by whoever calls it. The cap is visible rather than silent because
+`monsters.count` stays unbounded and the library screen already prints "N of M" from it — so a
+truncated page shows up as a number that does not match, not as a list that quietly ends.
+
+**Roll idempotency distinguishes a retry from a collision by comparing the payload.** TC-P01
+re-minted every colliding id, which is right for two devices whose per-page counters produced
+the same id and wrong for one device resending a roll whose response it never saw. The two are
+indistinguishable by id alone and need opposite answers, so the identifying fields decide:
+same bytes is a retry and returns what is stored; different bytes is a collision and is kept.
+
+An `Idempotency-Key` header is the general solution and was not built. Nothing in this client
+retries a `POST` — `repositories.ts` tells callers to wait — so it would be a mechanism with no
+caller, and TC-P04 removes the collision case entirely by minting ids server-side.
+
+**Cross-origin is a switch that refuses to be half-set.** The topology is same-origin and the
+default emits no CORS header at all, which is the only CORS configuration that cannot be got
+wrong. Turning it on requires an explicit origin allowlist and forces `SameSite=None`; browsers
+only accept that with `Secure`, so the server refuses the combination outside production at
+startup. Discovering that in a browser, as an unexplained missing cookie, is the failure this
+avoids.
+
+**A refused upload closes the connection.** Found by sending two megabytes and watching the next
+request fail with `ECONNRESET`: stopping mid-body leaves bytes in the socket that belong to a
+request nobody will answer, and the next one on a kept-alive connection is parsed out of them.
+`Connection: close` is the only correct end to a body we declined to read.
+
+**The client now reads the server's sentence.** `httpRepositories` was synthesising
+"POST /auth/sign-in failed (401)." and discarding what the server actually said — which meant the
+sign-in screen shipped in TC-P02 would have shown that to a user. Reading the error body was part
+of this slice rather than a separate fix, because a stable error contract that nobody reads is
+not a contract.

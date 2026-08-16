@@ -1,7 +1,22 @@
-import { lazy, type ComponentType } from 'react';
+import { lazy, type ComponentType, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { useSession } from '../domain';
 import { DMShell } from './DMShell';
 import { PlayerShell } from './PlayerShell';
+
+/**
+ * Sends a signed-out visitor to the door.
+ *
+ * A convenience, not a control. Every route behind it reads through repositories the server
+ * has already scoped to the caller, and a signed-out caller is answered 401 whatever this
+ * component decides — so removing it would make the app unpleasant, not insecure. It exists
+ * because a wall of "you do not have access" is a worse answer than a sign-in form.
+ */
+function RequireSession({ children }: { children: ReactNode }) {
+  const { status } = useSession();
+  if (status === 'signed-out') return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
 
 /*
  * Route modules load on demand.
@@ -88,7 +103,11 @@ export const router = createBrowserRouter([
 
   {
     path: '/dm',
-    element: <DMShell />,
+    element: (
+      <RequireSession>
+        <DMShell />
+      </RequireSession>
+    ),
     children: [
       { index: true, element: <DMHome /> },
       { path: 'combat', element: <CombatScreen /> },
@@ -121,7 +140,11 @@ export const router = createBrowserRouter([
 
   {
     path: '/play',
-    element: <PlayerShell />,
+    element: (
+      <RequireSession>
+        <PlayerShell />
+      </RequireSession>
+    ),
     children: [
       { index: true, element: <PlayerHome /> },
 

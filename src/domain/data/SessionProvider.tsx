@@ -7,10 +7,21 @@
  * session, and the session asks `users.current()` through the repository. Fixtures answer
  * with the fixture user; a deployment answers with whoever holds the cookie.
  *
- * This layer deliberately does not sign anybody in. It has no credential, reads no secret,
- * and knows no provider — it reads the identity the data layer already resolved.
+ * As of TC-P02 that cookie is real, and this layer still holds no credential. `signIn` hands
+ * an email and a password to the server and reads back a `User`; the session itself arrives
+ * as an HttpOnly cookie the browser stores and this code cannot read, so there is no token
+ * here to leak, persist or forget to clear. "Am I still signed in" is `users.current()`,
+ * which the server answers from that cookie — and refuses when it has expired.
  */
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useRepositories } from './RepositoryProvider';
 import type { User } from '../types.ts';
 
@@ -19,17 +30,39 @@ export interface SessionState {
   user: User | null;
   /** Re-reads the identity, for after a sign-in or a reconnect. */
   refresh: () => void;
+  /** Resolves to the signed-in user, or rejects with the server's own sentence. */
+  signIn: (input: { email: string; password: string }) => Promise<User>;
+  signOut: () => Promise<void>;
 }
 
 const SessionCtx = createContext<SessionState | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { users } = useRepositories();
-  const [state, setState] = useState<Omit<SessionState, 'refresh'>>({
+  const { users, auth } = useRepositories();
+  const [state, setState] = useState<Pick<SessionState, 'status' | 'user'>>({
     status: 'loading',
     user: null,
   });
   const [version, setVersion] = useState(0);
+
+  const signIn = useCallback(
+    async (input: { email: string; password: string }) => {
+      const user = await auth.signIn(input);
+      setState({ status: 'ready', user });
+      return user;
+    },
+    [auth],
+  );
+
+  const signOut = useCallback(async () => {
+    // The server clears the cookie; this only stops the app rendering somebody who is gone.
+    // A failed sign-out still signs out locally — leaving the UI logged in would be worse.
+    try {
+      await auth.signOut();
+    } finally {
+      setState({ status: 'signed-out', user: null });
+    }
+  }, [auth]);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,11 +84,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [users, version]);
 
-  return (
-    <SessionCtx.Provider value={{ ...state, refresh: () => setVersion((n) => n + 1) }}>
-      {children}
-    </SessionCtx.Provider>
+  const value = useMemo<SessionState>(
+    () => ({ ...state, refresh: () => setVersion((n) => n + 1), signIn, signOut }),
+    [state, signIn, signOut],
   );
+
+  return <SessionCtx.Provider value={value}>{children}</SessionCtx.Provider>;
 }
 
 /**

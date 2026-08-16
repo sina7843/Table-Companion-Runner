@@ -6,8 +6,14 @@
  * invite code skips account creation until after the campaign is joined — so a new
  * player's first screen is their character, not a form.
  *
- * No authentication is wired. TC-13 owns the transport and the session; these screens
- * are the real layout and the real states, with the submit handlers navigating onward.
+ * As of TC-P02 these are real. Sign-in posts a credential and reads back a user; joining
+ * redeems a code the server resolves. Neither screen decides anything — the shape checks
+ * below save a round trip on an empty form and nothing more, and every refusal shown here is
+ * the server's own sentence rather than one this file invented.
+ *
+ * There is no account-creation screen, because the approved design does not draw one: the
+ * server's `auth.signUp` exists and no Phase 1 surface consumes it. TC-P07 owns account
+ * lifecycle and is where that screen belongs.
  */
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -24,9 +30,10 @@ import {
   TextInput,
 } from '../design-system';
 import {
-  useUserId,
   useAsync,
   useRepositories,
+  useSession,
+  useUserId,
   type GameSystem,
   type GameSystemId,
 } from '../domain';
@@ -101,20 +108,35 @@ function OrDivider() {
 
 export function SignIn() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('marta@example.com');
+  const { signIn } = useSession();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function onSubmit(event: FormEvent) {
+  async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    // Client-side shape check only. Real credential validation is a server concern and
-    // arrives with TC-13; this must never become the thing that decides who gets in.
+    // A shape check, so an empty form does not cost a round trip. It decides nothing: the
+    // credential is checked by the server, which is the only party that can.
     if (!email.includes('@') || password.length === 0) {
       setError('Enter your email address and password.');
       return;
     }
+
     setError(null);
-    navigate('/dm');
+    setBusy(true);
+    try {
+      await signIn({ email, password });
+      navigate('/dm');
+    } catch (failure) {
+      // The server's own sentence. It says the same thing for an unknown address and a wrong
+      // password, so this screen cannot become a way to find out who has an account.
+      setError(
+        failure instanceof Error ? failure.message : 'That did not work. Try again in a moment.',
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -153,7 +175,7 @@ export function SignIn() {
           )}
         </Field>
 
-        <Button type="submit" variant="primary" block>
+        <Button type="submit" variant="primary" block loading={busy}>
           Sign in
         </Button>
       </form>
@@ -165,8 +187,9 @@ export function SignIn() {
       </Button>
 
       {/*
-        A player signing in on their phone lands on the player shell. There is no account
-        model yet to route by, so this is an explicit choice rather than a guess.
+        A player signing in on their phone lands on the player shell. One account can be both
+        a DM and a player — the role is a fact about a campaign, not about a person — so this
+        stays an explicit choice rather than something inferred from the account.
       */}
       <Button variant="tertiary" block icon="device-mobile" as={Link} to="/play">
         Continue as a player
@@ -177,17 +200,34 @@ export function SignIn() {
 
 export function JoinCampaign() {
   const navigate = useNavigate();
+  const { campaigns } = useRepositories();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function onSubmit(event: FormEvent) {
+  async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (code.trim().length < 4) {
       setError('That code looks too short. Codes look like CRAGMAW-7742.');
       return;
     }
+
     setError(null);
-    navigate('/play');
+    setBusy(true);
+    try {
+      // The server decides what a code means — whether it exists, whether it is still good,
+      // and which campaign it joins. This screen only carries it across.
+      await campaigns.acceptInvite(code.trim());
+      navigate('/play');
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : 'That code could not be used. Check it with your DM.',
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -214,7 +254,7 @@ export function JoinCampaign() {
           )}
         </Field>
 
-        <Button type="submit" variant="primary" block>
+        <Button type="submit" variant="primary" block loading={busy}>
           Join campaign
         </Button>
       </form>

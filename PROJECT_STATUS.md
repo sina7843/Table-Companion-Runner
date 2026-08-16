@@ -30,10 +30,43 @@ Sliced parents (`08`, `10`, `11`) are never executed as separate implementation 
 - [x] TC-16
 - [x] TC-17
 
+## Production sequence
+
+`prompts-extra/` is an independent production-hardening sequence that runs after Phase 1. It does
+not modify the `prompts/` sequence above.
+
+- [x] TC-P00 — production baseline and gap audit
+- [x] TC-P01 — backend and PostgreSQL foundation
+- [x] TC-P02 — authentication and server authorization
+- [x] TC-P03 — API contract runtime validation and hardening
+- [ ] TC-P04 — server-authoritative combat and concurrency
+- [ ] TC-P05 — realtime WebSocket sync and recovery
+- [ ] TC-P06 — rules content pipeline and legal boundary
+- [ ] TC-P07 — product, account, offline and operational states
+- [ ] TC-P08 — e2e multiplayer, security and resilience
+- [ ] TC-P09 — CI/CD, observability and production infrastructure
+- [ ] TC-P10 — final production readiness and Golden Path
+
+The gap map, the target architecture, the production checklist and the Golden Path are in
+`IMPLEMENTATION_STATUS.md`; the architecture decisions behind them are in `DECISIONS.md` (TC-P00).
+
+**Persistence, authorization and the API boundary are real; combat authority is not.** Since
+`TC-P01` every §6 entity has a PostgreSQL table behind it. Since `TC-P02` sessions are real
+cookies, every rule in `permissions.ts` is enforced server-side, and private data is filtered
+before it is sent rather than hidden on arrival. Since `TC-P03` every request and response is
+validated at runtime, errors carry stable codes, requests carry correlation ids, and the
+boundary is rate limited and paged. The client still rolls its own dice and mints its own roll
+ids, and a combat write is still a whole record with an unchecked version — so no capability is
+production-ready yet. That is a scope statement, not a defect in what was built.
+
+Local setup: `docker compose up -d`, `npm run db:migrate`, `npm run db:seed`, `npm run server`.
+Sign in as `marta@example.test` / `table-companion-dev`. See the Backend section of `README.md`.
+
 ## Current work
-- Active item: none — the Phase 1 prompt sequence is complete.
-- Last completed item: `TC-17`
-- Blockers: none blocking the prompt sequence.
+- Active item: none — `TC-P03` is complete; `TC-P04` is the next eligible prompt.
+- Last completed item: `TC-P03` (Phase 1 sequence completed at `TC-17`)
+- Blockers: none. `TC-P08` will need a browser-automation dependency for two independent clients;
+  that is a decision for that prompt, not a blocker now.
 
 ## Phase 1 scope gaps
 

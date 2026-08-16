@@ -1,0 +1,39 @@
+# Development PostgreSQL for Table Companion.
+#
+# Development only. The credentials below are deliberately weak and deliberately committed:
+# this database listens on localhost, holds nothing but seeded demo data, and is never the
+# thing a deployment talks to. A real deployment supplies DATABASE_URL from its own secret
+# store and this file has no part in it.
+#
+#   docker compose up -d          start
+#   npm run db:migrate            apply migrations
+#   npm run db:seed               load the demo world (insert-only, never destructive)
+#   docker compose down           stop, keeping the volume
+#
+# The volume is named and is never removed by any script in this repository, so
+# `docker compose down` and `docker compose up` preserve whatever you were working on.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: table-companion-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tablecompanion
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: table_companion
+    # Not 5432 on purpose: a developer with their own PostgreSQL, or another project's
+    # container, should not have to be stopped to work on this one. Bound to loopback so the
+    # database is not reachable from the network.
+    ports:
+      - '127.0.0.1:5434:5432'
+    volumes:
+      - table-companion-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tablecompanion -d table_companion']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  table-companion-pgdata:

@@ -17,14 +17,18 @@ per-prompt implementation choices in `DECISIONS.md`.
 | Build      | Vite 7                        |
 | Routing    | react-router-dom 7            |
 | Styling    | Approved design-system CSS    |
+| Backend    | `node:http` (no framework)    |
+| Database   | PostgreSQL 17 via `pg`        |
 | Lint       | oxlint                        |
 | Format     | Prettier                      |
 | Tests      | `node --test` (no framework)  |
 
-`react-router-dom` is the only runtime dependency beyond React itself. There is no state
-library, no data-fetching library, no CSS framework and no test framework: state is React state
-behind repository interfaces, and the test harness is Node's own runner over TypeScript with
-native type stripping. See `DECISIONS.md` for why Next.js and Tailwind were not used.
+`react-router-dom` and `pg` are the only runtime dependencies. There is no state library, no
+data-fetching library, no CSS framework, no test framework, no web framework and no ORM: state
+is React state behind repository interfaces, the server is 40 enumerated routes over Node's own
+HTTP module, migrations are SQL files, and the test harness is Node's own runner over TypeScript
+with native type stripping. See `DECISIONS.md` for why Next.js and Tailwind were not used, and
+for why the backend has no framework either.
 
 ## Requirements
 
@@ -50,10 +54,14 @@ The dev server listens on http://localhost:5173.
 | `npm run build`        | Typecheck, then build to `dist/`                 |
 | `npm run preview`      | Serve the production build locally               |
 | `npm run typecheck`    | `tsc --noEmit`                                   |
-| `npm run test`         | Node's built-in test runner over `src/**/*.test.ts` |
-| `npm run lint`         | oxlint over `src`                                |
+| `npm run test`         | Node's built-in test runner over `src/` and `server/` |
+| `npm run lint`         | oxlint over `src` and `server`                   |
 | `npm run format`       | Prettier write                                   |
 | `npm run format:check` | Prettier check, no writes                        |
+| `npm run server`       | The backend, on http://localhost:8787            |
+| `npm run server:dev`   | The backend with `--watch`                       |
+| `npm run db:migrate`   | Applies pending SQL migrations                   |
+| `npm run db:seed`      | Loads the demo world; insert-only, never destructive |
 
 Run `npm run typecheck`, `npm run test`, `npm run lint` and `npm run build` before committing.
 
@@ -160,8 +168,8 @@ them and [dataSource.ts](src/domain/data/dataSource.ts) picks one from the envir
 
 | `VITE_API_BASE_URL` | Implementation | Notes |
 | --- | --- | --- |
-| unset | `createFixtureRepositories` | In-memory; the design's own party, fight and monsters |
-| set | `createHttpRepositories` | Every route and verb is declared in [apiContract.ts](src/domain/data/apiContract.ts) |
+| unset | `createFixtureRepositories` | In-memory; the design's own party, fight and monsters. Development only |
+| set | `createHttpRepositories` | Every route and verb is declared in [apiContract.ts](src/domain/data/apiContract.ts), and served by [server/](server/) |
 
 The write policy is documented at the top of `repositories.ts`: every write is idempotent,
 autosave is owned by the screen, optimism is allowed where local state is authoritative and
@@ -182,7 +190,174 @@ the repository. That is why a stale event can never write stale data.
 [withRealtime.ts](src/domain/data/withRealtime.ts) wraps a repository set so a write publishes
 its own event; `useRealtime(kinds, handler)` subscribes a screen to the ones it cares about.
 
-To wire a backend: implement `apiContract.ts`, set both variables, change nothing else.
+The HTTP half of that contract is implemented — see **Backend** below. Wiring the frontend to it
+is one environment variable and no code change, which is what the seam was for.
+
+## Backend
+
+A Node + TypeScript service in [server/](server/), sharing `src/domain/types.ts` as the wire
+format and implementing [apiContract.ts](src/domain/data/apiContract.ts) route for route. It is
+the PostgreSQL half of the same `Repositories` interface the fixtures satisfy.
+
+```bash
+docker compose up -d    # PostgreSQL 17 on 127.0.0.1:5434, named volume, never auto-wiped
+npm run db:migrate      # apply migrations (the server also does this on boot)
+npm run db:seed         # load the demo world — insert-only, safe to re-run
+npm run server          # http://localhost:8787
+```
+
+Set `DATABASE_URL` first; `.env.example` documents it and every other variable. It is a
+credential and is never prefixed `VITE_`, because Vite inlines those into the browser bundle.
+
+To point the app at it, run `npm run dev` with `VITE_API_BASE_URL=/api`. The Vite dev server
+proxies `/api` to the backend, so the browser makes a **same-origin** request — no CORS, and the
+shape a SameSite session cookie will need when TC-P02 adds authentication.
+
+| File | What |
+| --- | --- |
+| [server/main.ts](server/main.ts) | Entrypoint: configure, migrate, listen, shut down cleanly |
+| [server/config.ts](server/config.ts) | Environment, validated at startup rather than at first use |
+| [server/db.ts](server/db.ts) | The pool. `query` and `tx`, and the only import of `pg` |
+| [server/migrations/](server/migrations/) | Plain SQL, applied in filename order, additive only |
+| [server/migrate.ts](server/migrate.ts) | The runner: one transaction per file, recorded by name |
+| [server/store.ts](server/store.ts) | `Repositories` over SQL — the twin of `fixtureRepositories.ts` |
+| [server/rateLimit.ts](server/rateLimit.ts) | Abuse control: a fixed window, per account or address |
+| [server/log.ts](server/log.ts) | Structured logs, and the rule about what may go in one |
+| [server/authorize.ts](server/authorize.ts) | Every authorization rule, in one wrapper |
+| [server/auth.ts](server/auth.ts) | Passwords, sessions, cookies, CSRF. `node:crypto` only |
+| [server/combatPolicy.ts](server/combatPolicy.ts) | What a player's device may change about a fight |
+| [server/routes.ts](server/routes.ts) | One entry per contract route. No business logic |
+| [server/http.ts](server/http.ts) | Matcher, JSON, error mapping. No framework |
+| [server/seed.ts](server/seed.ts) | The demo world as development data |
+
+Three rules the schema enforces rather than trusts:
+
+1. **No D&D column on a generic entity.** Attributes, `systemData`, action groups and builder
+   choices are JSONB. The database is as game-system agnostic as `types.ts` is.
+2. **Library content is owned by nobody.** A check constraint refuses a library monster with an
+   owner, and the store's `create` and `save` always produce homebrew — so ingested reference
+   data and user campaign data cannot merge by accident.
+3. **A fight cannot edit the encounter it came from.** No statement in the store writes a
+   template's roster from a combat write; `startFromTemplate` touches `last_run_at` and nothing
+   else, and a test asserts the rest of the template is byte-identical afterwards.
+
+### Authentication and authorization
+
+Real as of TC-P02, and the server is the authority.
+
+**Signing in.** `POST /auth/sign-in` checks a scrypt digest and answers with an HttpOnly,
+`SameSite=Strict` session cookie. The token is never stored — the database holds its SHA-256 —
+and never reaches JavaScript, so there is nothing in the browser bundle to leak. Expiry slides
+on use. `GET /me` is both "who am I" and "am I still signed in". Sign-in answers the same
+sentence for a wrong password and an unknown address, and takes the same time either way.
+
+**Everything else needs a session.** Three routes are anonymous — sign in, sign up, sign out —
+and a route is protected by having said nothing. [auth.test.ts](server/auth.test.ts) walks the
+whole table and fails if any other route answers something other than 401 without a cookie.
+
+**One place holds the rules.** [server/authorize.ts](server/authorize.ts) wraps the store with
+the caller's identity, and a route handler is only ever given the wrapped one — there is
+nowhere to forget a check. A role is read from `campaign_members`, never from the request.
+
+**Private data is absent, not hidden.** The server runs
+[permissions.ts](src/domain/permissions.ts) — the same module the screens use — *before*
+serialising. An unrevealed creature is not in the player's payload; a secret roll is not in
+their log; a hidden character section's ruleset data is not on the wire. The client's copies of
+those rules decide what to draw; they decide nothing about what is sent.
+
+Where the contract types a read as `T | null`, a record you may not have reads as `null` —
+indistinguishable from one that does not exist, so probing ids tells an attacker nothing.
+Everywhere else it is a 403.
+
+**CSRF.** The deployment is same-origin, so nothing legitimate is cross-site. `SameSite=Strict`
+means a cross-site request arrives with no cookie and therefore no authority; on top of that,
+an unsafe method must state `Sec-Fetch-Site: same-origin` or carry an allowlisted `Origin`. No
+CORS headers are emitted at all, deliberately.
+
+**Combat, until TC-P04.** `PUT /combats/:id` still takes a whole record, so a player's write is
+checked as a diff by [combatPolicy.ts](server/combatPolicy.ts): they may act on their own
+combatant, damage a creature, target anyone and end their own turn. They may not rewrite the
+roster, reveal a hidden creature, edit initiative, start or end the fight, take someone else's
+turn, or touch another character's health, conditions or death saves.
+
+### The API boundary
+
+Hardened at TC-P03. Everything below is enforced before a handler runs, in this order — each
+step cheap, each refusing on its own, so nothing expensive happens for a request that was never
+going to be allowed.
+
+**One schema strategy, both directions.** [schema.ts](src/domain/data/schema.ts) is a small set
+of combinators; [contractSchemas.ts](src/domain/data/contractSchemas.ts) declares every shape on
+the wire, once, built twice. Requests are validated **strictly** — an unrecognised key is an
+over-post and a 400, not something quietly ignored — and responses **leniently**, so a
+deployment ahead of this build drops an unknown field rather than breaking a user. The client
+validates too: `as T` is gone from `httpRepositories.ts`.
+
+The schemas live under `src/domain/data/` rather than in `server/` because both halves need
+them, for the same reason `types.ts` is the wire format. `schema.test.ts` pushes every fixture
+in the demo world through the strict schemas, so a schema that has drifted from the domain fails.
+
+**Errors have codes.** Every failure answers
+`{ error: { code, message, requestId, details? } }`. The codes are the contract and are listed
+in [apiContract.ts](src/domain/data/apiContract.ts); the messages are for people and may be
+reworded. `details` names fields, never values — a rejected password is never quoted back.
+
+| Code | When |
+| --- | --- |
+| `unauthenticated` | no session, or an expired one |
+| `forbidden` | signed in, not allowed, and signing in again will not help |
+| `not_found` | no such record, or none this caller may know about — indistinguishable on purpose |
+| `conflict` | understood, and at odds with the current state |
+| `validation_failed` | the body or query did not check out |
+| `rate_limited` | too many; `Retry-After` says when |
+| `payload_too_large` / `not_supported` / `internal` | as they read |
+
+**Correlation.** Every response carries `X-Request-Id` — echoed from the caller when it is short
+and boring, minted otherwise — and it appears in the error body and the log line for the same
+request. A report of "it said something went wrong" is traceable from that alone.
+
+**Logs are structured, and bounded in what they may say.** One JSON line per request:
+timestamp, level, request id, method, **route pattern**, status, duration, account. Never a
+body, a cookie, a token, a query string or a resolved path — `/campaigns/:campaignId` says
+everything an operator needs and nothing a subject would object to.
+
+**Rate limits.** Per account where there is one, per address where there is not.
+Sign-in and sign-up 10 per 15 minutes, invite redemption 20 per hour, rolls 600 per minute,
+other writes 600 per minute, reads 3000 per minute. In-memory and therefore per-process — a
+shared counter belongs with horizontal scaling in TC-P09, and the file says so.
+
+**Pagination.** `monsters.list` takes `limit` and `offset` and is capped at 200 whether or not
+a limit was asked for; `monsters.count` is unbounded, so a truncated page is visible in the
+library's "N of M" line rather than silent. A combat's roll log reads at most 500. The feeds cap
+at 100.
+
+**Idempotency, stated.** `PUT` takes the whole record and is idempotent by construction —
+that is why autosave can fire three times safely. `POST` mints an id and is not, which is why
+`repositories.ts` tells callers to wait rather than retry a `create`. The one retry-sensitive
+`POST` is `rolls.record`, and it distinguishes the two cases that look identical from the
+server: the same id with the same payload is a **retry** and returns the stored roll; the same
+id with a different payload is a **collision** between two devices and is kept under a
+server-minted id.
+
+**Same-origin, explicitly.** The page and the API share an origin — Vite proxies `/api` in
+development — so **no CORS header is emitted at all** and the session cookie is
+`SameSite=Strict`. A cross-origin deployment is a deliberate switch (`TC_CROSS_ORIGIN`): it
+requires an origin allowlist, emits CORS with credentials, answers preflight, and forces
+`SameSite=None`, which browsers only accept with `Secure` — so the server refuses the
+combination outside production rather than letting it fail in a browser.
+
+### What the backend is not yet
+
+- **It is not authoritative over combat.** Dice are still rolled on the client and roll ids are
+  still minted there, so a player can decide how much damage their own attack did.
+  `combats.version` is maintained but not yet checked, so two writers can still race. TC-P04.
+- **There is no account-creation screen.** `POST /auth/sign-up` exists and works; the approved
+  design draws no surface for it, so nothing in Phase 1 calls it. TC-P07 owns account
+  lifecycle — including password change, which would revoke sessions
+  (`revokeAllSessions` is written and waiting).
+
+Those are TC-P00's gap map, and what remains is deliberately left whole for the prompt that
+owns it rather than half-fixed here.
 
 ### Seeing the empty, loading and error states
 
@@ -202,14 +377,31 @@ mock screens.
 
 ## Environment
 
-With every variable unset the application runs entirely on local fixtures: no server, no
-account, no network. That is the supported way to develop the UI and it is what a fresh clone
-does. `.env.example` documents the two that exist — `VITE_API_BASE_URL` and `VITE_REALTIME_URL`.
+With every variable unset the frontend runs entirely on local fixtures: no server, no account,
+no network. That is still the supported way to develop the UI on its own, and it is what a fresh
+clone does. It is a development mode, not storage — anything written that way is gone on reload.
+
+`.env.example` documents every variable and is explicit about which side of the line each one is
+on:
+
+| Variable | Read by | Notes |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | Browser | Unset ⇒ fixtures. `/api` in development, via the dev-server proxy |
+| `VITE_REALTIME_URL` | Browser | Unset ⇒ `BroadcastChannel`. No realtime server exists yet |
+| `DATABASE_URL` | Server | **A credential.** Never `VITE_`-prefixed, never committed |
+| `PORT` | Server | Backend listen port, default 8787 |
+| `TC_API_TARGET` | Vite dev server | Where `/api` is proxied |
+| `TC_ALLOWED_ORIGINS` | Server | Allowlist for unsafe requests with no `Sec-Fetch-Site`. No wildcard |
+| `TC_CROSS_ORIGIN` | Server | Switch to a cross-origin topology with CORS. Off; production only |
+| `TC_TRUST_PROXY` | Server | Believe `X-Forwarded-For` when rate limiting. Off unless a proxy rewrites it |
+
+No variable signs anybody in. `npm run db:seed` gives the demo accounts the password
+`table-companion-dev` — the DM is `marta@example.test`.
 
 Never create or commit a real `.env` by hand — run `06-CREATE-LOCAL-ENV.cmd` when local secrets
 become necessary. Vite inlines every `VITE_*` variable into the browser bundle, so never put a
-key, token or connection string behind that prefix. Nothing in this application reads a
-credential.
+key, token or connection string behind that prefix. Nothing in the browser bundle reads a
+credential, and nothing in it ever will.
 
 ## Design source
 
@@ -274,6 +466,23 @@ src/
     components/adapters.css  Structural only — <dialog> resets, tooltip anchor
     index.ts            Public surface
   showcase/Showcase.tsx Fidelity-check surface for every primitive
+
+server/
+  main.ts               Entrypoint: configure, migrate, listen, shut down
+  config.ts             Server environment, validated at startup
+  db.ts                 The pg pool — query, transaction, and nothing else
+  migrate.ts            SQL migration runner, one transaction per file
+  migrations/*.sql      The schema. Additive only
+  store.ts              Repositories over PostgreSQL
+  authorize.ts          Every authorization rule, in one wrapper
+  rateLimit.ts          Fixed-window abuse control
+  log.ts                Structured logs, and what may not go in one
+  auth.ts               Passwords, sessions, cookies, CSRF
+  combatPolicy.ts       What a player may change about a fight
+  routes.ts             One entry per apiContract.ts route
+  http.ts               Route matching, JSON, error mapping
+  seed.ts               The demo world as development data
+  *.test.ts             Routing (no database) and integration (needs one)
 ```
 
 ## Handoff
@@ -305,12 +514,10 @@ and tests.
 
 ### Known limitations
 
-- **No backend.** The HTTP repositories and the socket channel are written and typed against
-  `apiContract.ts`, but nothing has been run against a real server. Expect to find contract
-  mismatches on first connection, not architectural ones.
-- **No authentication.** `SessionProvider` establishes *who* the user is; nothing establishes
-  *that* they are. `permissions.ts` is a UI guard and says so in its header — every visibility
-  rule must be re-enforced server-side.
+- **No account-creation screen.** The server signs people up; the approved design draws no
+  surface that asks it to. TC-P07.
+- **No realtime server.** The socket channel is written and typed but has only ever spoken to
+  another browser tab over `BroadcastChannel`. TC-P05.
 - **No content ingest.** Monsters are real SRD stat blocks hand-authored into the ingest shape.
   There are no spells and no items, which is why the design's Spells and Items sidebar sections
   are absent.
@@ -323,15 +530,22 @@ and tests.
 
 ### Next recommended work
 
-1. **Stand up the API.** Implement `apiContract.ts`, point `VITE_API_BASE_URL` at it, and fix
-   what the contract got wrong. This unblocks everything else.
-2. **Real authentication**, and re-enforce every rule in `permissions.ts` on the server. The
-   client is not a security boundary.
-3. **The realtime server** behind `VITE_REALTIME_URL`. The client already handles reconnect,
+The production sequence in `prompts-extra/` is the ordered plan, and its gap map, checklist and
+Golden Path are in `IMPLEMENTATION_STATUS.md`. In short:
+
+1. ~~**Stand up the API.**~~ Done — TC-P01. `apiContract.ts` is implemented over PostgreSQL and
+   the contract is now guarded by a test rather than by hope.
+2. ~~**Real authentication.**~~ Done — TC-P02. Sessions are cookies, every rule in
+   `permissions.ts` is enforced server-side, and private data is filtered before it is sent.
+3. ~~**Runtime validation.**~~ Done — TC-P03. One schema strategy on both sides, stable error
+   codes, request ids, structured logs, rate limits and pagination bounds.
+4. **Server-authoritative combat**: intent-shaped mutations, a checked version, server-minted
+   ids and server-rolled dice. TC-P04.
+5. **The realtime server** behind `VITE_REALTIME_URL`. The client already handles reconnect,
    backoff and state restoration; it has never spoken to a peer that was not another browser tab.
-4. **The 5e.tools ingest.** The `Monster` shape and `origin: 'library' | 'homebrew'` split are
-   already what a pipeline would write into. Spells and items follow, and the two sidebar
-   sections come back with them.
-5. **A DOM test environment**, if the project wants component-level tests. That is a real
+   TC-P05.
+6. **The 5e.tools ingest.** The `Monster` shape, the `origin: 'library' | 'homebrew'` split and
+   the unowned-library constraint are already what a pipeline would write into. TC-P06.
+7. **A DOM test environment**, if the project wants component-level tests. That is a real
    dependency decision, not a refactor — see the test-stack note in `DECISIONS.md` (TC-16) for
    what it would and would not buy.

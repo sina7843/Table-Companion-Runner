@@ -10,7 +10,7 @@
  * correction comes through undo, so `applyHealth` returns what it changed and the screen
  * keeps the last one so it can be reversed by name.
  */
-import type { ConditionDefinition, RollEvaluation, Ruleset } from '../../domain/ruleset/Ruleset.ts';
+import type { ConditionDefinition, RollEvaluation, Ruleset } from '../ruleset/Ruleset.ts';
 // The value import resolves at runtime, so it names the module rather than the directory:
 // Node's ESM loader does not do directory resolution, and these transforms are tested.
 import {
@@ -19,7 +19,7 @@ import {
   type CombatParticipant,
   type Condition,
   type ParticipantId,
-} from '../../domain/types.ts';
+} from '../types.ts';
 
 /** One reversible change, named so an undo can say what it will put back. */
 export interface HealthChange {

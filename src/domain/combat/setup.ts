@@ -14,7 +14,7 @@ import type {
   RandomSource,
   Ruleset,
   Visibility,
-} from '../../domain';
+} from '../index.ts';
 
 /** One row of the setup list. Identical creatures share a row and a turn. */
 export interface ParticipantGroup {

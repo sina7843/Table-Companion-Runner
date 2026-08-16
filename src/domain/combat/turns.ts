@@ -9,7 +9,7 @@
  * Every function is a pure transform of a `CombatInstance`. None of them can name an
  * `EncounterTemplate`, which is what keeps a running fight off the encounter it came from.
  */
-import type { CombatInstance, CombatParticipant, ParticipantId, Ruleset } from '../../domain';
+import type { CombatInstance, CombatParticipant, ParticipantId, Ruleset } from '../index.ts';
 
 /** Where the turn is, or -1 when nobody is on it. */
 export function turnIndex(combat: CombatInstance): number {

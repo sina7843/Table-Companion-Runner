@@ -10,9 +10,14 @@
  *
  * ── The write policy, stated once ───────────────────────────────────────────
  *
- * **Every write is idempotent.** `save` takes the whole record and replaces it, so an
- * autosave that fires three times with the same object is one outcome, not three. That is
+ * **Every document write is idempotent.** `save` takes the whole record and replaces it, so
+ * an autosave that fires three times with the same object is one outcome, not three. That is
  * what makes both a debounce and a retry safe to write anywhere above this line.
+ *
+ * **Combat is not a document.** It has more than one writer, so it is commands rather than
+ * saves: a caller states an intent and a version, and the authority computes the result. A
+ * command carries its own id, so a retry is recognised; a stale version is refused rather
+ * than merged. See `CombatRepository.command`.
  *
  * **Autosave is the screen's, not this layer's.** A repository has no timer. The encounter
  * builder debounces and flushes on every exit path; combat does not debounce at all,
@@ -20,15 +25,17 @@
  * could have. Both call the same `save`.
  *
  * **Optimism is allowed where the local state is already authoritative and the write is
- * idempotent** — which is combat and encounter editing: the screen holds the new state,
- * shows it immediately, and on failure keeps it and offers to send it again. It is not
- * allowed where the server assigns something the client cannot know: `create`,
- * `duplicate`, `cloneFrom` and `startFromTemplate` all mint an id, so their callers wait.
+ * idempotent** — which is encounter editing: the screen holds the new state, shows it
+ * immediately, and on failure keeps it and offers to send it again. It is not allowed where
+ * the server assigns something the client cannot know: `create`, `duplicate`, `cloneFrom`
+ * and `startFromTemplate` all mint an id, so their callers wait. Since TC-P04 combat is in
+ * that second group: the fight the server returns is the fight, and the screen shows it.
  *
  * **Nothing here caches or retries.** Retrying belongs to the screen that knows whether the
  * user is still looking at the thing, and staleness is handled by the realtime channel
  * telling a screen to re-read.
  */
+import type { CombatCommand } from '../combat/commands.ts';
 import type {
   Campaign,
   CampaignActivity,
@@ -45,6 +52,7 @@ import type {
   GameSystemId,
   Monster,
   MonsterId,
+  ParticipantId,
   RecentItem,
   Roll,
   User,
@@ -62,6 +70,28 @@ export interface CampaignRepository {
   byId(campaignId: CampaignId): Promise<Campaign | null>;
   /** Phase 1 has exactly one DM per campaign; the creator is it. */
   create(input: CreateCampaignInput): Promise<Campaign>;
+  /**
+   * Joins the campaign an invite code belongs to, as a player.
+   *
+   * The code is resolved by the server, which is the only party that knows whether it is
+   * real, current and unspent. A caller who is already a member gets the campaign back
+   * unchanged, so a double tap is not an error.
+   */
+  acceptInvite(code: string): Promise<Campaign>;
+}
+
+/**
+ * Sign in, sign up, sign out.
+ *
+ * Deliberately three methods and no fourth. There is no token here to hold and no refresh to
+ * schedule: the server sets an HttpOnly session cookie the browser attaches on its own and
+ * renews on its own, so nothing in the client can leak a credential it never receives.
+ * "Am I still signed in" is `users.current()`, which every screen already asks.
+ */
+export interface AuthRepository {
+  signIn(input: { email: string; password: string }): Promise<User>;
+  signUp(input: { email: string; password: string; displayName: string }): Promise<User>;
+  signOut(): Promise<void>;
 }
 
 export interface CharacterRepository {
@@ -92,7 +122,13 @@ export interface MonsterQuery {
   challengeMin?: number;
   challengeMax?: number;
   sort?: 'challenge-desc' | 'challenge-asc' | 'name';
+  /**
+   * Page size. The server applies its own ceiling, so a caller cannot ask for everything —
+   * this library is fifty creatures today and an ingest pipeline away from thousands.
+   */
   limit?: number;
+  /** Page offset, in rows. Zero or absent is the first page. */
+  offset?: number;
 }
 
 export interface MonsterRepository {
@@ -151,12 +187,53 @@ export interface CombatRepository {
   startFromTemplate(encounterId: EncounterTemplateId): Promise<CombatInstance>;
 
   /**
-   * Writes runtime state — initiative, who is in, hit points, the round.
+   * Changes a fight by saying what you are trying to do.
+   *
+   * Replaced the whole-record write at TC-P04. A caller no longer computes the new state and
+   * sends it: it states an intent, and the authority works out what that means from the state
+   * it holds. Hit points, turn order, death saves and initiative are never taken from a
+   * request — which is what stops two devices at one table overwriting each other.
    *
    * Only ever touches the instance. There is deliberately no path from here back to the
    * `EncounterTemplate`: a fight cannot edit the fight it was prepared as.
    */
-  save(combat: CombatInstance): Promise<CombatInstance>;
+  command(input: CombatCommandInput): Promise<CombatCommandOutcome>;
+}
+
+export interface CombatCommandInput {
+  combatId: CombatInstanceId;
+  /**
+   * The caller's id for this command.
+   *
+   * A retry after a dropped response carries the same one, and is answered with where the
+   * fight actually is rather than applied a second time. Generate one per user action, not
+   * per attempt.
+   */
+  commandId: string;
+  /**
+   * The `version` of the fight this command was built from.
+   *
+   * A command built on a version that has since moved is refused rather than merged. The
+   * caller re-reads and decides again — which is the only behaviour that cannot silently lose
+   * somebody's change.
+   */
+  expectedVersion: number;
+  command: CombatCommand;
+}
+
+export interface CombatCommandOutcome {
+  /** The authoritative fight after the command, carrying its new `version`. */
+  combat: CombatInstance;
+  /** The audit row this produced. */
+  seq: number;
+  /** One line naming what happened, for the log. */
+  summary?: string;
+  /** True when this was a retry of a command already applied, and nothing changed. */
+  replayed?: boolean;
+  /** Damage landed on someone concentrating. Advisory — the screen may prompt. */
+  concentration?: { participantId: ParticipantId; damage: number };
+  /** How a death save came out, so the log can say so. */
+  deathSave?: { outcome: 'stable' | 'dead' | 'pending'; revived: boolean; total: number };
 }
 
 export interface RollRepository {
@@ -215,6 +292,7 @@ export interface ActivityRepository {
 
 /** The full data surface, injected as one object so screens take what they need. */
 export interface Repositories {
+  auth: AuthRepository;
   users: UserRepository;
   gameSystems: GameSystemRepository;
   campaigns: CampaignRepository;

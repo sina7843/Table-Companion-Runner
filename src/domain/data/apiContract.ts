@@ -20,6 +20,18 @@
 /** Every route, by the repository method that calls it. */
 export const API_ROUTES = {
   /* ── Session ────────────────────────────────────────────────────────────── */
+  //
+  // Added at TC-P02, when authentication became real. The three `auth` routes are the only
+  // ones a signed-out caller may reach; everything else answers 401 without a session.
+  //
+  // No token appears in any of them. The server answers with a `Set-Cookie` carrying an
+  // HttpOnly, SameSite=Strict session cookie, so the browser holds the credential and this
+  // client never sees, stores or forwards one. Session *validation* is `users.current`, and
+  // renewal is a sliding expiry the server applies on its own — there is no refresh call to
+  // forget to make.
+  'auth.signIn': { method: 'POST', path: () => '/auth/sign-in' },
+  'auth.signUp': { method: 'POST', path: () => '/auth/sign-up' },
+  'auth.signOut': { method: 'POST', path: () => '/auth/sign-out' },
   'users.current': { method: 'GET', path: () => '/me' },
   'users.byId': { method: 'GET', path: (userId: string) => `/users/${userId}` },
   'users.byIds': { method: 'GET', path: (ids: string) => `/users?ids=${ids}` },
@@ -34,6 +46,11 @@ export const API_ROUTES = {
   },
   'campaigns.byId': { method: 'GET', path: (id: string) => `/campaigns/${id}` },
   'campaigns.create': { method: 'POST', path: () => '/campaigns' },
+  /** Redeeming an invite is how a player joins. The server decides what the code means. */
+  'campaigns.acceptInvite': {
+    method: 'POST',
+    path: (code: string) => `/invites/${encodeURIComponent(code)}/accept`,
+  },
 
   /* ── Characters ─────────────────────────────────────────────────────────── */
   'characters.listForCampaign': {
@@ -92,7 +109,18 @@ export const API_ROUTES = {
     method: 'POST',
     path: (encounterId: string) => `/encounters/${encounterId}/start`,
   },
-  'combats.save': { method: 'PUT', path: (id: string) => `/combats/${id}` },
+  /**
+   * The only way a fight changes, since TC-P04.
+   *
+   * `PUT /combats/:id` — the whole record, from whichever device sent it last — is gone. A
+   * command says what the caller is trying to do, the version it was working from and an id
+   * for the attempt; the server decides what that means and answers with the authoritative
+   * fight. A stale version is a `conflict`; a repeated id changes nothing.
+   */
+  'combats.command': {
+    method: 'POST',
+    path: (combatId: string) => `/combats/${combatId}/commands`,
+  },
 
   /* ── Rolls ──────────────────────────────────────────────────────────────── */
   'rolls.listForCombat': {
@@ -129,6 +157,58 @@ export interface ApiConfig {
 }
 
 /**
+ * Every failure this API can report, as a stable machine-readable code.
+ *
+ * Codes are the contract; messages are for people and may be reworded. A screen that branches
+ * on a failure branches on the code, never on the sentence — which is what lets the sentence
+ * be improved without breaking anything.
+ *
+ * The set is deliberately small. A code exists when a caller could reasonably do something
+ * different because of it; anything else is `internal`, and a caller can only try again.
+ */
+export const API_ERROR_CODES = [
+  /** No session, or one that has expired. Sign in. */
+  'unauthenticated',
+  /** Signed in, and not allowed to do this. Signing in again will not help. */
+  'forbidden',
+  /** No such record, or none this caller may know about. The two are indistinguishable. */
+  'not_found',
+  /** The request was understood and conflicts with the current state. */
+  'conflict',
+  /** The body or query failed validation. `details` names the fields. */
+  'validation_failed',
+  /** Too many requests. `Retry-After` says when. */
+  'rate_limited',
+  /** The body exceeded the size limit. */
+  'payload_too_large',
+  /** No route matched. */
+  'not_supported',
+  /** Something went wrong on the server. Nothing further is disclosed. */
+  'internal',
+] as const;
+
+export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
+
+/**
+ * The one body every failure has.
+ *
+ * `requestId` is echoed from `X-Request-Id` and appears in the server's log line for the same
+ * request, so a report of "it said something went wrong" is traceable without asking the user
+ * for anything else. `details` is present only for `validation_failed` and names fields, never
+ * values — a validation message must not quote back the password it rejected.
+ */
+export interface ApiErrorBody {
+  error: {
+    code: ApiErrorCode;
+    message: string;
+    requestId?: string;
+    details?: string;
+  };
+}
+
+const RETRYABLE_CODES = new Set<string>(['rate_limited', 'internal']);
+
+/**
  * A failed call, carrying enough for a screen to answer the design's three questions:
  * what happened, what is still safe, what to do next.
  */
@@ -137,16 +217,55 @@ export class ApiError extends Error {
   // test runner strips types without transforming, and that syntax has no plain-JS form.
   readonly status: number;
   readonly route: ApiRoute;
+  /** The stable code. Branch on this, not on `message`. */
+  readonly code: ApiErrorCode;
+  /** Correlates with the server's log line. Absent when the request never arrived. */
+  readonly requestId?: string;
 
-  constructor(status: number, route: ApiRoute, message: string) {
+  constructor(
+    status: number,
+    route: ApiRoute,
+    message: string,
+    options: { code?: ApiErrorCode; requestId?: string } = {},
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.route = route;
+    this.code = options.code ?? codeForStatus(status);
+    if (options.requestId) this.requestId = options.requestId;
   }
 
   /** True when trying again might work, which is what a retry button should key off. */
   get retryable(): boolean {
+    if (RETRYABLE_CODES.has(this.code)) return true;
     return this.status === 0 || this.status === 408 || this.status === 429 || this.status >= 500;
   }
+}
+
+/** The code a bare status implies, for a response that carried no body of its own. */
+export function codeForStatus(status: number): ApiErrorCode {
+  switch (status) {
+    case 401:
+      return 'unauthenticated';
+    case 403:
+      return 'forbidden';
+    case 404:
+      return 'not_found';
+    case 409:
+      return 'conflict';
+    case 400:
+    case 422:
+      return 'validation_failed';
+    case 413:
+      return 'payload_too_large';
+    case 429:
+      return 'rate_limited';
+    default:
+      return 'internal';
+  }
+}
+
+export function isApiErrorCode(value: unknown): value is ApiErrorCode {
+  return typeof value === 'string' && (API_ERROR_CODES as readonly string[]).includes(value);
 }

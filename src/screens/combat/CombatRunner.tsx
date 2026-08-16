@@ -59,7 +59,7 @@ import {
   setTargeted,
   targetedParticipant,
   type HealthChange,
-} from './actions';
+} from '../../domain/combat/actions';
 import {
   activeParticipant,
   endCombat,
@@ -72,7 +72,7 @@ import {
   resortByInitiative,
   setInitiativeDuringCombat,
   turnIndex,
-} from './turns';
+} from '../../domain/combat/turns';
 
 export interface CombatRunnerProps {
   combat: CombatInstance;

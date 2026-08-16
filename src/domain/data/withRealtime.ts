@@ -92,13 +92,17 @@ export function withRealtime(repositories: Repositories, channel: RealtimeChanne
         channel.publish({ kind: 'encounter.changed', encounterId });
         return combat;
       },
-      save: async (combat) => {
-        const saved = await combats.save(combat);
-        channel.publish({
-          kind: saved.status === 'ended' ? 'combat.ended' : 'combat.changed',
-          combatId: saved.id,
-        });
-        return saved;
+      command: async (input) => {
+        const outcome = await combats.command(input);
+        // A replayed command changed nothing, so it announces nothing — otherwise a retry
+        // would make every other device re-read for no reason.
+        if (!outcome.replayed) {
+          channel.publish({
+            kind: outcome.combat.status === 'ended' ? 'combat.ended' : 'combat.changed',
+            combatId: outcome.combat.id,
+          });
+        }
+        return outcome;
       },
     },
 

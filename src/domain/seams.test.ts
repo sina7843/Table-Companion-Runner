@@ -166,12 +166,21 @@ test('a device does not hear its own echo', () => {
 
 /* ── The HTTP client talks to the contract ──────────────────────────────────── */
 
+// Bodies that satisfy the response schemas: since TC-P03 the client validates what it is
+// given, so a stub that answers `{}` to every call is a stub that lies about the contract.
+const bodyFor = (url: string): { status: number; body: string } => {
+  if (url.endsWith('/me')) return { status: 200, body: '{"id":"u-1","displayName":"Marta"}' };
+  if (url.includes('/combats/')) return { status: 200, body: 'null' };
+  return { status: 204, body: '' };
+};
+
 test('every repository call goes to the path the contract states', async () => {
   const calls: { url: string; method: string }[] = [];
   const fetcher = (async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: String(url), method: init?.method ?? 'GET' });
-    return new Response(JSON.stringify({}), {
-      status: 200,
+    const { status, body } = bodyFor(String(url));
+    return new Response(body || null, {
+      status,
       headers: { 'Content-Type': 'application/json' },
     });
   }) as unknown as typeof globalThis.fetch;
